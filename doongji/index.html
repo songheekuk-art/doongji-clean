@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>둥지 청소운영 대시보드</title>
+<style>
+  :root {
+    --blue: #3B8CE4;
+    --blue-dark: #2970C8;
+    --blue-light: #EBF3FD;
+    --blue-mid: #C7DDF9;
+    --green: #16A34A;
+    --green-light: #DCFCE7;
+    --red: #DC2626;
+    --red-light: #FEE2E2;
+    --yellow: #D97706;
+    --yellow-light: #FEF3C7;
+    --gray-50: #F8FAFC;
+    --gray-100: #F1F5F9;
+    --gray-200: #E2E8F0;
+    --gray-300: #CBD5E1;
+    --gray-400: #94A3B8;
+    --gray-500: #64748B;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1E293B;
+    --gray-900: #0F172A;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--gray-50); color: var(--gray-800); min-height: 100vh; font-size: 14px; }
+
+  /* HEADER */
+  .header { background: #fff; border-bottom: 1px solid var(--gray-200); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .header-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; color: var(--blue); }
+  .header-logo span { color: var(--gray-800); }
+  .header-meta { font-size: 12px; color: var(--gray-400); }
+  .db-status { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .db-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-300); }
+  .db-dot.ok { background: var(--green); }
+  .db-dot.err { background: var(--red); }
+
+  /* SETUP BANNER */
+  .setup-banner { background: var(--yellow-light); border: 1px solid #FCD34D; border-radius: var(--radius); padding: 16px 20px; margin: 20px 24px; display: flex; align-items: flex-start; gap: 12px; }
+  .setup-banner h3 { font-size: 14px; font-weight: 600; color: var(--yellow); margin-bottom: 8px; }
+  .setup-banner p { font-size: 13px; color: var(--gray-600); line-height: 1.6; }
+  .setup-banner input { width: 100%; border: 1px solid var(--gray-300); border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-top: 8px; }
+  .setup-banner input:focus { outline: none; border-color: var(--blue); }
+  .setup-form { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  .setup-row { display: flex; gap: 8px; }
+  .setup-row input { flex: 1; }
+
+  /* NAV TABS */
+  .nav { background: #fff; border-bottom: 1px solid var(--gray-200); padding: 0 24px; display: flex; gap: 0; overflow-x: auto; }
+  .nav-tab { padding: 14px 18px; font-size: 13px; font-weight: 500; color: var(--gray-500); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; }
+  .nav-tab:hover { color: var(--blue); }
+  .nav-tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+  /* MAIN */
+  .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+  /* CARDS ROW */
+  .cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .card { background: #fff; border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); }
+  .card-label { font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .card-value { font-size: 26px; font-weight: 700; color: var(--gray-900); }
+  .card-value.blue { color: var(--blue); }
+  .card-value.green { color: var(--green); }
+  .card-value.red { color: var(--red); }
+  .card-sub { font-size: 11px; color: var(--gray-400); margin-top: 4px; }
+
+  /* SECTION */
+  .section { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; overflow: hidden; }
+  .section-header { padding: 16px 20px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between; }
+  .section-title { font-size: 14px; font-weight: 600; color: var(--gray-800); }
+  .section-body { padding: 0; }
+
+  /* BUTTONS */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: var(--blue-dark); }
+  .btn-ghost { background: transparent; color: var(--gray-600); border: 1px solid var(--gray-200); }
+  .btn-ghost:hover { background: var(--gray-50); }
+  .btn-danger { background: var(--red-light); color: var(--red); border: none; }
+  .btn-danger:hover { background: #FECACA; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-green { background: var(--green-light); color: var(--green); border: none; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: 10px 16px; font-size: 11px; font-weight: 600; color: var(--gray-400); text-align: left; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--gray-100); font-size: 13px; color: var(--gray-700); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--gray-50); }
+
+  /* BADGE */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-blue { background: var(--blue-light); color: var(--blue); }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-red { background: var(--red-light); color: var(--red); }
+  .badge-yellow { background: var(--yellow-light); color: var(--yellow); }
+  .badge-gray { background: var(--gray-100); color: var(--gray-500); }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .modal { background: #fff; border-radius: 14px; padding: 28px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-md); }
+  .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 20px; color: var(--gray-900); }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+  /* FORM */
+  .form-group { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--gray-600); margin-bottom: 5px; }
+  .form-input, .form-select, .form-textarea { width: 100%; border: 1px solid var(--gray-200); border-radius: 7px; padding: 9px 12px; font-size: 13px; color: var(--gray-800); background: #fff; transition: border 0.15s; }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,140,228,0.12); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-hint { font-size: 11px; color: var(--gray-400); margin-top: 4px; }
+
+  /* PROFIT BAR */
+  .profit-bar { height: 6px; border-radius: 3px; background: var(--gray-100); overflow: hidden; margin-top: 4px; }
+  .profit-fill { height: 100%; border-radius: 3px; background: var(--green); transition: width 0.4s; }
+  .profit-fill.warning { background: var(--yellow); }
+  .profit-fill.danger { background: var(--red); }
+
+  /* ASSIGN TAG */
+  .assign-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .assign-tag { background: var(--blue-light); color: var(--blue); border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 500; }
+
+  /* EMPTY STATE */
+  .empty { padding: 48px 20px; text-align: center; color: var(--gray-400); }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; }
+  .empty p { font-size: 14px; }
+
+  /* MONTH PICKER */
+  .month-row { display: flex; align-items: center; gap: 10px; }
+  .month-row input[type=month] { border: 1px solid var(--gray-200); border-radius: 7px; padding: 7px 12px; font-size: 13px; color: var(--gray-800); }
+
+  /* WORK LOG */
+  .log-grid { display: grid; gap: 12px; padding: 16px; }
+  .log-card { border: 1px solid var(--gray-200); border-radius: 8px; padding: 14px; }
+  .log-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .log-building-name { font-weight: 600; font-size: 14px; color: var(--gray-900); }
+  .log-rows { display: flex; flex-direction: column; gap: 6px; }
+  .log-row { display: grid; grid-template-columns: 120px 1fr 90px 90px auto; gap: 8px; align-items: center; font-size: 12px; }
+  .log-row-header { font-weight: 600; color: var(--gray-400); font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+
+  /* SUMMARY TABLE */
+  .summary-positive { color: var(--green); font-weight: 600; }
+  .summary-negative { color: var(--red); font-weight: 600; }
+
+  /* TABS CONTENT */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--gray-900); color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 13px; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+
+  /* MULTI SELECT */
+  .multi-select-box { border: 1px solid var(--gray-200); border-radius: 7px; max-height: 160px; overflow-y: auto; }
+  .multi-select-item { padding: 8px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+  .multi-select-item:hover { background: var(--gray-50); }
+  .multi-select-item input[type=checkbox] { accent-color: var(--blue); }
+
+  /* WORKER CARDS */
+  .worker-card { background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px; cursor:pointer; transition:all 0.18s; border:2px solid transparent; position:relative; }
+  .worker-card:hover { border-color:var(--blue-mid); box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  .worker-card.selected { border-color:var(--blue); }
+  .worker-card-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .worker-avatar { width:42px; height:42px; border-radius:50%; background:var(--blue); display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; color:#fff; flex-shrink:0; }
+  .worker-avatar.green { background:var(--green); }
+  .worker-card-name { font-weight:700; font-size:15px; color:var(--gray-900); }
+  .worker-card-meta { font-size:12px; color:var(--gray-400); margin-top:2px; }
+  .worker-card-buildings { display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; }
+  .worker-card-building-tag { background:var(--gray-100); color:var(--gray-600); border-radius:5px; padding:3px 8px; font-size:11px; display:flex; align-items:center; gap:4px; }
+  .worker-card-footer { display:flex; align-items:center; justify-content:space-between; margin-top:14px; padding-top:12px; border-top:1px solid var(--gray-100); }
+  .map-btn { display:inline-flex; align-items:center; gap:5px; padding:6px 12px; background:var(--blue-light); color:var(--blue); border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:none; transition:background 0.15s; }
+  .map-btn:hover { background:var(--blue-mid); }
+  .worker-filter-btn.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+
+  @media (max-width: 768px) {
+    .main { padding: 14px; }
+    .cards-row { grid-template-columns: repeat(2, 1fr); }
+    .form-row { grid-template-columns: 1fr; }
+    .log-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* CLEANING DAYS PICKER */
+  .day-picker { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+  .day-btn { width:36px; height:36px; border-radius:50%; border:2px solid var(--gray-200); background:#fff; font-size:12px; font-weight:700; cursor:pointer; color:var(--gray-400); transition:all 0.15s; display:flex; align-items:center; justify-content:center; }
+  .day-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .day-btn.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .day-btn.sat { }
+  .day-btn.sat.on { background:#7C3AED; border-color:#7C3AED; }
+  .day-btn.sun.on { background:#DC2626; border-color:#DC2626; }
+  .day-chips { display:flex; gap:4px; flex-wrap:wrap; }
+  .day-chip { padding:2px 7px; border-radius:10px; font-size:11px; font-weight:700; }
+  .day-chip-mon, .day-chip-tue, .day-chip-wed, .day-chip-thu, .day-chip-fri { background:var(--blue-light); color:var(--blue); }
+  .day-chip-sat { background:#EDE9FE; color:#7C3AED; }
+  .day-chip-sun { background:var(--red-light); color:var(--red); }
+
+  /* LEAFLET OVERRIDES */
+  .leaflet-container { font-family: inherit; border-radius: var(--radius); }
+  .map-marker-label { background:#fff; border:2px solid var(--blue); border-radius:8px; padding:3px 8px; font-size:11px; font-weight:700; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.18); }
+  .map-marker-unassigned { border-color: #F59E0B; }
+  .leaflet-popup-content-wrapper { border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,0.15); }
+  .leaflet-popup-content { margin:12px 14px; font-size:13px; }
+  .popup-name { font-weight:700; font-size:14px; margin-bottom:4px; }
+  .popup-meta { color:var(--gray-500); font-size:12px; line-height:1.5; }
+  .popup-badge { display:inline-block; padding:2px 7px; border-radius:10px; font-size:10px; font-weight:600; margin-top:4px; }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">
+    🏢 <span>둥지</span> 청소운영 대시보드
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div class="db-status">
+      <div class="db-dot" id="dbDot"></div>
+      <span id="dbStatusText">Supabase 미연결</span>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP BANNER -->
+<div class="setup-banner" id="setupBanner">
+  <div style="font-size:20px;">⚙️</div>
+  <div style="flex:1;">
+    <h3>Supabase 연결 설정</h3>
+    <p>처음 한 번만 설정하면 모든 데이터가 자동 저장됩니다.</p>
+    <div class="setup-form" style="margin-top:10px;">
+      <div class="setup-row">
+        <input type="text" id="sbUrl" placeholder="Supabase Project URL (https://xxx.supabase.co)" />
+        <input type="text" id="sbKey" placeholder="anon public key" />
+      </div>
+      <div>
+        <button class="btn btn-primary" onclick="connectSupabase()">연결하기</button>
+        <button class="btn btn-ghost" style="margin-left:8px;" onclick="useLocalStorage()">로컬 저장소로 사용</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-tab active" onclick="switchTab('dashboard', this)">📊 대시보드</div>
+  <div class="nav-tab" onclick="switchTab('workers', this)">👤 담당자</div>
+  <div class="nav-tab" onclick="switchTab('buildings', this)">🏢 건물</div>
+  <div class="nav-tab" onclick="switchTab('logs', this)">📋 근무기록</div>
+  <div class="nav-tab" onclick="switchTab('settlement', this)">💰 급여정산</div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ============ DASHBOARD TAB ============ -->
+  <div class="tab-content active" id="tab-dashboard">
+    <div class="month-row" style="margin-bottom:18px;">
+      <span style="font-size:13px;font-weight:600;color:var(--gray-600);">기준 월</span>
+      <input type="month" id="dashMonth" onchange="renderDashboard()">
+    </div>
+
+    <div class="cards-row" id="dashCards">
+      <div class="card"><div class="card-label">관리 건물</div><div class="card-value blue" id="dc-buildings">-</div></div>
+      <div class="card"><div class="card-label">소속 담당자</div><div class="card-value" id="dc-workers">-</div></div>
+      <div class="card"><div class="card-label">이번달 청구액</div><div class="card-value green" id="dc-revenue">-</div></div>
+      <div class="card"><div class="card-label">이번달 인건비</div><div class="card-value red" id="dc-cost">-</div></div>
+      <div class="card"><div class="card-label">이번달 이윤</div><div class="card-value" id="dc-profit">-</div><div class="card-sub" id="dc-margin">-</div></div>
+    </div>
+
+    <!-- 건물별 이윤 현황 -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">건물별 수익 현황</div>
+      </div>
+      <div class="section-body">
+        <table>
+          <thead>
+            <tr>
+              <th>지점</th>
+              <th>건물명</th>
+              <th>담당자</th>
+              <th>청구금액(월)</th>
+              <th>투입인건비</th>
+              <th>이윤</th>
+              <th>마진율</th>
+            </tr>
+          </thead>
+          <tbody id="dashBuildingTable">
+            <tr><td colspan="6" class="empty">데이터 없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 건물 지도 -->
+    <div class="section" style="margin-bottom:20px;">
+      <div class="section-header">
+        <div class="section-title">🗺️ 건물 위치 현황</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gray-500);"><span style="width:10px;height:10px;border-radius:50%;background:var(--blue);display:inline-block;"></span>배정 완료</span>
+          <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gray-500);"><span style="width:10px;height:10px;border-radius:50%;background:#F59E0B;display:inline-block;"></span>미배정</span>
+          <button class="btn btn-ghost btn-sm" id="dashMapResetBtn" onclick="resetDashMap()" style="display:none;">전체 보기</button>
+        </div>
+      </div>
+      <div id="dashMap" style="height:420px;border-radius:0 0 var(--radius) var(--radius);z-index:1;"></div>
+    </div>
+
+    <!-- 담당자별 현황 -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">담당자별 현황</div>
+        <div style="font-size:12px;color:var(--gray-400);">클릭하면 지도에서 해당 건물만 보기</div>
+      </div>
+      <div class="section-body">
+        <table>
+          <thead>
+            <tr>
+              <th>담당자</th>
+              <th>유형</th>
+              <th>담당 건물</th>
+              <th>이번달 급여</th>
+              <th>근무일수</th>
+              <th>총 근무시간</th>
+            </tr>
+          </thead>
+          <tbody id="dashWorkerTable">
+            <tr><td colspan="6" class="empty">데이터 없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 미배정 건물 -->
+    <div class="section" id="unassignedSection" style="margin-top:16px;display:none;">
+      <div class="section-header" style="background:var(--yellow-light);">
+        <div class="section-title" style="color:var(--yellow);">⚠️ 미배정 건물</div>
+        <div style="font-size:12px;color:var(--yellow);" id="unassignedCount">0개</div>
+      </div>
+      <div class="section-body">
+        <table>
+          <thead>
+            <tr><th>지점</th><th>건물명</th><th>주소</th><th>계약금액</th><th>메모</th></tr>
+          </thead>
+          <tbody id="unassignedTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ WORKERS TAB ============ -->
+  <div class="tab-content" id="tab-workers">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm worker-filter-btn active" onclick="filterWorkers('all',this)">전체</button>
+        <button class="btn btn-ghost btn-sm worker-filter-btn" onclick="filterWorkers('강남',this)">강남지점</button>
+        <button class="btn btn-ghost btn-sm worker-filter-btn" onclick="filterWorkers('강서',this)">강서지점</button>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openWorkerModal()">+ 담당자 추가</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr;gap:16px;" id="workerLayout">
+      <!-- worker cards + map panel side by side -->
+      <div id="workerCardsWrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">
+        <div id="workerTable">
+          <div class="empty"><div class="empty-icon">👤</div><p>담당자를 추가해주세요</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAP PANEL (slides in) -->
+    <div id="workerMapPanel" style="display:none;position:fixed;top:0;right:0;width:100%;max-width:500px;height:100vh;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,0.15);z-index:300;flex-direction:column;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-weight:700;font-size:15px;" id="mapPanelName">담당자</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:2px;" id="mapPanelSub">담당 건물</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="closeMapPanel()">✕ 닫기</button>
+      </div>
+      <div id="mapBuildingList" style="padding:10px 14px;border-bottom:1px solid var(--gray-100);max-height:200px;overflow-y:auto;"></div>
+      <div id="workerLeafletMap" style="flex:1;min-height:0;z-index:1;"></div>
+    </div>
+    <div id="mapPanelOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:299;" onclick="closeMapPanel()"></div>
+  </div>
+
+  <!-- ============ BUILDINGS TAB ============ -->
+  <div class="tab-content" id="tab-buildings">
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">건물 관리</div>
+        <button class="btn btn-primary btn-sm" onclick="openBuildingModal()">+ 건물 추가</button>
+      </div>
+      <div class="section-body">
+        <table>
+          <thead>
+            <tr>
+              <th>지점</th>
+              <th>건물명</th>
+              <th>주소</th>
+              <th>지역</th>
+              <th>계약금액(월)</th>
+              <th>담당자</th>
+              <th>청소 요일</th>
+              <th>메모</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="buildingTable">
+            <tr><td colspan="7"><div class="empty"><div class="empty-icon">🏢</div><p>건물을 추가해주세요</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOGS TAB ============ -->
+  <div class="tab-content" id="tab-logs">
+    <div class="section-header" style="background:#fff;border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div class="month-row">
+        <span style="font-size:13px;font-weight:600;color:var(--gray-600);">기준 월</span>
+        <input type="month" id="logMonth" onchange="renderLogs()">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openLogModal()">+ 근무기록 추가</button>
+    </div>
+    <div id="logList">
+      <div class="empty"><div class="empty-icon">📋</div><p>근무기록이 없습니다</p></div>
+    </div>
+  </div>
+
+  <!-- ============ SETTLEMENT TAB ============ -->
+  <div class="tab-content" id="tab-settlement">
+    <div class="section-header" style="background:#fff;border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div class="month-row">
+        <span style="font-size:13px;font-weight:600;color:var(--gray-600);">정산 월</span>
+        <input type="month" id="settleMonth" onchange="renderSettlement()">
+      </div>
+      <button class="btn btn-green btn-sm" onclick="exportSettlement()">📥 엑셀 내보내기</button>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><div class="section-title">담당자별 급여 정산</div></div>
+      <div class="section-body">
+        <table>
+          <thead>
+            <tr>
+              <th>담당자</th>
+              <th>유형</th>
+              <th>근무일수</th>
+              <th>총 근무시간</th>
+              <th>기본급/시급</th>
+              <th>계산 급여</th>
+              <th>4대보험(예상)</th>
+              <th>실수령액</th>
+            </tr>
+          </thead>
+          <tbody id="settleTable">
+            <tr><td colspan="8" class="empty">데이터 없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section" style="margin-top:16px;">
+      <div class="section-header"><div class="section-title">건물별 수익 정산</div></div>
+      <div class="section-body">
+        <table>
+          <thead>
+            <tr>
+              <th>건물명</th>
+              <th>청구금액</th>
+              <th>인건비</th>
+              <th>기타비용</th>
+              <th>이윤</th>
+              <th>마진율</th>
+              <th>상태</th>
+            </tr>
+          </thead>
+          <tbody id="settleBuildingTable">
+            <tr><td colspan="7" class="empty">데이터 없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: WORKER -->
+<div class="modal-overlay" id="workerModal" style="display:none;">
+  <div class="modal">
+    <h2 id="workerModalTitle">담당자 추가</h2>
+    <input type="hidden" id="workerEditId">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">이름 *</label>
+        <input class="form-input" id="wName" placeholder="홍길동">
+      </div>
+      <div class="form-group">
+        <label class="form-label">연락처</label>
+        <input class="form-input" id="wPhone" placeholder="010-0000-0000">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">급여 유형 *</label>
+        <select class="form-select" id="wType" onchange="toggleWageField()">
+          <option value="monthly">월급제</option>
+          <option value="hourly">시급제</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="wWageLabel">월급 (원)</label>
+        <input class="form-input" id="wWage" type="number" placeholder="2000000">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">지역</label>
+        <select class="form-select" id="wRegion">
+          <option value="서울">서울</option>
+          <option value="경기">경기</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">지점</label>
+        <select class="form-select" id="wBranch">
+          <option value="강남지점">강남지점</option>
+          <option value="강서지점">강서지점</option>
+          <option value="본사">본사</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="wMemo" placeholder="특이사항">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('workerModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveWorker()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: BUILDING -->
+<div class="modal-overlay" id="buildingModal" style="display:none;">
+  <div class="modal">
+    <h2 id="buildingModalTitle">건물 추가</h2>
+    <input type="hidden" id="buildingEditId">
+    <div class="form-group">
+      <label class="form-label">건물명 *</label>
+      <input class="form-input" id="bName" placeholder="○○빌딩">
+    </div>
+    <div class="form-group">
+      <label class="form-label">주소 *</label>
+      <div style="position:relative;">
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="bAddrQuery"
+            placeholder="도로명 또는 건물명 검색 (예: 어울마당로 44)"
+            autocomplete="off"
+            oninput="addrSearchDebounce()"
+            onkeydown="addrKeyNav(event)"
+            onblur="setTimeout(hideAddrResults,200)"
+            style="flex:1;">
+          <button type="button" class="btn btn-primary" onclick="addrSearch()" style="white-space:nowrap;flex-shrink:0;">검색</button>
+        </div>
+        <div id="addrResults" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid var(--gray-200);border-radius:8px;box-shadow:var(--shadow-md);z-index:500;max-height:240px;overflow-y:auto;"></div>
+      </div>
+      <div id="addrSelected" style="display:none;margin-top:6px;padding:8px 12px;background:var(--blue-light);border-radius:6px;font-size:13px;color:var(--blue);font-weight:500;"></div>
+      <input type="hidden" id="bAddress">
+      <input class="form-input" id="bAddressDetail" placeholder="상세주소 (동·호수·층 등)" style="margin-top:6px;">
+      <div class="form-hint">검색 후 결과를 클릭하면 지도에 정확히 표시됩니다</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">월 계약금액 (원) *</label>
+        <input class="form-input" id="bContract" type="number" placeholder="1500000">
+        <div class="form-hint">임대인에게 청구하는 고정 금액</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">청소 유형</label>
+        <select class="form-select" id="bType">
+          <option value="일상청소">일상청소</option>
+          <option value="인하우스">인하우스 직접운영</option>
+          <option value="외주">외주업체</option>
+          <option value="혼합">혼합</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">담당자 배정 (복수 선택 가능)</label>
+      <div class="multi-select-box" id="bWorkerSelect"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">지점</label>
+        <select class="form-select" id="bBranch">
+          <option value="강남">강남지점</option>
+          <option value="강서">강서지점</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">지역 (구)</label>
+        <input class="form-input" id="bRegion" placeholder="주소 검색 시 자동 입력" readonly style="background:var(--gray-50);">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">청소 요일</label>
+      <div class="day-picker" id="bDayPicker">
+        <button type="button" class="day-btn" data-day="mon" onclick="toggleDay(this)">월</button>
+        <button type="button" class="day-btn" data-day="tue" onclick="toggleDay(this)">화</button>
+        <button type="button" class="day-btn" data-day="wed" onclick="toggleDay(this)">수</button>
+        <button type="button" class="day-btn" data-day="thu" onclick="toggleDay(this)">목</button>
+        <button type="button" class="day-btn" data-day="fri" onclick="toggleDay(this)">금</button>
+        <button type="button" class="day-btn sat" data-day="sat" onclick="toggleDay(this)">토</button>
+        <button type="button" class="day-btn sun" data-day="sun" onclick="toggleDay(this)">일</button>
+      </div>
+      <div class="form-hint">해당 요일 버튼을 클릭해서 선택하세요</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="bMemo" placeholder="특이사항 등">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('buildingModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveBuilding()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: LOG -->
+<div class="modal-overlay" id="logModal" style="display:none;">
+  <div class="modal">
+    <h2 id="logModalTitle">근무기록 추가</h2>
+    <input type="hidden" id="logEditId">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">날짜 *</label>
+        <input class="form-input" id="lDate" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">담당자 *</label>
+        <select class="form-select" id="lWorker" onchange="filterLogBuildings()">
+          <option value="">선택</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">건물 *</label>
+      <select class="form-select" id="lBuilding">
+        <option value="">담당자 먼저 선택</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">시작 시간</label>
+        <input class="form-input" id="lStart" type="time" value="09:00">
+      </div>
+      <div class="form-group">
+        <label class="form-label">종료 시간</label>
+        <input class="form-input" id="lEnd" type="time" value="18:00">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">휴게시간 (분)</label>
+        <input class="form-input" id="lBreak" type="number" value="60" placeholder="60">
+      </div>
+      <div class="form-group">
+        <label class="form-label">추가비용 (원)</label>
+        <input class="form-input" id="lExtra" type="number" value="0" placeholder="0">
+        <div class="form-hint">재료비, 장비비 등</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="lMemo" placeholder="작업 내용 등">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('logModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveLog()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== DATA STORE ====================
+let DB = {
+  workers: [],
+  buildings: [],
+  logs: []
+};
+
+let supabase = null;
+let useLocal = false;
+
+// ==================== PRELOADED DATA ====================
+const PRELOADED_BUILDINGS = [
+  { name: '태랑빌딩',          address: '서울시 마포구 어울마당로 44',     region: '마포구',  branch: '강서', contract_amount: 580000,  note: '둥지 후청구', schedule: '주 1회' },
+  { name: '홍영빌딩',          address: '서울시 마포구 어울마당로 46',     region: '마포구',  branch: '강서', contract_amount: 350000,  note: '',          schedule: '주 2회' },
+  { name: 'S&C타워',           address: '서울시 종로구 홀곡로 223-1',     region: '종로구',  branch: '강서', contract_amount: 0,       note: '임대인 직계약', schedule: '' },
+  { name: '공업빌딩',          address: '서울시 마포구 어울마당로 37',     region: '마포구',  branch: '강서', contract_amount: 170000,  note: '',          schedule: '2주 1회' },
+  { name: '청담빌딩',          address: '서울시 강남구 도산대로 81길 41',  region: '강남구',  branch: '강남', contract_amount: 150000,  note: '',          schedule: '주 1회' },
+  { name: '국재빌딩',          address: '서울시 강남구 논현로 828',        region: '강남구',  branch: '강남', contract_amount: 1400000, note: '',          schedule: '주 5회' },
+  { name: '동인빌딩',          address: '서울시 강남구 선릉로 131길 18',   region: '강남구',  branch: '강남', contract_amount: 550000,  note: '',          schedule: '주 3회' },
+  { name: '더하우스',          address: '서울시 강남구 도산대66길 53',     region: '강남구',  branch: '강남', contract_amount: 270000,  note: '',          schedule: '' },
+  { name: '아이앤티(강남)',     address: '서울시 강남구 언주로97길 31',     region: '강남구',  branch: '강남', contract_amount: 1200000, note: '둥지 후청구', schedule: '주 3회' },
+  { name: '라퓨타 레지던스',   address: '서울시 광진구 아차산로49길 37',   region: '광진구',  branch: '강남', contract_amount: 650000,  note: '',          schedule: '' },
+  { name: '지저스 선교재단',   address: '서울시 도봉구 덕릉로 235',        region: '창동',    branch: '강남', contract_amount: 800000,  note: '',          schedule: '' },
+  { name: 'SLA빌딩',           address: '서울시 강남구 봉은사로43길 6-8',  region: '강남구',  branch: '강남', contract_amount: 900000,  note: '',          schedule: '주 3회' },
+  { name: '미산빌딩',          address: '서울시 강남구 압구정로71길4',     region: '강남구',  branch: '강남', contract_amount: 800000,  note: '',          schedule: '주 3회' },
+  { name: '파우컴퍼니',        address: '서울시 강남구 언주로135길 28',    region: '강남구',  branch: '강남', contract_amount: 800000,  note: '',          schedule: '' },
+  { name: '인피니티 타워',     address: '서울시 성동구 서울숲7길 7',       region: '성동구',  branch: '강남', contract_amount: 0,       note: '임대인 직계약', schedule: '' },
+  { name: '명건빌딩',          address: '경기 성남시 분당구 판교로 434',   region: '분당구',  branch: '강남', contract_amount: 0,       note: '임대인 직계약', schedule: '' },
+  { name: '닥터설빌딩',        address: '경기 수원시 팔달구 호원로265번길 44', region: '팔달구', branch: '강남', contract_amount: 0,    note: '',          schedule: '' },
+  { name: '나라키울역삼A빌딩', address: '',                                 region: '강남구',  branch: '강남', contract_amount: 0,       note: '',          schedule: '' },
+  { name: '엑스트라 스페이스 가산', address: '',                           region: '금천구',  branch: '강서', contract_amount: 0,       note: '',          schedule: '' },
+  { name: '엑스트라 스페이스 영등포', address: '',                         region: '영등포구',branch: '강서', contract_amount: 0,       note: '',          schedule: '' },
+  { name: '엑스트라 스페이스 용산', address: '',                           region: '용산구',  branch: '강서', contract_amount: 0,       note: '',          schedule: '' },
+  { name: '엑스트라 스페이스 반포', address: '',                           region: '서초구',  branch: '강남', contract_amount: 0,       note: '',          schedule: '' },
+  { name: '드림타워',          address: '',                                 region: '은평구',  branch: '강서', contract_amount: 0,       note: '',          schedule: '' },
+  { name: '육원빌딩',          address: '',                                 region: '강남구',  branch: '강남', contract_amount: 900000,  note: '',          schedule: '' },
+];
+
+// ==================== INIT ====================
+window.onload = () => {
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('dashMonth').value = ym;
+  document.getElementById('logMonth').value = ym;
+  document.getElementById('settleMonth').value = ym;
+  document.getElementById('lDate').value = now.toISOString().slice(0,10);
+
+  // Try auto-connect from localStorage
+  const savedUrl = localStorage.getItem('sb_url');
+  const savedKey = localStorage.getItem('sb_key');
+  if (savedUrl && savedKey) {
+    document.getElementById('sbUrl').value = savedUrl;
+    document.getElementById('sbKey').value = savedKey;
+    connectSupabase(true);
+  } else if (localStorage.getItem('use_local') === 'true') {
+    useLocalStorage(true);
+  }
+};
+
+// ==================== SUPABASE ====================
+async function connectSupabase(auto = false) {
+  const url = document.getElementById('sbUrl').value.trim();
+  const key = document.getElementById('sbKey').value.trim();
+  if (!url || !key) { showToast('URL과 Key를 입력해주세요'); return; }
+
+  // Load Supabase JS
+  if (!window.supabaseLib) {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    document.head.appendChild(script);
+    await new Promise(r => script.onload = r);
+    window.supabaseLib = true;
+  }
+
+  supabase = window.supabase.createClient(url, key);
+
+  // Test connection
+  try {
+    const { error } = await supabase.from('workers').select('id').limit(1);
+    if (error && error.code === '42P01') {
+      // Tables don't exist, create them
+      await createTables();
+    }
+    localStorage.setItem('sb_url', url);
+    localStorage.setItem('sb_key', key);
+    useLocal = false;
+    document.getElementById('dbDot').className = 'db-dot ok';
+    document.getElementById('dbStatusText').textContent = 'Supabase 연결됨';
+    document.getElementById('setupBanner').style.display = 'none';
+    showToast('✅ Supabase 연결 성공!');
+    await loadAll();
+  } catch(e) {
+    document.getElementById('dbDot').className = 'db-dot err';
+    document.getElementById('dbStatusText').textContent = '연결 실패';
+    if (!auto) showToast('❌ 연결 실패: ' + e.message);
+  }
+}
+
+async function createTables() {
+  // Use RPC or just catch missing table gracefully
+  // Tables need to be created in Supabase dashboard
+  showToast('⚠️ Supabase에 테이블을 생성해주세요 (하단 SQL 참고)', 4000);
+}
+
+function useLocalStorage(auto = false) {
+  useLocal = true;
+  localStorage.setItem('use_local', 'true');
+  document.getElementById('dbDot').className = 'db-dot ok';
+  document.getElementById('dbStatusText').textContent = '로컬 저장소';
+  document.getElementById('setupBanner').style.display = 'none';
+  if (!auto) showToast('💾 로컬 저장소 모드로 시작합니다');
+  loadLocalData();
+  renderAll();
+}
+
+function loadLocalData() {
+  try {
+    DB.workers = JSON.parse(localStorage.getItem('db_workers') || '[]');
+    DB.buildings = JSON.parse(localStorage.getItem('db_buildings') || '[]');
+    DB.logs = JSON.parse(localStorage.getItem('db_logs') || '[]');
+  } catch(e) {}
+
+  // 최초 실행 시 건물 데이터 자동 삽입
+  if (!DB.buildings.length && PRELOADED_BUILDINGS.length) {
+    DB.buildings = PRELOADED_BUILDINGS.map(b => ({
+      id: genId(),
+      name: b.name,
+      address: b.address,
+      contract_amount: b.contract_amount,
+      cleaning_type: '일상청소',
+      worker_ids: [],
+      memo: [b.note, b.schedule].filter(Boolean).join(' | '),
+      region: b.region,
+      branch: b.branch,
+      created_at: new Date().toISOString()
+    }));
+    saveLocalData();
+    setTimeout(() => showToast('🏢 건물 데이터 24개가 자동으로 불러와졌습니다!', 3000), 500);
+  }
+  renderAll();
+}
+
+function saveLocalData() {
+  localStorage.setItem('db_workers', JSON.stringify(DB.workers));
+  localStorage.setItem('db_buildings', JSON.stringify(DB.buildings));
+  localStorage.setItem('db_logs', JSON.stringify(DB.logs));
+}
+
+async function loadAll() {
+  if (useLocal) { loadLocalData(); return; }
+  if (!supabase) return;
+  const [w, b, l] = await Promise.all([
+    supabase.from('workers').select('*').order('created_at'),
+    supabase.from('buildings').select('*').order('created_at'),
+    supabase.from('logs').select('*').order('date')
+  ]);
+  DB.workers = w.data || [];
+  DB.buildings = b.data || [];
+  DB.logs = l.data || [];
+  renderAll();
+}
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+// ==================== RENDER ALL ====================
+function renderAll() {
+  renderWorkerTable();
+  renderBuildingTable();
+  renderLogs();
+  renderDashboard();
+  renderSettlement();
+}
+
+// ==================== TAB ====================
+function switchTab(name, el) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'settlement') renderSettlement();
+  // Invalidate map size when switching back to dashboard
+  if (name === 'dashboard' && dashMapInst) setTimeout(() => dashMapInst.invalidateSize(), 100);
+}
+
+// ==================== WORKERS ====================
+function openWorkerModal(id = null) {
+  document.getElementById('workerEditId').value = id || '';
+  document.getElementById('workerModalTitle').textContent = id ? '담당자 수정' : '담당자 추가';
+  if (id) {
+    const w = DB.workers.find(x => x.id === id);
+    document.getElementById('wName').value = w.name;
+    document.getElementById('wPhone').value = w.phone || '';
+    document.getElementById('wType').value = w.type;
+    document.getElementById('wWage').value = w.wage;
+    document.getElementById('wRegion').value = w.region || '서울';
+    document.getElementById('wBranch').value = w.branch || '강남지점';
+    document.getElementById('wMemo').value = w.memo || '';
+  } else {
+    ['wName','wPhone','wWage','wMemo'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('wType').value = 'monthly';
+    document.getElementById('wRegion').value = '서울';
+    document.getElementById('wBranch').value = '강남지점';
+  }
+  toggleWageField();
+  document.getElementById('workerModal').style.display = 'flex';
+}
+
+function toggleWageField() {
+  const t = document.getElementById('wType').value;
+  document.getElementById('wWageLabel').textContent = t === 'monthly' ? '월급 (원)' : '시급 (원)';
+}
+
+async function saveWorker() {
+  const name = document.getElementById('wName').value.trim();
+  if (!name) { showToast('이름을 입력해주세요'); return; }
+  const editId = document.getElementById('workerEditId').value;
+  const data = {
+    name,
+    phone: document.getElementById('wPhone').value,
+    type: document.getElementById('wType').value,
+    wage: parseInt(document.getElementById('wWage').value) || 0,
+    region: document.getElementById('wRegion').value,
+    branch: document.getElementById('wBranch').value,
+    memo: document.getElementById('wMemo').value
+  };
+
+  if (editId) {
+    if (useLocal) {
+      const idx = DB.workers.findIndex(x => x.id === editId);
+      DB.workers[idx] = { ...DB.workers[idx], ...data };
+      saveLocalData();
+    } else {
+      await supabase.from('workers').update(data).eq('id', editId);
+      await loadAll();
+    }
+  } else {
+    if (useLocal) {
+      DB.workers.push({ ...data, id: genId(), created_at: new Date().toISOString() });
+      saveLocalData();
+    } else {
+      await supabase.from('workers').insert(data);
+      await loadAll();
+    }
+  }
+
+  closeModal('workerModal');
+  renderAll();
+  showToast('✅ 저장 완료');
+}
+
+let workerFilterBranch = 'all';
+
+function filterWorkers(branch, el) {
+  workerFilterBranch = branch;
+  document.querySelectorAll('.worker-filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderWorkerTable();
+}
+
+function renderWorkerTable() {
+  const wrap = document.getElementById('workerTable');
+  let workers = DB.workers;
+  if (workerFilterBranch !== 'all') workers = workers.filter(w => w.branch === workerFilterBranch);
+
+  if (!workers.length) {
+    wrap.innerHTML = '<div class="empty" style="grid-column:1/-1;padding:48px 20px;"><div class="empty-icon">👤</div><p>담당자를 추가해주세요</p></div>';
+    wrap.style.display = 'block';
+    return;
+  }
+  wrap.style.display = 'contents';
+
+  // Color pool for avatars
+  const colors = ['blue','green','blue','green'];
+  wrap.innerHTML = workers.map((w, i) => {
+    const assignedBuildings = DB.buildings.filter(b => (b.worker_ids || []).includes(w.id));
+    const bCount = assignedBuildings.length;
+    const hasAddr = assignedBuildings.some(b => b.address);
+    const initials = w.name.slice(0,2);
+    const colorClass = i % 2 === 0 ? '' : 'green';
+    return `<div class="worker-card" id="wcard-${w.id}" onclick="openMapPanel('${w.id}')">
+      <div class="worker-card-header">
+        <div class="worker-avatar ${colorClass}">${initials}</div>
+        <div>
+          <div class="worker-card-name">${w.name}</div>
+          <div class="worker-card-meta">${w.phone || '연락처 없음'} · ${w.branch || ''} ${w.region || ''}</div>
+        </div>
+        <span class="badge ${w.type==='monthly'?'badge-blue':'badge-yellow'}" style="margin-left:auto;">${w.type==='monthly'?'월급':'시급'}</span>
+      </div>
+      <div style="font-size:12px;color:var(--gray-400);margin-bottom:6px;">담당 건물 <strong style="color:var(--gray-700);">${bCount}개</strong></div>
+      <div class="worker-card-buildings">
+        ${assignedBuildings.slice(0,6).map(b =>
+          `<span class="worker-card-building-tag">🏢 ${b.name}</span>`
+        ).join('')}
+        ${bCount > 6 ? `<span class="worker-card-building-tag" style="color:var(--blue);">+${bCount-6}개 더</span>` : ''}
+        ${bCount === 0 ? '<span style="font-size:12px;color:var(--gray-300);">배정 건물 없음</span>' : ''}
+      </div>
+      <div class="worker-card-footer">
+        <div style="font-size:13px;font-weight:600;">${fmtWon(w.wage)}<span style="font-size:11px;font-weight:400;color:var(--gray-400);">${w.type==='monthly'?'/월':'/시간'}</span></div>
+        <div style="display:flex;gap:6px;align-items:center;" onclick="event.stopPropagation()">
+          ${bCount>0 ? `<button class="map-btn" onclick="openMapPanel('${w.id}')">🗺️ 지도 보기</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="openWorkerModal('${w.id}')">수정</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteWorker('${w.id}')">삭제</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ==================== MAP ENGINE (Leaflet) ====================
+// Address → lat/lng lookup via Nominatim (free, no key)
+const geocodeCache = {};
+
+async function geocodeAddress(address) {
+  if (!address) return null;
+  if (geocodeCache[address]) return geocodeCache[address];
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=kr`, {
+      headers: { 'Accept-Language': 'ko' }
+    });
+    const data = await res.json();
+    if (data.length) {
+      const r = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      geocodeCache[address] = r;
+      return r;
+    }
+  } catch(e) {}
+  return null;
+}
+
+// Worker color palette (per worker index)
+const WORKER_COLORS = ['#3B8CE4','#16A34A','#7C3AED','#DB2777','#0891B2','#EA580C','#059669','#CA8A04'];
+const UNASSIGNED_COLOR = '#F59E0B';
+
+// ---- DASHBOARD MAP ----
+let dashMapInst = null;
+let dashMapMarkers = [];
+let dashMapFilterWorkerId = null;
+
+async function initDashMap() {
+  if (!document.getElementById('dashMap')) return;
+  if (dashMapInst) { dashMapInst.remove(); dashMapInst = null; }
+
+  dashMapInst = L.map('dashMap', { zoomControl: true }).setView([37.5665, 126.9780], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 19
+  }).addTo(dashMapInst);
+
+  await renderDashMapMarkers();
+}
+
+// Build worker color index once
+function workerColorIndex() {
+  const map = {};
+  DB.workers.forEach((w, i) => { map[w.id] = WORKER_COLORS[i % WORKER_COLORS.length]; });
+  return map;
+}
+
+async function renderDashMapMarkers(filterWorkerId = null) {
+  dashMapFilterWorkerId = filterWorkerId;
+  if (!dashMapInst) return;
+
+  // Clear old markers
+  dashMapMarkers.forEach(m => m.remove());
+  dashMapMarkers = [];
+
+  const colorMap = workerColorIndex();
+  const bounds = [];
+
+  for (const b of DB.buildings) {
+    if (!b.address) continue;
+    const coord = await geocodeAddress(b.address);
+    if (!coord) continue;
+
+    const isAssigned = (b.worker_ids || []).length > 0;
+    const isHighlighted = !filterWorkerId || (b.worker_ids || []).includes(filterWorkerId);
+    if (!isHighlighted) continue;
+
+    // Pick color: if multi-worker use first worker's color, else unassigned
+    const color = isAssigned
+      ? colorMap[(b.worker_ids || [])[0]] || WORKER_COLORS[0]
+      : UNASSIGNED_COLOR;
+
+    const workerNames = (b.worker_ids || [])
+      .map(id => DB.workers.find(w => w.id === id)?.name)
+      .filter(Boolean).join(', ');
+
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        background:${color};color:#fff;padding:4px 9px;border-radius:14px;
+        font-size:11px;font-weight:700;white-space:nowrap;
+        box-shadow:0 2px 8px rgba(0,0,0,0.22);
+        border:2px solid rgba(255,255,255,0.8);
+        cursor:pointer;">
+        🏢 ${b.name}
+      </div>`,
+      iconAnchor: [0, 0]
+    });
+
+    const marker = L.marker([coord.lat, coord.lng], { icon })
+      .addTo(dashMapInst)
+      .bindPopup(`
+        <div class="popup-name">${b.name}</div>
+        <div class="popup-meta">
+          ${b.address}<br>
+          담당: ${workerNames || '<span style="color:#F59E0B;font-weight:600;">⚠️ 미배정</span>'}<br>
+          청구: ${b.contract_amount ? '₩' + b.contract_amount.toLocaleString() : '-'}
+          ${(b.cleaning_days||[]).length ? '<br>청소: ' + DAY_ORDER.filter(d=>(b.cleaning_days||[]).includes(d)).map(d=>DAY_KO[d]).join('·') : ''}
+        </div>
+        <span class="popup-badge" style="background:${isAssigned ? '#DCFCE7' : '#FEF3C7'};color:${isAssigned ? '#16A34A' : '#D97706'}">
+          ${isAssigned ? '배정 완료' : '미배정'}
+        </span>
+      `);
+
+    dashMapMarkers.push(marker);
+    bounds.push([coord.lat, coord.lng]);
+  }
+
+  if (bounds.length > 1) dashMapInst.fitBounds(bounds, { padding: [40, 40] });
+  else if (bounds.length === 1) dashMapInst.setView(bounds[0], 15);
+
+  // Show/hide reset button
+  const resetBtn = document.getElementById('dashMapResetBtn');
+  if (resetBtn) resetBtn.style.display = filterWorkerId ? 'inline-flex' : 'none';
+}
+
+function resetDashMap() {
+  renderDashMapMarkers(null);
+  // Clear any row highlight
+  document.querySelectorAll('#dashWorkerTable tr').forEach(r => r.style.background = '');
+}
+
+function filterDashMapByWorker(workerId, rowEl) {
+  // Toggle
+  if (dashMapFilterWorkerId === workerId) {
+    resetDashMap();
+    if (rowEl) rowEl.style.background = '';
+    return;
+  }
+  // Highlight row
+  document.querySelectorAll('#dashWorkerTable tr').forEach(r => r.style.background = '');
+  if (rowEl) rowEl.style.background = 'var(--blue-light)';
+  renderDashMapMarkers(workerId);
+  // Scroll to map
+  document.getElementById('dashMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ---- WORKER PANEL MAP ----
+let workerPanelMap = null;
+
+function openMapPanel(workerId) {
+  const w = DB.workers.find(x => x.id === workerId);
+  if (!w) return;
+  const buildings = DB.buildings.filter(b => (b.worker_ids || []).includes(workerId));
+
+  document.getElementById('mapPanelName').textContent = w.name + ' 담당자';
+  document.getElementById('mapPanelSub').textContent = `담당 건물 ${buildings.length}개`;
+
+  document.querySelectorAll('.worker-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('wcard-' + workerId);
+  if (card) card.classList.add('selected');
+
+  // Building list
+  const listEl = document.getElementById('mapBuildingList');
+  listEl.innerHTML = buildings.length ? buildings.map((b, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--gray-100);">
+      <div style="width:20px;height:20px;border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:13px;">${b.name}</div>
+        <div style="font-size:11px;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.address || '⚠️ 주소 미등록'}</div>
+        ${(b.cleaning_days||[]).length ? '<div class="day-chips" style="margin-top:3px;">'+renderDayChips(b.cleaning_days)+'</div>' : ''}
+      </div>
+    </div>`).join('')
+  : '<div style="padding:12px;text-align:center;color:var(--gray-400);font-size:13px;">배정된 건물이 없습니다</div>';
+
+  document.getElementById('workerMapPanel').style.display = 'flex';
+  document.getElementById('mapPanelOverlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+
+  // Init map after panel visible (needs size)
+  setTimeout(() => initWorkerPanelMap(buildings, workerId), 80);
+}
+
+async function initWorkerPanelMap(buildings, workerId) {
+  if (workerPanelMap) { workerPanelMap.remove(); workerPanelMap = null; }
+
+  workerPanelMap = L.map('workerLeafletMap', { zoomControl: true }).setView([37.5665, 126.9780], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 19
+  }).addTo(workerPanelMap);
+
+  const colorMap = workerColorIndex();
+  const color = colorMap[workerId] || WORKER_COLORS[0];
+  const bounds = [];
+
+  for (const [i, b] of buildings.entries()) {
+    if (!b.address) continue;
+    const coord = await geocodeAddress(b.address);
+    if (!coord) continue;
+
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        background:${color};color:#fff;
+        width:28px;height:28px;border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:12px;font-weight:700;
+        box-shadow:0 2px 8px rgba(0,0,0,0.25);
+        border:2px solid rgba(255,255,255,0.9);">
+        ${i+1}
+      </div>`,
+      iconSize: [28, 28], iconAnchor: [14, 14]
+    });
+
+    const marker = L.marker([coord.lat, coord.lng], { icon })
+      .addTo(workerPanelMap)
+      .bindPopup(`<div class="popup-name">${b.name}</div><div class="popup-meta">${b.address}</div>`);
+
+    bounds.push([coord.lat, coord.lng]);
+  }
+
+  if (bounds.length > 1) workerPanelMap.fitBounds(bounds, { padding: [30, 30] });
+  else if (bounds.length === 1) workerPanelMap.setView(bounds[0], 15);
+  else {
+    // No geocodable addresses — show message overlay
+    const el = document.getElementById('workerLeafletMap');
+    el.insertAdjacentHTML('beforeend', `
+      <div style="position:absolute;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,0.85);gap:8px;pointer-events:none;">
+        <div style="font-size:28px;">📍</div>
+        <div style="font-size:13px;color:var(--gray-500);text-align:center;">건물 주소를 등록하면<br>지도에서 위치가 표시됩니다</div>
+      </div>`);
+  }
+}
+
+function closeMapPanel() {
+  document.getElementById('workerMapPanel').style.display = 'none';
+  document.getElementById('mapPanelOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+  document.querySelectorAll('.worker-card').forEach(c => c.classList.remove('selected'));
+  if (workerPanelMap) { workerPanelMap.remove(); workerPanelMap = null; }
+}
+
+// ==================== CLEANING DAYS ====================
+const DAY_KO = { mon:'월', tue:'화', wed:'수', thu:'목', fri:'금', sat:'토', sun:'일' };
+const DAY_ORDER = ['mon','tue','wed','thu','fri','sat','sun'];
+
+function toggleDay(btn) {
+  btn.classList.toggle('on');
+}
+
+function renderDayChips(days) {
+  if (!days || !days.length) return '<span style="color:var(--gray-300);font-size:11px;">미설정</span>';
+  return DAY_ORDER
+    .filter(d => days.includes(d))
+    .map(d => `<span class="day-chip day-chip-${d}">${DAY_KO[d]}</span>`)
+    .join('');
+}
+
+// ==================== ADDRESS SEARCH (Nominatim) ====================
+let _addrDebounceTimer = null;
+let _addrResultsData = [];
+let _addrFocusIdx = -1;
+
+function addrSearchDebounce() {
+  clearTimeout(_addrDebounceTimer);
+  _addrDebounceTimer = setTimeout(addrSearch, 400);
+}
+
+async function addrSearch() {
+  const q = document.getElementById('bAddrQuery').value.trim();
+  if (!q || q.length < 2) { hideAddrResults(); return; }
+
+  const resultsEl = document.getElementById('addrResults');
+  resultsEl.style.display = 'block';
+  resultsEl.innerHTML = '<div style="padding:12px 14px;color:var(--gray-400);font-size:13px;">검색 중...</div>';
+
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' 대한민국')}&format=json&limit=8&addressdetails=1&accept-language=ko`,
+      { headers: { 'User-Agent': 'DungjiDashboard/1.0' } }
+    );
+    const data = await res.json();
+
+    // 한국 결과만 필터링
+    _addrResultsData = data.filter(d => d.address?.country_code === 'kr');
+
+    if (!_addrResultsData.length) {
+      resultsEl.innerHTML = '<div style="padding:12px 14px;color:var(--gray-400);font-size:13px;">검색 결과가 없습니다. 다른 키워드로 시도해보세요.</div>';
+      return;
+    }
+
+    _addrFocusIdx = -1;
+    resultsEl.innerHTML = _addrResultsData.map((r, i) => {
+      const label = buildAddrLabel(r);
+      return `<div class="addr-result-item" data-idx="${i}"
+        onmousedown="selectAddr(${i})"
+        onmouseover="addrHover(${i})"
+        style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--gray-100);font-size:13px;line-height:1.5;">
+        <div style="font-weight:600;color:var(--gray-800);">${label.main}</div>
+        ${label.sub ? `<div style="font-size:11px;color:var(--gray-400);margin-top:1px;">${label.sub}</div>` : ''}
+      </div>`;
+    }).join('');
+
+  } catch(e) {
+    resultsEl.innerHTML = '<div style="padding:12px 14px;color:var(--red);font-size:13px;">검색 오류. 인터넷 연결을 확인해주세요.</div>';
+  }
+}
+
+function buildAddrLabel(r) {
+  const a = r.address || {};
+  // 도로명 주소 조합
+  const road = [a.road, a.house_number].filter(Boolean).join(' ');
+  const city = a.city || a.town || a.county || '';
+  const district = a.suburb || a.borough || a.district || '';
+  const state = a.province || a.state || '';
+
+  const main = road
+    ? [a.country !== '대한민국' ? '' : '', city, district, road].filter(Boolean).join(' ')
+    : r.display_name.split(',').slice(0,3).join(', ');
+
+  const sub = r.display_name.split(',').slice(0,4).join(', ');
+  return { main: main || r.display_name, sub: main ? sub : '' };
+}
+
+function addrHover(idx) {
+  _addrFocusIdx = idx;
+  document.querySelectorAll('.addr-result-item').forEach((el, i) => {
+    el.style.background = i === idx ? 'var(--blue-light)' : '';
+  });
+}
+
+function addrKeyNav(e) {
+  const items = document.querySelectorAll('.addr-result-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _addrFocusIdx = Math.min(_addrFocusIdx + 1, items.length - 1);
+    addrHover(_addrFocusIdx);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _addrFocusIdx = Math.max(_addrFocusIdx - 1, 0);
+    addrHover(_addrFocusIdx);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (_addrFocusIdx >= 0) selectAddr(_addrFocusIdx);
+    else addrSearch();
+  } else if (e.key === 'Escape') {
+    hideAddrResults();
+  }
+}
+
+function selectAddr(idx) {
+  const r = _addrResultsData[idx];
+  if (!r) return;
+
+  const a = r.address || {};
+  const road = [a.road, a.house_number].filter(Boolean).join(' ');
+  const city = a.city || a.town || a.village || '';
+  const district = a.suburb || a.borough || '';
+  const province = a.province || a.state || '';
+
+  // 도로명 주소 조합
+  const addrParts = [province !== '서울특별시' && province !== '경기도' ? province : '', city, district, road]
+    .filter(Boolean);
+  const fullAddr = addrParts.length ? addrParts.join(' ') : r.display_name.split(',').slice(0,3).join(' ').trim();
+
+  // 필드 채우기
+  document.getElementById('bAddress').value = fullAddr;
+  document.getElementById('bAddrQuery').value = fullAddr;
+
+  // geocode 캐시에 좌표 저장 (지도에 바로 사용)
+  geocodeCache[fullAddr] = { lat: parseFloat(r.lat), lng: parseFloat(r.lon) };
+
+  // 지역(구) 자동
+  const gu = a.borough || a.suburb || a.county || '';
+  const guMatch = gu.match(/([가-힣]+[구군])/);
+  document.getElementById('bRegion').value = guMatch ? guMatch[1] : (a.county || '');
+
+  // 지점 자동 추정
+  const gangnamGu = ['강남구','서초구','송파구','강동구','광진구','성동구','용산구','종로구','중구','마포구'];
+  if (gangnamGu.some(g => fullAddr.includes(g))) {
+    document.getElementById('bBranch').value = '강남';
+  } else if (!fullAddr.includes('서울')) {
+    document.getElementById('bBranch').value = '강서';
+  }
+
+  // 선택된 주소 표시
+  const selEl = document.getElementById('addrSelected');
+  selEl.textContent = '📍 ' + fullAddr;
+  selEl.style.display = 'block';
+
+  hideAddrResults();
+  document.getElementById('bAddressDetail').focus();
+}
+
+function hideAddrResults() {
+  document.getElementById('addrResults').style.display = 'none';
+}
+
+// 바깥 클릭 시 결과 닫기
+
+
+async function deleteWorker(id) {
+  if (!confirm('삭제할까요?')) return;
+  if (useLocal) {
+    DB.workers = DB.workers.filter(x => x.id !== id);
+    saveLocalData();
+  } else {
+    await supabase.from('workers').delete().eq('id', id);
+    await loadAll();
+  }
+  renderAll();
+  showToast('삭제되었습니다');
+}
+
+// ==================== BUILDINGS ====================
+function openBuildingModal(id = null) {
+  document.getElementById('buildingEditId').value = id || '';
+  document.getElementById('buildingModalTitle').textContent = id ? '건물 수정' : '건물 추가';
+
+  // Worker multi-select
+  const box = document.getElementById('bWorkerSelect');
+  const selectedIds = id ? (DB.buildings.find(x => x.id === id)?.worker_ids || []) : [];
+  box.innerHTML = DB.workers.map(w =>
+    `<label class="multi-select-item">
+      <input type="checkbox" value="${w.id}" ${selectedIds.includes(w.id) ? 'checked' : ''}>
+      ${w.name} (${w.type === 'monthly' ? '월급' : '시급'})
+    </label>`
+  ).join('') || '<div style="padding:12px;color:var(--gray-400);font-size:13px;">담당자를 먼저 등록해주세요</div>';
+
+  if (id) {
+    const b = DB.buildings.find(x => x.id === id);
+    document.getElementById('bName').value = b.name;
+    document.getElementById('bAddress').value = b.address || '';
+    document.getElementById('bAddrQuery').value = b.address_base || b.address || '';
+    const selEl2 = document.getElementById('addrSelected');
+    if (b.address) { selEl2.textContent = '📍 ' + (b.address_base || b.address); selEl2.style.display = 'block'; } else { selEl2.style.display = 'none'; }
+    document.getElementById('bAddressDetail').value = b.address_detail || '';
+    document.getElementById('bContract').value = b.contract_amount;
+    document.getElementById('bType').value = b.cleaning_type || '일상청소';
+    document.getElementById('bBranch').value = b.branch || '강남';
+    document.getElementById('bRegion').value = b.region || '';
+    document.getElementById('bMemo').value = b.memo || '';
+    // Restore cleaning days
+    const savedDays = b.cleaning_days || [];
+    document.querySelectorAll('#bDayPicker .day-btn').forEach(btn => {
+      btn.classList.toggle('on', savedDays.includes(btn.dataset.day));
+    });
+  } else {
+    ['bName','bAddress','bAddrQuery','bAddressDetail','bContract','bMemo','bRegion'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('addrSelected').style.display = 'none';
+    hideAddrResults();
+    document.querySelectorAll('#bDayPicker .day-btn').forEach(btn => btn.classList.remove('on'));
+    document.getElementById('bType').value = '일상청소';
+    document.getElementById('bBranch').value = '강남';
+  }
+  document.getElementById('buildingModal').style.display = 'flex';
+}
+
+async function saveBuilding() {
+  const name = document.getElementById('bName').value.trim();
+  if (!name) { showToast('건물명을 입력해주세요'); return; }
+  const workerIds = [...document.querySelectorAll('#bWorkerSelect input:checked')].map(c => c.value);
+  const editId = document.getElementById('buildingEditId').value;
+  const addrBase = document.getElementById('bAddress').value;
+  const addrDetail = document.getElementById('bAddressDetail').value;
+  const fullAddress = addrDetail ? addrBase + ' ' + addrDetail : addrBase;
+  const data = {
+    name,
+    address: fullAddress,
+    address_base: addrBase,
+    address_detail: addrDetail,
+    contract_amount: parseInt(document.getElementById('bContract').value) || 0,
+    cleaning_type: document.getElementById('bType').value,
+    worker_ids: workerIds,
+    branch: document.getElementById('bBranch').value,
+    region: document.getElementById('bRegion').value,
+    memo: document.getElementById('bMemo').value,
+    cleaning_days: [...document.querySelectorAll('#bDayPicker .day-btn.on')].map(b => b.dataset.day)
+  };
+  // Clear geocode cache for this address so map re-geocodes
+  if (geocodeCache[fullAddress]) delete geocodeCache[fullAddress];
+
+  if (editId) {
+    if (useLocal) {
+      const idx = DB.buildings.findIndex(x => x.id === editId);
+      DB.buildings[idx] = { ...DB.buildings[idx], ...data };
+      saveLocalData();
+    } else {
+      await supabase.from('buildings').update(data).eq('id', editId);
+      await loadAll();
+    }
+  } else {
+    if (useLocal) {
+      DB.buildings.push({ ...data, id: genId(), created_at: new Date().toISOString() });
+      saveLocalData();
+    } else {
+      await supabase.from('buildings').insert(data);
+      await loadAll();
+    }
+  }
+  closeModal('buildingModal');
+  renderAll();
+  showToast('✅ 저장 완료');
+}
+
+function renderBuildingTable() {
+  const tbody = document.getElementById('buildingTable');
+  if (!DB.buildings.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-icon">🏢</div><p>건물을 추가해주세요</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = DB.buildings.map(b => {
+    const workers = (b.worker_ids || []).map(id => DB.workers.find(w => w.id === id)?.name).filter(Boolean);
+    return `<tr>
+      <td><span class="badge ${b.branch==='강남'?'badge-blue':'badge-green'}">${b.branch||'-'}</span></td>
+      <td><strong>${b.name}</strong></td>
+      <td style="font-size:12px;color:var(--gray-500);">${b.address || '-'}</td>
+      <td><span class="badge badge-gray">${b.region||'-'}</span></td>
+      <td>${fmtWon(b.contract_amount)}</td>
+      <td><div class="assign-tags">${workers.length ? workers.map(n => `<span class="assign-tag">${n}</span>`).join('') : '<span class="badge badge-gray">미배정</span>'}</div></td>
+      <td><div class="day-chips">${renderDayChips(b.cleaning_days)}</div></td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${b.memo || '-'}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="openBuildingModal('${b.id}')">수정</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteBuilding('${b.id}')">삭제</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteBuilding(id) {
+  if (!confirm('삭제할까요?')) return;
+  if (useLocal) {
+    DB.buildings = DB.buildings.filter(x => x.id !== id);
+    saveLocalData();
+  } else {
+    await supabase.from('buildings').delete().eq('id', id);
+    await loadAll();
+  }
+  renderAll();
+  showToast('삭제되었습니다');
+}
+
+// ==================== LOGS ====================
+function openLogModal(id = null) {
+  document.getElementById('logEditId').value = id || '';
+  document.getElementById('logModalTitle').textContent = id ? '근무기록 수정' : '근무기록 추가';
+
+  // Worker select
+  const ws = document.getElementById('lWorker');
+  ws.innerHTML = '<option value="">선택</option>' + DB.workers.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+
+  if (id) {
+    const l = DB.logs.find(x => x.id === id);
+    document.getElementById('lDate').value = l.date;
+    ws.value = l.worker_id;
+    filterLogBuildings();
+    setTimeout(() => document.getElementById('lBuilding').value = l.building_id, 50);
+    document.getElementById('lStart').value = l.start_time || '09:00';
+    document.getElementById('lEnd').value = l.end_time || '18:00';
+    document.getElementById('lBreak').value = l.break_min || 60;
+    document.getElementById('lExtra').value = l.extra_cost || 0;
+    document.getElementById('lMemo').value = l.memo || '';
+  } else {
+    document.getElementById('lDate').value = new Date().toISOString().slice(0,10);
+    ['lStart','lEnd'].forEach((i,k) => document.getElementById(i).value = k ? '18:00' : '09:00');
+    document.getElementById('lBreak').value = 60;
+    document.getElementById('lExtra').value = 0;
+    document.getElementById('lMemo').value = '';
+    filterLogBuildings();
+  }
+  document.getElementById('logModal').style.display = 'flex';
+}
+
+function filterLogBuildings() {
+  const wid = document.getElementById('lWorker').value;
+  const bs = document.getElementById('lBuilding');
+  const filtered = DB.buildings.filter(b => !wid || (b.worker_ids || []).includes(wid));
+  bs.innerHTML = '<option value="">선택</option>' + filtered.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+  if (!filtered.length && wid) {
+    bs.innerHTML = '<option value="">배정된 건물 없음</option>';
+  }
+}
+
+function calcHours(start, end, breakMin) {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const mins = (eh * 60 + em) - (sh * 60 + sm) - (breakMin || 0);
+  return Math.max(0, mins / 60);
+}
+
+async function saveLog() {
+  const wid = document.getElementById('lWorker').value;
+  const bid = document.getElementById('lBuilding').value;
+  const date = document.getElementById('lDate').value;
+  if (!wid || !bid || !date) { showToast('담당자, 건물, 날짜를 입력해주세요'); return; }
+
+  const start = document.getElementById('lStart').value;
+  const end = document.getElementById('lEnd').value;
+  const breakMin = parseInt(document.getElementById('lBreak').value) || 0;
+  const hours = calcHours(start, end, breakMin);
+  const editId = document.getElementById('logEditId').value;
+
+  const data = {
+    date,
+    worker_id: wid,
+    building_id: bid,
+    start_time: start,
+    end_time: end,
+    break_min: breakMin,
+    hours: hours,
+    extra_cost: parseInt(document.getElementById('lExtra').value) || 0,
+    memo: document.getElementById('lMemo').value
+  };
+
+  if (editId) {
+    if (useLocal) {
+      const idx = DB.logs.findIndex(x => x.id === editId);
+      DB.logs[idx] = { ...DB.logs[idx], ...data };
+      saveLocalData();
+    } else {
+      await supabase.from('logs').update(data).eq('id', editId);
+      await loadAll();
+    }
+  } else {
+    if (useLocal) {
+      DB.logs.push({ ...data, id: genId(), created_at: new Date().toISOString() });
+      saveLocalData();
+    } else {
+      await supabase.from('logs').insert(data);
+      await loadAll();
+    }
+  }
+  closeModal('logModal');
+  renderAll();
+  showToast('✅ 저장 완료');
+}
+
+function renderLogs() {
+  const month = document.getElementById('logMonth').value;
+  const logs = DB.logs.filter(l => l.date && l.date.startsWith(month));
+  const container = document.getElementById('logList');
+
+  if (!logs.length) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>근무기록이 없습니다</p></div>';
+    return;
+  }
+
+  // Group by building
+  const byBuilding = {};
+  logs.forEach(l => {
+    if (!byBuilding[l.building_id]) byBuilding[l.building_id] = [];
+    byBuilding[l.building_id].push(l);
+  });
+
+  container.innerHTML = '<div class="log-grid">' + Object.entries(byBuilding).map(([bid, bLogs]) => {
+    const building = DB.buildings.find(b => b.id === bid);
+    const totalHours = bLogs.reduce((s, l) => s + (l.hours || 0), 0);
+    const totalExtra = bLogs.reduce((s, l) => s + (l.extra_cost || 0), 0);
+    return `<div class="section log-card">
+      <div class="log-card-header">
+        <div>
+          <div class="log-building-name">🏢 ${building?.name || '(삭제된 건물)'}</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">총 ${bLogs.length}회 · ${totalHours.toFixed(1)}시간${totalExtra ? ' · 추가비용 ' + fmtWon(totalExtra) : ''}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="openLogModal()">+ 추가</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>날짜</th>
+              <th>담당자</th>
+              <th>근무시간</th>
+              <th>추가비용</th>
+              <th>메모</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${bLogs.sort((a,b) => a.date > b.date ? 1 : -1).map(l => {
+              const w = DB.workers.find(x => x.id === l.worker_id);
+              return `<tr>
+                <td>${l.date}</td>
+                <td>${w?.name || '-'}</td>
+                <td>${l.start_time || ''} ~ ${l.end_time || ''} <span style="color:var(--gray-400)">(${(l.hours||0).toFixed(1)}h)</span></td>
+                <td>${l.extra_cost ? fmtWon(l.extra_cost) : '-'}</td>
+                <td>${l.memo || '-'}</td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" onclick="openLogModal('${l.id}')">수정</button>
+                  <button class="btn btn-danger btn-sm" onclick="deleteLog('${l.id}')">삭제</button>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+async function deleteLog(id) {
+  if (!confirm('삭제할까요?')) return;
+  if (useLocal) {
+    DB.logs = DB.logs.filter(x => x.id !== id);
+    saveLocalData();
+  } else {
+    await supabase.from('logs').delete().eq('id', id);
+    await loadAll();
+  }
+  renderAll();
+  showToast('삭제되었습니다');
+}
+
+// ==================== DASHBOARD ====================
+function renderDashboard() {
+  const month = document.getElementById('dashMonth').value;
+  const logs = DB.logs.filter(l => l.date && l.date.startsWith(month));
+
+  document.getElementById('dc-buildings').textContent = DB.buildings.length;
+  document.getElementById('dc-workers').textContent = DB.workers.length;
+
+  // Init map (debounced)
+  clearTimeout(window._dashMapTimer);
+  window._dashMapTimer = setTimeout(() => initDashMap(), 200);
+
+  // Unassigned buildings
+  const unassigned = DB.buildings.filter(b => !(b.worker_ids || []).length);
+  const uSection = document.getElementById('unassignedSection');
+  if (uSection) {
+    uSection.style.display = unassigned.length ? 'block' : 'none';
+    document.getElementById('unassignedCount').textContent = unassigned.length + '개';
+    const uBody = document.getElementById('unassignedTable');
+    if (uBody) uBody.innerHTML = unassigned.map(b => `<tr>
+      <td><span class="badge ${b.branch==='강남'?'badge-blue':'badge-green'}">${b.branch||'-'}</span></td>
+      <td><strong>${b.name}</strong></td>
+      <td style="font-size:12px;">${b.address||'-'}</td>
+      <td>${b.contract_amount ? '₩'+b.contract_amount.toLocaleString() : '-'}</td>
+      <td style="font-size:12px;">${b.memo||'-'}</td>
+    </tr>`).join('');
+  }
+
+  const totalRevenue = DB.buildings.reduce((s, b) => s + (b.contract_amount || 0), 0);
+  document.getElementById('dc-revenue').textContent = fmtWon(totalRevenue);
+
+  // Calc labor cost from logs
+  let totalCost = 0;
+  logs.forEach(l => {
+    const w = DB.workers.find(x => x.id === l.worker_id);
+    if (!w) return;
+    if (w.type === 'hourly') {
+      totalCost += (w.wage || 0) * (l.hours || 0);
+    }
+    totalCost += (l.extra_cost || 0);
+  });
+  // Add monthly workers' prorated (simplified: full monthly wage)
+  const monthlyWorkers = new Set(logs.filter(l => {
+    const w = DB.workers.find(x => x.id === l.worker_id);
+    return w?.type === 'monthly';
+  }).map(l => l.worker_id));
+  monthlyWorkers.forEach(wid => {
+    const w = DB.workers.find(x => x.id === wid);
+    if (w) totalCost += w.wage;
+  });
+
+  document.getElementById('dc-cost').textContent = fmtWon(totalCost);
+  const profit = totalRevenue - totalCost;
+  const margin = totalRevenue ? Math.round(profit / totalRevenue * 100) : 0;
+  const profitEl = document.getElementById('dc-profit');
+  profitEl.textContent = fmtWon(profit);
+  profitEl.className = 'card-value ' + (profit >= 0 ? 'green' : 'red');
+  document.getElementById('dc-margin').textContent = `마진율 ${margin}%`;
+
+  // Building table
+  const btbody = document.getElementById('dashBuildingTable');
+  if (!DB.buildings.length) {
+    btbody.innerHTML = '<tr><td colspan="6" class="empty">데이터 없음</td></tr>';
+  } else {
+    btbody.innerHTML = DB.buildings.map(b => {
+      const bLogs = logs.filter(l => l.building_id === b.id);
+      const workers = (b.worker_ids || []).map(id => DB.workers.find(w => w.id === id)?.name).filter(Boolean);
+      let laborCost = 0;
+      bLogs.forEach(l => {
+        const w = DB.workers.find(x => x.id === l.worker_id);
+        if (!w) return;
+        if (w.type === 'hourly') laborCost += (w.wage || 0) * (l.hours || 0);
+        laborCost += (l.extra_cost || 0);
+      });
+      // Monthly: prorate by building count
+      const mw = new Set(bLogs.filter(l => { const w = DB.workers.find(x => x.id === l.worker_id); return w?.type === 'monthly'; }).map(l => l.worker_id));
+      mw.forEach(wid => {
+        const w = DB.workers.find(x => x.id === wid);
+        if (!w) return;
+        const bCount = DB.buildings.filter(b2 => (b2.worker_ids || []).includes(wid) && DB.logs.some(l => l.building_id === b2.id && l.worker_id === wid && l.date.startsWith(month))).length;
+        laborCost += bCount > 0 ? w.wage / bCount : 0;
+      });
+      const profit = (b.contract_amount || 0) - laborCost;
+      const margin = b.contract_amount ? Math.round(profit / b.contract_amount * 100) : 0;
+      const barClass = margin >= 30 ? '' : margin >= 10 ? 'warning' : 'danger';
+      return `<tr>
+        <td><strong>${b.name}</strong></td>
+        <td><div class="assign-tags">${workers.map(n => `<span class="assign-tag">${n}</span>`).join('') || '<span class="badge badge-gray">미배정</span>'}</div></td>
+        <td>${fmtWon(b.contract_amount || 0)}</td>
+        <td>${fmtWon(Math.round(laborCost))}</td>
+        <td class="${profit >= 0 ? 'summary-positive' : 'summary-negative'}">${fmtWon(Math.round(profit))}</td>
+        <td style="min-width:80px;">
+          <div style="font-size:12px;font-weight:600;color:${margin>=30?'var(--green)':margin>=10?'var(--yellow)':'var(--red)'};">${margin}%</div>
+          <div class="profit-bar"><div class="profit-fill ${barClass}" style="width:${Math.max(0,Math.min(100,margin))}%"></div></div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Worker table
+  const wtbody = document.getElementById('dashWorkerTable');
+  if (!DB.workers.length) {
+    wtbody.innerHTML = '<tr><td colspan="6" class="empty">데이터 없음</td></tr>';
+  } else {
+    wtbody.innerHTML = DB.workers.map(w => {
+      const wLogs = logs.filter(l => l.worker_id === w.id);
+      const days = new Set(wLogs.map(l => l.date)).size;
+      const hours = wLogs.reduce((s, l) => s + (l.hours || 0), 0);
+      const bCount = DB.buildings.filter(b => (b.worker_ids || []).includes(w.id)).length;
+      const pay = w.type === 'monthly' ? w.wage : Math.round(w.wage * hours);
+      return `<tr style="cursor:pointer;" onclick="filterDashMapByWorker('${w.id}', this)" title="클릭 시 지도에서 담당 건물만 표시">
+        <td><strong>${w.name}</strong> <span style="font-size:10px;color:var(--gray-400);">🗺️</span></td>
+        <td><span class="badge ${w.type === 'monthly' ? 'badge-blue' : 'badge-yellow'}">${w.type === 'monthly' ? '월급제' : '시급제'}</span></td>
+        <td><span class="badge badge-gray">${bCount}개</span></td>
+        <td class="summary-positive">${fmtWon(pay)}</td>
+        <td>${days}일</td>
+        <td>${hours.toFixed(1)}h</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+// ==================== SETTLEMENT ====================
+function renderSettlement() {
+  const month = document.getElementById('settleMonth').value;
+  const logs = DB.logs.filter(l => l.date && l.date.startsWith(month));
+
+  // Worker settlement
+  const stbody = document.getElementById('settleTable');
+  if (!DB.workers.length) {
+    stbody.innerHTML = '<tr><td colspan="8" class="empty">데이터 없음</td></tr>';
+  } else {
+    stbody.innerHTML = DB.workers.map(w => {
+      const wLogs = logs.filter(l => l.worker_id === w.id);
+      const days = new Set(wLogs.map(l => l.date)).size;
+      const hours = wLogs.reduce((s, l) => s + (l.hours || 0), 0);
+      const grossPay = w.type === 'monthly' ? w.wage : Math.round(w.wage * hours);
+      const insurance = Math.round(grossPay * 0.0907); // 4대보험 근로자부담 약 9.07%
+      const netPay = grossPay - insurance;
+      return `<tr>
+        <td><strong>${w.name}</strong></td>
+        <td><span class="badge ${w.type === 'monthly' ? 'badge-blue' : 'badge-yellow'}">${w.type === 'monthly' ? '월급제' : '시급제'}</span></td>
+        <td>${days}일</td>
+        <td>${hours.toFixed(1)}h</td>
+        <td>${fmtWon(w.wage)}</td>
+        <td class="summary-positive">${fmtWon(grossPay)}</td>
+        <td style="color:var(--gray-500);">▼ ${fmtWon(insurance)}</td>
+        <td><strong>${fmtWon(netPay)}</strong></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Building settlement
+  const sbtbody = document.getElementById('settleBuildingTable');
+  if (!DB.buildings.length) {
+    sbtbody.innerHTML = '<tr><td colspan="7" class="empty">데이터 없음</td></tr>';
+  } else {
+    sbtbody.innerHTML = DB.buildings.map(b => {
+      const bLogs = logs.filter(l => l.building_id === b.id);
+      let laborCost = 0;
+      bLogs.forEach(l => {
+        const w = DB.workers.find(x => x.id === l.worker_id);
+        if (!w) return;
+        if (w.type === 'hourly') laborCost += (w.wage || 0) * (l.hours || 0);
+      });
+      const extraCost = bLogs.reduce((s, l) => s + (l.extra_cost || 0), 0);
+      const mw = new Set(bLogs.filter(l => { const w = DB.workers.find(x => x.id === l.worker_id); return w?.type === 'monthly'; }).map(l => l.worker_id));
+      mw.forEach(wid => {
+        const w = DB.workers.find(x => x.id === wid);
+        if (!w) return;
+        const bCount = DB.buildings.filter(b2 => (b2.worker_ids || []).includes(wid) && DB.logs.some(l => l.building_id === b2.id && l.worker_id === wid && l.date.startsWith(month))).length;
+        laborCost += bCount > 0 ? w.wage / bCount : 0;
+      });
+      const totalCost = Math.round(laborCost) + extraCost;
+      const revenue = b.contract_amount || 0;
+      const profit = revenue - totalCost;
+      const margin = revenue ? Math.round(profit / revenue * 100) : 0;
+      const status = margin >= 30 ? ['badge-green','양호'] : margin >= 10 ? ['badge-yellow','주의'] : ['badge-red','위험'];
+      return `<tr>
+        <td><strong>${b.name}</strong></td>
+        <td>${fmtWon(revenue)}</td>
+        <td>${fmtWon(Math.round(laborCost))}</td>
+        <td>${fmtWon(extraCost)}</td>
+        <td class="${profit>=0?'summary-positive':'summary-negative'}">${fmtWon(profit)}</td>
+        <td>${margin}%</td>
+        <td><span class="badge ${status[0]}">${status[1]}</span></td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function exportSettlement() {
+  showToast('📊 Supabase 연결 후 CSV 내보내기 지원 예정');
+}
+
+// ==================== UTILS ====================
+function fmtWon(n) {
+  if (n === undefined || n === null || isNaN(n)) return '-';
+  return '₩' + Math.round(n).toLocaleString('ko-KR');
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+
+}
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.style.display = 'none'; });
+});
+</script>
+
+<!-- SQL GUIDE (hidden) -->
+<!--
+Supabase SQL to run once:
+
+CREATE TABLE workers (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name TEXT NOT NULL,
+  phone TEXT,
+  type TEXT DEFAULT 'monthly',
+  wage INTEGER DEFAULT 0,
+  region TEXT,
+  branch TEXT,
+  memo TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE buildings (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name TEXT NOT NULL,
+  address TEXT,
+  contract_amount INTEGER DEFAULT 0,
+  cleaning_type TEXT,
+  worker_ids TEXT[] DEFAULT '{}',
+  memo TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE logs (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  date DATE NOT NULL,
+  worker_id TEXT,
+  building_id TEXT,
+  start_time TEXT,
+  end_time TEXT,
+  break_min INTEGER DEFAULT 60,
+  hours NUMERIC DEFAULT 0,
+  extra_cost INTEGER DEFAULT 0,
+  memo TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE workers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE buildings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "allow_all_workers" ON workers FOR ALL USING (true);
+CREATE POLICY "allow_all_buildings" ON buildings FOR ALL USING (true);
+CREATE POLICY "allow_all_logs" ON logs FOR ALL USING (true);
+-->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</body>
+</html>
