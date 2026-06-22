@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>둥지 미화관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#3B8CE4;--blue-d:#1f6fc9;--blue-l:#e8f1fc;--ink:#1b2733;--mut:#6b7785;--line:#e4e9f0;--bg:#f3f6fb;--card:#fff;
+--green:#1a9e6a;--green-l:#e6f6ee;--red:#e0455a;--red-l:#fceaed;--amber:#e08a1a;--amber-l:#fdf2e3;--night:#5b46c9;--night-l:#ece9fb;
+--teal:#127e8a;--teal-l:#e2f3f4;--purple:#7a4ec0;--purple-l:#f0eafb}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+header{background:linear-gradient(120deg,#2b6fc0,#3B8CE4);color:#fff;padding:18px 22px;position:sticky;top:0;z-index:50;box-shadow:0 2px 14px rgba(31,111,201,.25)}
+.hbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;max-width:1340px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:11px}
+.logo{width:38px;height:38px;border-radius:10px;background:#fff;color:var(--blue);display:grid;place-items:center;font-weight:900;font-size:19px}
+.brand h1{font-size:16px;font-weight:700;letter-spacing:-.3px}
+.brand p{font-size:11.5px;opacity:.9;font-weight:400}
+.mctrl{display:flex;align-items:center;gap:8px}.mctrl input{border:none;border-radius:8px;padding:7px 10px;font-family:inherit;font-weight:700;font-size:13px;color:var(--ink)}
+.tabs{display:flex;gap:4px;background:#fff;padding:6px;max-width:1340px;margin:14px auto 0;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow-x:auto}
+.tab{flex:1;min-width:76px;border:none;background:none;padding:10px 8px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;color:var(--mut);cursor:pointer;white-space:nowrap;transition:.15s}
+.tab.on{background:var(--blue);color:#fff}.tab:not(.on):hover{background:var(--blue-l);color:var(--blue-d)}
+.wrap{max-width:1340px;margin:0 auto;padding:18px}
+.view{display:none;animation:fade .25s}.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+.pbanner{background:var(--purple-l);border:1px solid #ddd0f3;color:var(--purple);border-radius:10px;padding:9px 14px;font-size:12.5px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 1px 3px rgba(20,40,80,.06);border:1px solid var(--line)}
+.kpi .lab{font-size:12px;color:var(--mut);font-weight:500;margin-bottom:6px}
+.kpi .val{font-size:21px;font-weight:900;letter-spacing:-.5px}.kpi .sub{font-size:11.5px;color:var(--mut);margin-top:3px}
+.kpi.accent{background:linear-gradient(135deg,#3B8CE4,#2b6fc0);color:#fff;border:none}.kpi.accent .lab,.kpi.accent .sub{color:rgba(255,255,255,.85)}
+.kpi.gd{background:linear-gradient(135deg,#1aa974,#127e6a);color:#fff;border:none}.kpi.gd .lab,.kpi.gd .sub{color:rgba(255,255,255,.85)}
+.kpi.pp{background:linear-gradient(135deg,#7a4ec0,#5f3aa0);color:#fff;border:none}.kpi.pp .lab,.kpi.pp .sub{color:rgba(255,255,255,.85)}
+.panel{background:var(--card);border-radius:14px;border:1px solid var(--line);box-shadow:0 1px 3px rgba(20,40,80,.06);margin-bottom:16px;overflow:hidden}
+.phead{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.phead h2{font-size:15px;font-weight:700}.phead .hint{font-size:12px;color:var(--mut);font-weight:400}
+.pbody{padding:16px 18px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11.5px;color:var(--mut);font-weight:700;background:#fafcff}
+td.r,th.r{text-align:right}td.c,th.c{text-align:center}
+tr:hover td{background:#fafcff}
+.tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.tag.b{background:var(--blue-l);color:var(--blue-d)}.tag.g{background:var(--green-l);color:var(--green)}.tag.a{background:var(--amber-l);color:var(--amber)}
+.tag.r{background:var(--red-l);color:var(--red)}.tag.n{background:var(--night-l);color:var(--night)}.tag.t{background:#e2f3f4;color:var(--teal)}
+.tag.p{background:var(--purple-l);color:var(--purple)}.tag.gray{background:#eef1f5;color:#7a8693}
+.btn{border:none;border-radius:9px;padding:9px 15px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;transition:.15s}
+.btn.pri{background:var(--blue);color:#fff}.btn.pri:hover{background:var(--blue-d)}
+.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}.btn.ghost:hover{border-color:var(--blue);color:var(--blue-d)}
+.btn.sm{padding:6px 11px;font-size:12px}.btn.danger{background:var(--red-l);color:var(--red)}
+input,select{font-family:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);background:#fff;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--blue)}
+label.fld{display:block;font-size:12px;font-weight:700;color:var(--mut);margin-bottom:5px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.sched-wrap{overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;max-width:100%;position:relative;display:block;overscroll-behavior-x:contain}
+table.sched{font-size:12px;min-width:max-content;width:max-content}
+@media(max-width:640px){.sched-wrap{width:100vw;max-width:100vw;margin-left:-12px;margin-right:-12px;border-left:none;border-right:none;border-radius:0;overflow-x:scroll}.sched-scroll-hint{display:block}.daycell{min-width:58px}.sched-wrap table.sched .who{min-width:118px;width:118px;max-width:118px;padding:6px 8px;font-size:11.5px;overflow:hidden}.sched-wrap table.sched .who div{white-space:normal}.storerow .store-label{max-width:calc(100vw - 24px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;padding:6px 8px!important}}
+table.sched th,table.sched td{border:1px solid #eef1f6;padding:0}
+table.sched .who{position:sticky;left:0;z-index:5;background:#fff;min-width:200px;padding:6px 10px;text-align:left;white-space:normal}
+table.sched thead th.who{z-index:6;background:#fafcff}
+.daycell{min-width:54px;height:44px;text-align:center;cursor:pointer;user-select:none;font-weight:700;position:relative;transition:.1s;padding:2px}
+.daycell:hover{outline:2px solid var(--blue);outline-offset:-2px;z-index:2}
+table.sched tr:hover td.who{background:#fff}
+table.sched tr:hover td.dc-plan{background:#fff;color:#6b7785}
+table.sched tr:hover td.dc-work{background:var(--blue);color:#fff}
+table.sched tr:hover td.dc-lead{background:var(--purple);color:#fff}
+table.sched tr:hover td.dc-done{background:var(--teal);color:#fff}
+table.sched tr:hover td.dc-noshow{background:var(--red-l);color:var(--red)}
+table.sched tr:hover td.dc-off{background:#e8ebf0;color:#9aa4b0}
+.daycell .nm{font-size:10px;line-height:1.1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60px;display:inline-block}
+.daycell .hh{font-size:8.5px;font-weight:500;opacity:.85}
+.dc-plan{background:#fff;color:#aeb8c4}
+.dc-work{background:var(--blue);color:#fff}
+.dc-lead{background:var(--purple);color:#fff}
+.dc-done{background:var(--teal);color:#fff}
+.dc-noshow{background:var(--red-l);color:var(--red)}
+.dc-auto::after{content:'';position:absolute;top:2px;left:2px;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.75)}
+.dc-off{background:repeating-linear-gradient(45deg,#f1f3f7,#f1f3f7 4px,#e8ebf0 4px,#e8ebf0 8px);color:#b7c0cc}
+.dc-resigned{opacity:0.4!important;filter:grayscale(0.5)}
+.daycell .ot{position:absolute;top:1px;right:2px;font-size:8px;color:#ffe39a;font-weight:900}
+.dhead{font-size:11px}.dhead.we{color:var(--red)}.dhead.sa{color:var(--blue-d)}.dhead .mo{font-size:8px;color:#9aa4b0}
+.storerow td{font-weight:700;padding:6px 10px;font-size:12px}
+.storerow.dir td{background:var(--blue-l)!important;color:var(--blue-d)}
+.storerow.sub td{background:#e2f3f4!important;color:var(--teal)}
+.legend{display:flex;gap:13px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:10px;align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid #dde3ea}
+.modal{position:fixed;inset:0;background:rgba(20,30,45,.45);display:none;place-items:center;z-index:100;padding:16px;overflow:auto}
+.modal.on{display:grid}
+.mbox{background:#fff;border-radius:16px;width:100%;max-width:430px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);margin:auto}
+.mbox h3{font-size:15px;margin-bottom:4px}.mbox .msub{font-size:12px;color:var(--mut);margin-bottom:14px}
+.seg{display:flex;gap:6px;margin-bottom:14px}
+.seg button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 4px;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer;color:var(--mut)}
+.seg button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.wdrow{display:flex;gap:4px;margin:8px 0}
+.wdrow button{flex:1;border:1px solid var(--line);background:#fff;border-radius:7px;padding:7px 0;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;color:var(--mut)}
+.wdrow button.on{background:var(--blue-l);border-color:var(--blue);color:var(--blue-d)}
+.row{display:flex;gap:10px;align-items:flex-end}
+.foot{text-align:center;color:var(--mut);font-size:11.5px;padding:24px}
+.note-box{background:var(--amber-l);border:1px solid #f3dcb0;color:#8a5e12;border-radius:8px;padding:7px 10px;font-size:11.5px;margin-top:6px}
+.card-sub{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fbfdff}
+
+.people-table-wrap{overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;max-width:100%;border:1px solid var(--line);border-radius:12px;display:block;overscroll-behavior-x:contain}
+table.people-table{min-width:980px;width:max-content}
+.people-scroll-hint{display:none;font-size:11.5px;color:var(--mut);margin-bottom:6px}
+@media(max-width:640px){.people-table-wrap{width:calc(100% + 36px);max-width:calc(100% + 36px);margin-left:-18px;margin-right:-18px;border-left:none;border-right:none;border-radius:0;overflow-x:scroll}.people-scroll-hint{display:block}table.people-table{min-width:980px;width:max-content}}
+@media(max-width:640px){.kpi .val{font-size:18px}.wrap{padding:12px}}
+
+</style>
+</head>
+<body>
+<header>
+  <div class="hbar">
+    <div class="brand"><img src="data:image/png;base64,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" alt="둥지" style="height:36px;margin-right:10px">
+      <div><h1>둥지 미화관리</h1><p>둥지 · 컨텍터스 — 직영/도급 · 25일 마감 정산</p></div></div>
+    <div class="mctrl"><span style="font-size:12px;opacity:.9">정산월</span><input type="month" id="monthPick"></div>
+  </div>
+  <div class="tabs">
+    <button class="tab on" data-v="dash">대시보드</button>
+    <button class="tab" data-v="stores">매장</button>
+    <button class="tab" data-v="people">인력풀</button>
+    <button class="tab" data-v="sched">근무 스케줄</button>
+    <button class="tab" data-v="pay">정산</button>
+    <button class="tab" data-v="set">설정</button>
+  </div>
+</header>
+<div class="wrap">
+  <div id="dash" class="view on"></div>
+  <div id="stores" class="view"></div>
+  <div id="people" class="view"></div>
+  <div id="sched" class="view"></div>
+  <div id="pay" class="view"></div>
+  <div id="set" class="view"></div>
+</div>
+<div class="modal" id="modal"><div class="mbox" id="mbox"></div></div>
+<div class="foot">둥지 미화관리 v4 · 자리별 근무자 기록 · 노쇼/팀장대체 · 25일~24일 정산 사이클 · <b>공유 클라우드 저장(Supabase)</b> · <span id="sbStatus">⏳ 연결 중…</span> <span id="sbTime"></span></div>
+
+<script>
+
+const SEED = [{"id": "S01", "name": "애슐리퀸즈 NC 청주점", "open": "6월 1일", "addr": "충청북도 청주시 흥덕구 2순환로 1233 (가경동) NC청주점 7층", "sido": "충청북도", "region": "충청권", "off": "목요일", "note": "", "award": 2060000, "shiftH": 1.8, "headcount": 2, "laborBudget": 1600000, "overhead": 150000, "profit": 210000, "budgetTotal": 1960000, "contacts": [], "mode": "direct", "subVendor": "", "subFee": 0, "subContact": ""}, {"id": "S02", "name": "애슐리퀸즈 창동씨드큐브점", "open": "6월 2일", "addr": "서울특별시 도봉구 마들로13길 61 301-1호, 2호", "sido": "서울특별시", "region": "서울", "off": "월요일", "note": "", "award": 2230000, "shiftH": 2.0, "headcount": 2, "laborBudget": 1700000, "overhead": 160000, "profit": 230000, "budgetTotal": 2090000, "contacts": [["주방", "최하나 010-5150-0841"], ["홀", "최요셉 010-8221-9301"]], "mode": "sub", "subVendor": "", "subFee": 1700000, "subContact": ""}, {"id": "S03", "name": "애슐리퀸즈 뉴코아 천호점", "open": "6월 1일", "addr": "서울특별시 강동구 구천면로 189 2001아울렛 천호점 4층", "sido": "서울특별시", "region": "서울", "off": null, "note": "주방 주 6일, 홀청소 주2회(토요일, 일요일)", "award": 2030000, "shiftH": 2.3, "headcount": 1, "laborBudget": 1430000, "overhead": 150000, "profit": 210000, "budgetTotal": 1790000, "contacts": [], "mode": "sub", "subVendor": "", "subFee": 1430000, "subContact": ""}, {"id": "S04", "name": "애슐리퀸즈 이마트 남양주점", "open": "6월 1일", "addr": "경기도 남양주시 늘을2로 27 이마트 남양주점 3층", "sido": "경기도", "region": "경기·인천", "off": "수요일", "note": "6월 3일 지방선거로 차주만 목요일 청소", "award": 2170000, "shiftH": 2.3, "headcount": 2, "laborBudget": 2000000, "overhead": 160000, "profit": 220000, "budgetTotal": 2380000, "contacts": [], "mode": "direct", "subVendor": "", "subFee": 0, "subContact": ""}, {"id": "S05", "name": "애슐리퀸즈 이마트월계점", "open": "6월 1일", "addr": "서울특별시 노원구 마들로3길 15 (월계동) 1층", "sido": "서울특별시", "region": "서울", "off": "일요일", "note": "", "award": 2580000, "shiftH": 2.3, "headcount": 2, "laborBudget": 1900000, "overhead": 190000, "profit": 270000, "budgetTotal": 2360000, "contacts": [["주방", "김완신 010-6315-0220"]], "mode": "direct", "subVendor": "", "subFee": 0, "subContact": ""}, {"id": "S06", "name": "애슐리퀸즈 레이크꼬모 동탄점", "open": "6월 2일", "addr": "경기도 화성시 동탄대로 181 레이크꼬모 동탄 지하1층 B101호", "sido": "경기도", "region": "경기·인천", "off": "월요일", "note": "", "award": 2640000, "shiftH": 2.3, "headcount": 2, "laborBudget": 2100000, "overhead": 190000, "profit": 270000, "budgetTotal": 2560000, "contacts": [], "mode": "direct", "subVendor": "", "subFee": 0, "subContact": ""}, {"id": "S07", "name": "애슐리퀸즈 미아사거리역점", "open": "6월 2일", "addr": "서울특별시 강북구 도봉로 52 (미아동)Y스퀘어 5층 애슐리", "sido": "서울특별시", "region": "서울", "off": "월요일", "note": "", "award": 2760000, "shiftH": 1.8, "headcount": 3, "laborBudget": 2300000, "overhead": 200000, "profit": 290000, "budgetTotal": 2790000, "contacts": [["주방", "주은형 010-2121-8523"], ["홀", "조승아 010-8112-0156"]], "mode": "sub", "subVendor": "", "subFee": 2300000, "subContact": ""}, {"id": "S08", "name": "애슐리퀸즈 천안펜타포트점", "open": "6월 2일", "addr": "충청남도 천안시 서북구 공원로 196 2층 애슐리퀸즈", "sido": "충청남도", "region": "충청권", "off": "월요일", "note": "", "award": 2920000, "shiftH": 2.3, "headcount": 2, "laborBudget": 2300000, "overhead": 210000, "profit": 300000, "budgetTotal": 2810000, "contacts": [], "mode": "direct", "subVendor": "", "subFee": 0, "subContact": ""}, {"id": "S09", "name": "애슐리퀸즈 NC유성점", "open": "6월 1일", "addr": "대전광역시 유성구 계룡로 119 10층", "sido": "대전광역시", "region": "충청권", "off": "일요일", "note": "", "award": 3000000, "shiftH": 2.3, "headcount": 2, "laborBudget": 2400000, "overhead": 220000, "profit": 310000, "budgetTotal": 2930000, "contacts": [], "mode": "direct", "subVendor": "", "subFee": 0, "subContact": ""}, {"id": "S10", "name": "애슐리퀸즈 다산점", "open": "6월 1일", "addr": "경기도 남양주시 다산순환로 20 A동 2층 16호", "sido": "경기도", "region": "경기·인천", "off": "화요일", "note": "", "award": 3320000, "shiftH": 2.0, "headcount": 3, "laborBudget": 2650000, "overhead": 240000, "profit": 350000, "budgetTotal": 3240000, "contacts": [], "mode": "sub", "subVendor": "", "subFee": 2650000, "subContact": ""}];
+const WD = ['일','월','화','수','목','금','토'];
+const WDF = ['일요일','월요일','화요일','수요일','수요일','금요일','토요일'];
+const WDFULL = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
+const won = n => '\u20A9' + Math.round(n||0).toLocaleString('ko-KR');
+
+let MEM={};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return MEM[k]??null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){MEM[k]=v}},del(k){try{localStorage.removeItem(k)}catch(e){delete MEM[k]}}};
+/* ===== 워크스페이스(거래처) 멀티 관리 ===== */
+const WORKSPACES=[
+  {id:'eland',name:'이랜드',color:'#3B8CE4',icon:'🏪'},
+  {id:'building',name:'건물관리',color:'#10b981',icon:'🏢'},
+  {id:'darak',name:'다락',color:'#8b5cf6',icon:'🏠'}
+];
+let CUR_WS=store.get('aq_cur_ws')||'eland';
+function wsKey(){return CUR_WS==='eland'?'aq_state':'aq_state_'+CUR_WS;}
+function wsRowId(){return CUR_WS==='eland'?'main':'ws_'+CUR_WS;}
+function wsName(){const w=WORKSPACES.find(x=>x.id===CUR_WS);return w?w.name:CUR_WS;}
+function wsColor(){const w=WORKSPACES.find(x=>x.id===CUR_WS);return w?w.color:'#3B8CE4';}
+function isPatrol(){return CUR_WS==='building'||CUR_WS==='darak';}
+function regionOptions(sel){const rr=[...new Set(S.stores.map(s=>s.region).filter(Boolean))].sort();let o='<option value="">권역 미지정</option>';rr.forEach(r=>{const cnt=S.stores.filter(s=>s.region===r).length;o+=`<option value="${r}" ${r===sel?'selected':''}>${r} (${cnt}개 건물)</option>`;});return o;}
+function regionWorkers(region){return S.workers.filter(w=>(w.patrolRegion||'')=== region);}
+function regionStores(region){return S.stores.filter(s=>s.region===region);}
+function renderWsBar(){
+  const bar=document.getElementById('wsBar');if(!bar)return;
+  bar.innerHTML=WORKSPACES.map(w=>
+    `<button class="ws-btn ${w.id===CUR_WS?'on':''}" onclick="switchWS('${w.id}')"><span class="ws-dot" style="background:${w.color}"></span>${w.name}</button>`
+  ).join('');
+  const lbl=document.getElementById('wsLabel');if(lbl)lbl.textContent=wsName()+' · 컨텍터스 미화운영';
+  document.documentElement.style.setProperty('--blue',wsColor());
+}
+function switchWS(id){
+  if(id===CUR_WS)return;
+  sbPushNow();
+  CUR_WS=id;store.set('aq_cur_ws',id);
+  SB_REV=0;
+  S=load();
+  document.getElementById('monthPick').value=S.month;
+  render();
+  sbStart();
+}
+/* ================================================ */
+/* ===== Supabase 공유 동기화 (localStorage → 클라우드 공유) ===== */
+const SUPABASE_URL = 'https://mdbrarxqjruibxibthnk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kYnJhcnhxanJ1aWJ4aWJ0aG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NDAzMTcsImV4cCI6MjA5NjUxNjMxN30.zTK8h5l-Ur3mY5vwzTAQNj9ouhojQA53xjhaU5eHIlY'; /* anon public 키 (공개용) */
+const SB_REST = SUPABASE_URL.replace(/\/+$/,'') + '/rest/v1/aq_shared';
+const SB_HEAD = () => ({'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json'});
+const CLIENT_ID = (()=>{let c=store.get('aq_client');if(!c){c='C'+Math.random().toString(36).slice(2,9);store.set('aq_client',c);}return c;})();
+let SB_REV = 0, SB_BUSY = false, SB_PUSH_T = null;
+function sbStatus(ok){const e=document.getElementById('sbStatus');if(e){e.textContent=ok?'🟢 동기화됨':'🟡 오프라인';e.style.color=ok?'#2e7d32':'#b26a00';}}
+function sbStamp(){const e=document.getElementById('sbTime');if(e){const d=new Date();e.textContent='· 최신 동기화 '+[d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');}}
+async function sbPullFull(){
+  const r=await fetch(SB_REST+'?id=eq.'+wsRowId()+'&select=state,rev',{headers:SB_HEAD()});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const rows=await r.json();
+  if(rows.length&&rows[0].state&&rows[0].state.stores){
+    SB_REV=Number(rows[0].rev)||0;
+    S=migrate(rows[0].state);
+    store.set(wsKey(),JSON.stringify(S));
+    const mp=document.getElementById('monthPick');if(mp)mp.value=S.month;
+    render();
+  }
+}
+async function sbPoll(){
+  try{
+    const r=await fetch(SB_REST+'?id=eq.'+wsRowId()+'&select=rev',{headers:SB_HEAD()});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const rows=await r.json();sbStatus(true);
+    if(!rows.length||!rows[0].rev){await sbPushNow();}        /* 서버에 데이터 없음 → 현재 데이터 최초 업로드 */
+    else if(Number(rows[0].rev)>SB_REV){await sbPullFull();}  /* 다른 직원이 입력함 → 최신본 받아오기 */
+    sbStamp();
+  }catch(e){sbStatus(false);}
+}
+async function sbPushNow(){
+  if(SB_BUSY)return;SB_BUSY=true;
+  try{
+    const rev=Date.now();
+    const body=[{id:wsRowId(),state:S,rev:rev,updated_by:CLIENT_ID,updated_at:new Date().toISOString()}];
+    const r=await fetch(SB_REST+'?on_conflict=id',{method:'POST',headers:{...SB_HEAD(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(body)});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    SB_REV=rev;sbStatus(true);sbStamp();
+  }catch(e){sbStatus(false);}
+  finally{SB_BUSY=false;}
+}
+function sbPush(){clearTimeout(SB_PUSH_T);SB_PUSH_T=setTimeout(sbPushNow,350);}      /* 저장 시 0.35초 디바운스 후 클라우드 반영 */
+let SB_TIMER=null;
+function sbStart(){if(SB_TIMER)clearInterval(SB_TIMER);sbPoll();SB_TIMER=setInterval(sbPoll,4000);}                                /* 4초마다 폴링 → 전 직원 동기화 */
+/* ============================================================== */
+const DEF_SET={wageHK:12500,wageSalad:10000,nightRate:0.5,otRate:0.5,shiftStart:'22:00',shiftEnd:'00:00',cutoffDay:25};
+
+function defWorkers(extra){
+  const w=[{id:'W-lead',name:'본사 팀장',type:'salary',salary:3500000,withhold:3.3,rate:null,phone:'',memo:'노쇼 대체 근무'}];
+  (extra||[]).forEach((n,i)=>w.push({id:'W'+i+'x'+Math.floor(Math.random()*1e4),name:n,type:'hourly',salary:0,withhold:3.3,rate:null,phone:'',memo:''}));
+  return w;
+}
+function migrate(st){
+  st.settings={...DEF_SET,...(st.settings||{})};
+  const subset=new Set(['애슐리퀸즈 창동씨드큐브점','애슐리퀸즈 뉴코아 천호점','애슐리퀸즈 미아사거리역점','애슐리퀸즈 다산점']);
+  st.stores.forEach(s=>{ if(!s.mode)s.mode=subset.has(s.name)?'sub':'direct'; if(s.subFee==null)s.subFee=s.mode==='sub'?(s.laborBudget||0):0; if(s.subVendor==null)s.subVendor=''; if(s.subContact==null)s.subContact=''; if(s.contractStart==null)s.contractStart=''; if(s.contractEnd==null)s.contractEnd=''; if(s.active==null)s.active=true; if(!Array.isArray(s.subContracts))s.subContracts=[]; });
+  if(st.v!==3){
+    let names=new Set(); (st.staff||[]).forEach(x=>{if(x&&x.name)names.add(x.name.trim());});
+    st.workers=defWorkers([...names]); delete st.staff; st.attendance={}; st.subatt={}; st.v=3;
+  }
+  if(!st.workers||!st.workers.length) st.workers=defWorkers([]);
+  if(!st.attendance)st.attendance={}; if(!st.subatt)st.subatt={}; if(!st.payRange)st.payRange={preset:'cycle'}; if(!st.sortStore)st.sortStore='oldest'; if(!st.sortPeople)st.sortPeople='store'; if(!st.sortSub)st.sortSub='region'; if(!st.albaPaySort)st.albaPaySort='default'; if(!st.pay)st.pay={}; if(!st.subPay)st.subPay={}; if(!st.payFilter)st.payFilter='all'; if(!st.subPayFilter)st.subPayFilter='all'; if(!st.manualPay)st.manualPay=[]; if(st.storeSearch==null)st.storeSearch=''; if(st.peopleSearch==null)st.peopleSearch=''; if(st.albaPaySearch==null)st.albaPaySearch='';
+  const _wids=new Set((st.workers||[]).map(w=>w.id));
+  Object.keys(st.attendance).forEach(k=>{const a=st.attendance[k];if(a&&a.workerId&&!_wids.has(a.workerId))delete st.attendance[k];});
+  return st;
+}
+function load(){
+  let st=JSON.parse(store.get(wsKey())||'null');
+  if(!st){ const stores=JSON.parse(JSON.stringify(SEED)); st={settings:{...DEF_SET},stores,workers:defWorkers(['김완신']),attendance:{},subatt:{},month:'2026-06',v:3,payRange:{preset:'cycle'}}; }
+  return migrate(st);
+}
+function save(){store.set(wsKey(),JSON.stringify(S));sbPush();}
+let S=load();
+
+/* ---------- positions ---------- */
+function positionsOf(s){
+  const HK=S.settings.wageHK, SA=S.settings.wageSalad;
+  if(s.headcount===3) return [{key:'홀',wage:HK},{key:'주방',wage:HK},{key:'샐러드바',wage:SA}];
+  if(s.headcount===1) return [{key:'주방·홀',wage:HK}];
+  return [{key:'홀+샐러드',wage:HK},{key:'주방+샐러드',wage:HK}];
+}
+
+/* ---------- pay cycle (25th cutoff) ---------- */
+function periodRange(){
+  const [y,m]=S.month.split('-').map(Number);
+  const startDay=S.settings.cutoffDay||25; // 정산 시작일: 전월 25일
+  const start=new Date(y,m-2,startDay);
+  const end=new Date(y,m-1,startDay-1); // 정산 종료일: 당월 24일
+  return {start,end};
+}
+function periodDates(){const{start,end}=periodRange();const out=[];const d=new Date(start);while(d<=end){out.push(new Date(d));d.setDate(d.getDate()+1);}return out;}
+function iso(dt){return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');}
+function periodLabel(){const{start,end}=periodRange();return iso(start)+' ~ '+iso(end);}
+function ymd(y,m,d){return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+function datesBetween(a,b){const out=[];let d=new Date(a+'T00:00:00');const e=new Date(b+'T00:00:00');if(isNaN(d)||isNaN(e)||e<d)return out;let g=0;while(d<=e&&g<400){out.push(new Date(d));d.setDate(d.getDate()+1);g++;}return out;}
+function rangeDates(){const r=S.payRange||{preset:'cycle'};const[y,m]=S.month.split('-').map(Number);
+  if(r.preset==='custom'&&r.start&&r.end)return datesBetween(r.start,r.end);
+  if(r.preset==='m1to25')return datesBetween(ymd(y,m,1),ymd(y,m,25));
+  if(r.preset==='mfull'){const last=new Date(y,m,0).getDate();return datesBetween(ymd(y,m,1),ymd(y,m,last));}
+  return periodDates();}
+function rangeLabel(){const a=rangeDates();if(!a.length)return '\u2014';return iso(a[0])+' ~ '+iso(a[a.length-1]);}
+
+/* ---------- calc ---------- */
+function nightHours(startStr,totalH){let[hh,mm]=startStr.split(':').map(Number);let start=hh*60+mm;if(start<720)start+=1440;const end=start+totalH*60;const ov=Math.max(0,Math.min(end,1800)-Math.max(start,1320));return ov/60;}
+function dayPay(wage,reg,ot,nightH){const tot=(reg||0)+(ot||0);const base=tot*wage;const nh=Math.max(0,Math.min(nightH||0,tot));const night=nh*wage*S.settings.nightRate;const otp=(ot||0)*wage*S.settings.otRate;return{base,night,ot:otp,hours:tot,nighthours:nh,total:base+night+otp};}
+function attNight(a){if(!a||a.status!=='work')return 0;const reg=a.reg||0,ot=a.ot||0;if(a.nReg!=null||a.nOt!=null)return (a.nReg||0)+(a.nOt||0);if(a.noNight)return 0;return nightHours(S.settings.shiftStart,reg+ot);}
+function hmLabel(dec){const t=Math.round((dec||0)*60);const h=Math.floor(t/60),m=t%60;if(!t)return '0';return (h?h+'h':'')+(m?(h?' ':'')+m+'m':'');}
+function hmParts(dec){const t=Math.round((dec||0)*60);return{h:Math.floor(t/60),m:t%60};}
+function shiftDur(start,end){let[a,b]=(start||'22:00').split(':').map(Number);let[c,d]=(end||'00:00').split(':').map(Number);let s=a*60+b,e=c*60+d;let diff=e-s;if(diff<=0)diff+=1440;return diff;}
+function shiftDurLabel(start,end){return hmLabel(shiftDur(start,end)/60);}
+function defShiftH(){return shiftDur(S.settings.shiftStart,S.settings.shiftEnd||'00:00')/60;}
+function updateShiftTotal(){const s=document.getElementById('set_start').value,e=document.getElementById('set_end').value,el=document.getElementById('set_total');if(el)el.value=shiftDurLabel(s,e);}
+
+function vat(n){return Math.round(n*1.1);}
+function storePersonalCost(s){return S.workers.filter(w=>w.type==='personal'&&w.storeId===s.id).reduce((a,w)=>a+(w.salary||0),0);}
+function storeOf(id){return S.stores.find(s=>s.id===id);}
+function workerOf(id){return S.workers.find(w=>w.id===id);}
+function isSub(s){return s.mode==='sub';}
+function isActiveStore(s){return !s||s.active!==false;}
+function activeStores(){return S.stores.filter(isActiveStore);}
+function parseDateOrNull(v){if(!v)return null;const d=new Date(v+'T00:00:00');return isNaN(d)?null:d;}
+function rangeOverlapsDates(startStr,endStr,dates){if(!dates||!dates.length)return true;const rs=dates[0],re=dates[dates.length-1];const s=parseDateOrNull(startStr),e=parseDateOrNull(endStr);if(s&&re<s)return false;if(e&&rs>e)return false;return true;}
+function dateInRange(dt,startStr,endStr){const s=parseDateOrNull(startStr),e=parseDateOrNull(endStr);if(s&&dt<s)return false;if(e&&dt>e)return false;return true;}
+function makeSubContract(store,c,idx){c=c||{};const id=c.id||('SUBC_'+store.id+'_'+idx);return{...store,...c,id:id,contractId:id,storeId:store.id,store:store,name:store.name,region:store.region,award:store.award,active:store.active};}
+function currentSubContract(store){if(!isSub(store))return null;if(!(store.subVendor||store.subFee||store.contractStart||store.contractEnd))return null;return makeSubContract(store,{id:'CUR_'+store.id,subVendor:store.subVendor,subFee:store.subFee,subContact:store.subContact,contractStart:store.contractStart,contractEnd:store.contractEnd,bizName:store.bizName,bizNo:store.bizNo,bizOwner:store.bizOwner,bizType:store.bizType,bizItem:store.bizItem,bizAddr:store.bizAddr,bizEmail:store.bizEmail,bankName:store.bankName,bankAccount:store.bankAccount,bankHolder:store.bankHolder,isCurrent:true},'CUR');}
+function subContractsOf(store){const out=[];(store.subContracts||[]).forEach((c,i)=>out.push(makeSubContract(store,c,i)));const cur=currentSubContract(store);if(cur)out.push(cur);return out;}
+function allSubContracts(){return S.stores.flatMap(subContractsOf);}
+function subSettlementDates(s,dates){return (dates||rangeDates()).filter(dt=>dateInRange(dt,s.contractStart,s.contractEnd));}
+function monthDaysOf(dt){return new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate();}
+function ymOf(dt){return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');}
+function subProration(s,dates){
+  const all=(dates||rangeDates());
+  const active=subSettlementDates(s,all);
+  let fee=0,award=0;
+  const months=new Set();
+  active.forEach(dt=>{const md=monthDaysOf(dt);months.add(ymOf(dt));fee+=(s.subFee||0)/md;award+=(s.award||0)/md;});
+  let totalDays=all.length,denomLabel='';
+  if(months.size===1&&active.length){totalDays=monthDaysOf(active[0]);denomLabel=active[0].getMonth()+1+'월 기준 '+active.length+'/'+totalDays+'일';}
+  else if(months.size>1){denomLabel=Array.from(months).map(ym=>{const cnt=active.filter(d=>ymOf(d)===ym).length;const [y,m]=ym.split('-').map(Number);const md=new Date(y,m,0).getDate();return m+'월 '+cnt+'/'+md+'일';}).join(' + ');}
+  else{denomLabel='0/'+totalDays+'일';}
+  return{days:active.length,totalDays,fee:Math.round(fee),award:Math.round(award),dates:active,denomLabel};
+}
+function salaryProration(w,dates){
+  const all=(dates&&dates.length)?dates:rangeDates();
+  const totalDays=all.length||1;
+  const active=all.filter(dt=>activeOn(w,iso(dt)));
+  const gross=Math.round((w.salary||0)*(active.length/totalDays));
+  const rate=(w.withhold!=null?w.withhold:3.3);
+  const tax=Math.round(gross*rate/100);
+  const net=gross-tax;
+  const first=active.length?iso(active[0]):'';
+  const last=active.length?iso(active[active.length-1]):'';
+  return{days:active.length,totalDays,gross,tax,net,rate,first,last,label:active.length+'/'+totalDays+'일'};
+}
+function activeSubStoresForDates(dates){return allSubContracts().filter(s=>rangeOverlapsDates(s.contractStart,s.contractEnd,dates));}
+function isOff(s,dt){return s.off && WDFULL[dt.getDay()]===s.off;}
+function shortName(s){return s.name.replace('애슐리퀸즈 ','');}
+function attKey(storeId,posKey,isoStr){return storeId+'#'+posKey+'#'+isoStr;}
+function subKey(storeId,isoStr){return 'SUB#'+storeId+'#'+isoStr;}
+function activeOn(w,ds){if(w.hireDate&&ds<w.hireDate)return false;if(w.resignDate&&ds>w.resignDate)return false;return true;}
+function occupantOf(s,posKey,dt){const ds=iso(dt);let best=null;S.workers.forEach(w=>{if(w.type==='salary')return;if(w.storeId!==s.id||w.posKey!==posKey)return;if(!activeOn(w,ds))return;if(!best||((w.hireDate||'')>(best.hireDate||'')))best=w;});return best;}
+function getAtt(s,posKey,dt){const k=attKey(s.id,posKey,iso(dt));const a=S.attendance[k];if(a)return a;if(isOff(s,dt))return{status:'off'};const occ=occupantOf(s,posKey,dt);if(occ)return{status:'work',workerId:occ.id,reg:defShiftH(),ot:0,auto:true};return{status:'plan',reg:defShiftH(),ot:0};}
+function getSub(s,dt){const a=S.subatt[subKey(s.id,iso(dt))];if(a)return a;if(isOff(s,dt))return{status:'off'};return{status:'plan'};}
+function rateFor(worker,posWage){return (worker&&worker.rate)?worker.rate:posWage;}
+
+/* aggregate over period */
+function workerAgg(DTS){DTS=DTS||periodDates();
+  const map={}; S.workers.forEach(w=>map[w.id]={w,days:0,reg:0,ot:0,base:0,night:0,otpay:0,total:0,leaddays:0,byStore:{}});
+  S.stores.forEach(s=>{
+    positionsOf(s).forEach(p=>{ DTS.forEach(dt=>{
+      const a=getAtt(s,p.key,dt);
+      if(a.status!=='work'||!a.workerId)return; const m=map[a.workerId]; if(!m)return;
+      if(m.w.type==='salary'||m.w.type==='personal'){ if(m.w.type==='salary')m.leaddays++; m.days++; (m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0}).d++; return; }
+      const pay=dayPay(rateFor(m.w,p.wage),a.reg,a.ot,m.w.noNight?0:attNight(a));
+      m.days++; m.reg+=(a.reg||0); m.ot+=(a.ot||0); m.base+=pay.base; m.night+=pay.night; m.otpay+=pay.ot; m.total+=pay.total;
+      const bs=(m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0}); bs.d++; bs.t+=pay.total;
+    });});
+  });
+  /* 그리드 포지션에 매칭되지 않는 posKey 직원도 매장 근무일 기준으로 자동 정산 (홀, 샐러드, 자재관리 등) */
+  const _posWage=r=>r==='샐러드'||r==='샐러드바'?S.settings.wageSalad:S.settings.wageHK;
+  S.stores.forEach(s=>{
+    const gridKeys=positionsOf(s).map(p=>p.key);
+    S.workers.filter(w=>w.posKey&&w.posKey!=='후보자'&&!gridKeys.includes(w.posKey)&&w.storeId===s.id&&(w.type==='hourly'||w.type==='personal')).forEach(w=>{
+      const m=map[w.id];if(!m)return;
+      if(w.type==='personal'){DTS.forEach(dt=>{const ds=iso(dt);if(!activeOn(w,ds))return;if(isOff(s,dt))return;m.days++;(m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0}).d++;});return;}
+      const wage=rateFor(w,_posWage(w.posKey));
+      DTS.forEach(dt=>{const ds=iso(dt);if(!activeOn(w,ds))return;if(isOff(s,dt))return;
+        const reg=defShiftH();const nightH=w.noNight?0:nightHours(S.settings.shiftStart,reg);
+        const pay=dayPay(wage,reg,0,nightH);
+        m.days++;m.reg+=reg;m.base+=pay.base;m.night+=pay.night;m.total+=pay.total;
+        const bs=(m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0});bs.d++;bs.t+=pay.total;
+      });
+    });
+  });
+  /* 패트롤 모드: patrolRegion 배정 직원 → 권역 내 모든 건물 근무일 기준 */
+  if(isPatrol()){
+    S.workers.filter(w=>w.patrolRegion).forEach(w=>{
+      const m=map[w.id];if(!m)return;
+      const rStores=regionStores(w.patrolRegion);if(!rStores.length)return;
+      if(w.type==='salary'||w.type==='personal'){
+        DTS.forEach(dt=>{if(!activeOn(w,iso(dt)))return;if(rStores.every(s=>isOff(s,dt)))return;m.days++;
+          rStores.forEach(s=>{(m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0}).d++;});});return;}
+      const wage=rateFor(w,S.settings.wageHK);
+      DTS.forEach(dt=>{if(!activeOn(w,iso(dt)))return;if(rStores.every(s=>isOff(s,dt)))return;
+        const reg=defShiftH();const nightH=w.noNight?0:nightHours(S.settings.shiftStart,reg);
+        const pay=dayPay(wage,reg,0,nightH);
+        m.days++;m.reg+=reg;m.base+=pay.base;m.night+=pay.night;m.otpay+=pay.ot;m.total+=pay.total;
+        const perStore=pay.total/rStores.length;
+        rStores.forEach(s=>{const bs=(m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0});bs.d++;bs.t+=perStore;});
+      });
+    });
+  }
+  return map;
+}
+function storeDirectCost(s,_D){let c=0;const DTS=_D||periodDates();positionsOf(s).forEach(p=>DTS.forEach(dt=>{const a=getAtt(s,p.key,dt);if(a.status==='work'&&a.workerId){const w=workerOf(a.workerId);if(w&&w.type==='hourly')c+=dayPay(rateFor(w,p.wage),a.reg,a.ot,w.noNight?0:attNight(a)).total;}}));
+  const _pw=r=>r==='샐러드'||r==='샐러드바'?S.settings.wageSalad:S.settings.wageHK;const _gk=positionsOf(s).map(p=>p.key);
+  S.workers.filter(w=>w.posKey&&w.posKey!=='후보자'&&!_gk.includes(w.posKey)&&w.storeId===s.id&&w.type==='hourly').forEach(w=>{const wage=rateFor(w,_pw(w.posKey));DTS.forEach(dt=>{if(!activeOn(w,iso(dt)))return;if(isOff(s,dt))return;const reg=defShiftH();c+=dayPay(wage,reg,0,w.noNight?0:nightHours(S.settings.shiftStart,reg)).total;});});
+  return c;}
+function storeIndex(s){return S.stores.findIndex(x=>x.id===s.id);}
+function workerIndex(w){return S.workers.findIndex(x=>x.id===w.id);}
+function sortStoresBy(list){const k=S.sortStore||'oldest';const a=list.slice();
+  if(k==='name')a.sort((x,y)=>shortName(x).localeCompare(shortName(y),'ko'));
+  else if(k==='status')a.sort((x,y)=>(x.mode===y.mode?(storeIndex(x)-storeIndex(y)):(x.mode==='sub'?1:-1)));
+  else if(k==='newest')a.sort((x,y)=>storeIndex(y)-storeIndex(x));
+  else a.sort((x,y)=>storeIndex(x)-storeIndex(y));
+  return a;}
+function workerSortAmount(w){
+  if(w.type==='salary'||w.type==='personal')return w.salary||0;
+  if(w.rate)return w.rate||0;
+  const st=w.storeId?storeOf(w.storeId):null;
+  if(st&&w.posKey){const p=positionsOf(st).find(x=>x.key===w.posKey);if(p)return p.wage||0;}
+  return S.settings.wageHK||0;
+}
+function sortWorkers(list){const k=S.sortPeople||'store';const a=list.slice();const sn=w=>(w.storeId&&storeOf(w.storeId))?shortName(storeOf(w.storeId)):'\uffff';
+  if(k==='store')a.sort((x,y)=>sn(x).localeCompare(sn(y),'ko')||x.name.localeCompare(y.name,'ko'));
+  else if(k==='status')a.sort((x,y)=>((x.resignDate?1:0)-(y.resignDate?1:0))||x.name.localeCompare(y.name,'ko'));
+  else if(k==='newest')a.sort((x,y)=>workerIndex(y)-workerIndex(x));
+  else if(k==='nameAsc')a.sort((x,y)=>x.name.localeCompare(y.name,'ko'));
+  else if(k==='nameDesc')a.sort((x,y)=>y.name.localeCompare(x.name,'ko'));
+  else if(k==='amountDesc')a.sort((x,y)=>workerSortAmount(y)-workerSortAmount(x)||x.name.localeCompare(y.name,'ko'));
+  else if(k==='amountAsc')a.sort((x,y)=>workerSortAmount(x)-workerSortAmount(y)||x.name.localeCompare(y.name,'ko'));
+  else a.sort((x,y)=>workerIndex(x)-workerIndex(y));
+  return a;}
+function sortSubsBy(list){const k=S.sortSub||'region';const a=list.slice();
+  if(k==='region')a.sort((x,y)=>(x.region||'').localeCompare(y.region||'','ko')||shortName(x).localeCompare(shortName(y),'ko'));
+  else if(k==='newest')a.sort((x,y)=>storeIndex(y)-storeIndex(x));
+  else if(k==='amount')a.sort((x,y)=>(y.subFee||0)-(x.subFee||0));
+  else if(k==='vendor')a.sort((x,y)=>(x.subVendor||'\uffff').localeCompare(y.subVendor||'\uffff','ko'));
+  return a;}
+function selBox(fn,cur,o){return `<select onchange="${fn}(this.value)" style="font-size:12px;padding:5px 8px;width:auto">${o.map(x=>`<option value="${x[0]}" ${cur===x[0]?'selected':''}>정렬: ${x[1]}</option>`).join('')}</select>`;}
+function storeSortControl(){return selBox('setStoreSort',S.sortStore||'oldest',[['oldest','오래된순'],['newest','최신순'],['name','지점순'],['status','상태순']]);}
+function peopleSortControl(){return selBox('setPeopleSort',S.sortPeople||'store',[['store','지점순'],['nameAsc','이름순'],['nameDesc','이름역순'],['amountDesc','금액높은순'],['amountAsc','금액낮은순'],['status','상태순'],['newest','최신순'],['oldest','오래된순']]);}
+function albaPaySortControl(){return selBox('setAlbaPaySort',S.albaPaySort||'default',[['default','기본순'],['nameAsc','이름순'],['nameDesc','이름역순'],['amountDesc','지급액높은순'],['amountAsc','지급액낮은순'],['netDesc','실지급높은순'],['netAsc','실지급낮은순']]);}
+function subSortControl(){return selBox('setSubSort',S.sortSub||'region',[['region','지역순'],['newest','최신순'],['amount','금액순'],['vendor','업체순']]);}
+function setStoreSort(v){S.sortStore=v;save();render();}
+function setPeopleSort(v){S.sortPeople=v;save();render();}
+function setAlbaPaySort(v){S.albaPaySort=v;save();render();}
+function setSubSort(v){S.sortSub=v;save();render();}
+function storeNoShows(s,_D){let n=0;if(isSub(s)){(_D||periodDates()).forEach(dt=>{if(getSub(s,dt).status==='undone')n++;});return n;}positionsOf(s).forEach(p=>(_D||periodDates()).forEach(dt=>{if(getAtt(s,p.key,dt).status==='noshow')n++;}));return n;}
+function storePeople(s,_D){const set=new Set();positionsOf(s).forEach(p=>(_D||periodDates()).forEach(dt=>{const a=getAtt(s,p.key,dt);if(a.status==='work'&&a.workerId)set.add(a.workerId);}));return set.size;}
+function posRoster(s,posKey){const map={};periodDates().forEach(dt=>{const a=getAtt(s,posKey,dt);if(a.status==='work'&&a.workerId)map[a.workerId]=(map[a.workerId]||0)+1;});return Object.keys(map).map(id=>({w:workerOf(id),days:map[id]})).filter(x=>x.w).sort((a,b)=>b.days-a.days);}
+function storeLeadDays(s,_D){let n=0;positionsOf(s).forEach(p=>(_D||periodDates()).forEach(dt=>{const a=getAtt(s,p.key,dt);if(a.status==='work'&&a.workerId){const w=workerOf(a.workerId);if(w&&w.type==='salary')n++;}}));return n;}
+function subAgg(s,_D){let done=0,planned=0;subSettlementDates(s,(_D||periodDates())).forEach(dt=>{if(isOff(s,dt))return;planned++;if(getSub(s,dt).status==='done')done++;});return{done,planned};}
+
+/* ===================== RENDER ===================== */
+function render(){renderDash();renderStores();renderPeople();renderSched();renderPay();renderSet();}
+
+function banner(){return `<div class="pbanner">📅 정산기간 <span class="num">${periodLabel()}</span> · ${S.month.split('-')[1]}월 급여마감(${S.settings.cutoffDay}일) 기준</div>`;}
+
+/* ===== 패트롤 대시보드 (건물관리/다락) ===== */
+function renderDashPatrol(){
+  const _RD=rangeDates();const agg=workerAgg(_RD);
+  const regions=[...new Set(S.stores.map(s=>s.region).filter(Boolean))].sort();
+  const patrolWorkers=S.workers.filter(w=>w.patrolRegion&&!w.resignDate);
+  const allWorkers=S.workers.filter(w=>w.patrolRegion);
+  let tAward=0,tBudget=0,tCost=0;
+  regions.forEach(r=>{const ss=regionStores(r);tAward+=ss.reduce((a,s)=>a+(s.award||0),0);tBudget+=ss.reduce((a,s)=>a+(s.laborBudget||s.subFee||0),0);});
+  allWorkers.forEach(w=>{const m=agg[w.id];tCost+=w.type==='hourly'?m.total:(w.salary||0);});
+  const tMargin=tAward-tCost;const mRate=tAward?Math.round(tMargin/tAward*100):0;
+
+  const _pr=S.payRange||{preset:'cycle'};
+  const _presets=[['cycle','마감사이클(26~25)'],['m1to25','1~25일'],['mfull','이번달 전체'],['custom','사용자지정']];
+  let h=`<div class="panel" style="margin-bottom:12px"><div class="pbody" style="padding:14px 18px"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><label class="fld" style="margin:0">\uD83D\uDCC5 정산기간</label>
+    <div class="seg" style="flex-wrap:wrap;gap:6px">${_presets.map(p=>`<button class="${_pr.preset===p[0]?'on':''}" style="flex:0 0 auto;min-width:90px;padding:6px 10px" onclick="setPreset('${p[0]}')">${p[1]}</button>`).join('')}</div></div>
+    <div class="row" style="margin-top:8px;${_pr.preset==='custom'?'':'display:none'}"><div style="flex:1"><label class="fld">시작일</label><input type="date" id="pr_s" value="${_pr.start||iso(_RD[0]||new Date())}"></div>
+      <div style="flex:1"><label class="fld">종료일</label><input type="date" id="pr_e" value="${_pr.end||iso((_RD[_RD.length-1])||new Date())}"></div>
+      <button class="btn pri" onclick="applyCustom()">적용</button></div>
+    <div style="margin-top:6px;font-size:12.5px;color:var(--purple);font-weight:700">\uD83D\uDCC5 ${rangeLabel()} \u00B7 ${_RD.length}일</div></div></div>`;
+
+  /* ── 지도 ── */
+  const hasCoords=S.stores.some(s=>s.lat&&s.lng);
+  if(hasCoords){
+    h+=`<div class="panel" style="margin-bottom:16px"><div class="phead"><h2>\uD83D\uDDFA\uFE0F 건물 지도</h2><span class="hint">${S.stores.filter(s=>s.lat&&s.lng).length}/${S.stores.length}개 건물 표시</span></div><div class="pbody" style="padding:0;overflow:hidden;border-radius:0 0 14px 14px"><div id="patrolMap" style="height:420px;width:100%"></div></div></div>`;
+  }
+
+  /* ── 히어로 지표 ── */
+  h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">
+    <div style="background:linear-gradient(135deg,${wsColor()},${wsColor()}cc);border-radius:14px;padding:20px;color:#fff;text-align:center"><div style="font-size:32px;font-weight:900">${regions.length}</div><div style="font-size:12px;opacity:.85;margin-top:2px">운영 권역</div></div>
+    <div style="background:linear-gradient(135deg,#6366f1,#818cf8);border-radius:14px;padding:20px;color:#fff;text-align:center"><div style="font-size:32px;font-weight:900">${S.stores.length}</div><div style="font-size:12px;opacity:.85;margin-top:2px">관리 건물</div></div>
+    <div style="background:linear-gradient(135deg,#0ea5e9,#38bdf8);border-radius:14px;padding:20px;color:#fff;text-align:center"><div style="font-size:32px;font-weight:900">${patrolWorkers.length}</div><div style="font-size:12px;opacity:.85;margin-top:2px">패트롤 인력</div></div>
+    <div style="background:linear-gradient(135deg,${tMargin>=0?'#10b981,#34d399':'#ef4444,#f87171'});border-radius:14px;padding:20px;color:#fff;text-align:center"><div style="font-size:24px;font-weight:900">${mRate}%</div><div style="font-size:12px;opacity:.85;margin-top:2px">마진율 · ${won(tMargin)}</div></div>
+  </div>`;
+
+  /* ── 수주/원가 요약 ── */
+  h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
+    <div class="panel" style="margin:0"><div class="pbody" style="padding:16px;text-align:center"><div style="font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:1px">총 수주 (공급가액)</div><div style="font-size:22px;font-weight:900;color:var(--blue-d);margin-top:6px">${won(tAward)}</div><div style="font-size:11px;color:var(--mut);margin-top:2px">VAT포함 ${won(vat(tAward))}</div></div></div>
+    <div class="panel" style="margin:0"><div class="pbody" style="padding:16px;text-align:center"><div style="font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:1px">총 예산</div><div style="font-size:22px;font-weight:900;margin-top:6px">${won(tBudget)}</div><div style="font-size:11px;color:var(--mut);margin-top:2px">VAT포함 ${won(vat(tBudget))}</div></div></div>
+    <div class="panel" style="margin:0"><div class="pbody" style="padding:16px;text-align:center"><div style="font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:1px">총 인건비 (정산기준)</div><div style="font-size:22px;font-weight:900;color:var(--red);margin-top:6px">${won(tCost)}</div><div style="font-size:11px;color:var(--mut);margin-top:2px">${rangeLabel()}</div></div></div>
+  </div>`;
+
+  /* ── 권역별 카드 ── */
+  const rcColors=['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ec4899','#06b6d4','#84cc16','#ef4444','#6366f1','#14b8a6'];
+  h+=`<div class="panel"><div class="phead"><h2>\uD83D\uDDFA\uFE0F 권역별 현황</h2><span class="hint">${regions.length}개 권역 · ${S.stores.length}개 건물</span></div><div class="pbody">`;
+  if(!regions.length){
+    h+=`<div style="text-align:center;padding:40px;color:var(--mut)"><div style="font-size:36px;margin-bottom:10px">\uD83C\uDFE2</div><p>매장 탭에서 건물을 등록하고 <b>권역</b>을 지정하면<br>여기에 권역별 현황이 표시됩니다.</p></div>`;
+  } else {
+    h+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">`;
+    regions.forEach((r,ri)=>{
+      const ss=regionStores(r);const ww=regionWorkers(r);
+      const award=ss.reduce((a,s)=>a+(s.award||0),0);
+      const budget=ss.reduce((a,s)=>a+(s.laborBudget||s.subFee||0),0);
+      let cost=0;ww.forEach(w=>{const m=agg[w.id];cost+=w.type==='hourly'?m.total:(w.salary||0);});
+      const mg=award-cost;const rt=award?Math.round(mg/award*100):0;
+      const clr=rcColors[ri%rcColors.length];
+      const names=ww.length?ww.map(w=>{const m=agg[w.id];return `<div style="display:inline-flex;align-items:center;gap:4px;background:#f0f4fa;padding:3px 10px;border-radius:12px;font-size:12px;margin:2px"><span style="width:20px;height:20px;border-radius:50%;background:${clr};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">${w.name.charAt(0)}</span>${w.name} <span style="color:var(--mut);font-size:10px">${m.days}일</span></div>`;}).join(''):'<span style="background:#fef2f2;color:var(--red);padding:3px 10px;border-radius:12px;font-size:12px">\u26A0 미배정</span>';
+      const barW=award>0?Math.min(100,Math.round(cost/award*100)):0;
+      h+=`<div style="border:1px solid #e5e7eb;border-radius:14px;padding:18px;background:#fff;border-left:4px solid ${clr}">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px">
+          <div><div style="font-size:16px;font-weight:800;color:#1f2937">${r}</div><div style="font-size:11px;color:var(--mut);margin-top:2px">${ss.length}개 건물</div></div>
+          <span style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;background:${mg>=0?'#ecfdf5;color:#059669':'#fef2f2;color:#dc2626'}">${mg>=0?'+':''}${won(mg)} (${rt}%)</span>
+        </div>
+        <div style="margin-bottom:10px">${names}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;color:var(--mut);text-align:center">
+          <div><div style="font-weight:700;color:#1f2937;font-size:14px">${won(award)}</div>수주</div>
+          <div><div style="font-weight:700;color:#1f2937;font-size:14px">${won(budget)}</div>예산</div>
+          <div><div style="font-weight:700;color:var(--red);font-size:14px">${won(cost)}</div>인건비</div>
+        </div>
+        <div style="margin-top:10px;background:#f3f4f6;border-radius:6px;height:6px;overflow:hidden"><div style="height:100%;border-radius:6px;background:${barW>85?'var(--red)':barW>65?'var(--amber)':'var(--green)'};width:${barW}%"></div></div>
+        <div style="margin-top:8px;font-size:10px;color:#9ca3af;line-height:1.5">${ss.map(s=>shortName(s)).join(' · ')}</div>
+      </div>`;
+    });
+    h+=`</div>`;
+  }
+  h+=`</div></div>`;
+
+  /* ── 패트롤 인력 요약 ── */
+  if(allWorkers.length){
+    h+=`<div class="panel"><div class="phead"><h2>\uD83D\uDC77 패트롤 인력 현황</h2><span class="hint">${allWorkers.length}명</span></div><div class="pbody"><div style="overflow-x:auto">
+      <table><thead><tr><th>이름</th><th>담당 권역</th><th class="c">건물 수</th><th class="c">근무일</th><th class="r">시급/월급</th><th class="r">정산액</th><th class="c">상태</th></tr></thead><tbody>`;
+    allWorkers.forEach(w=>{const m=agg[w.id];const rs=regionStores(w.patrolRegion);
+      const pay=w.type==='hourly'?won(w.rate||S.settings.wageHK)+'/h':won(w.salary)+'/월';
+      const total=w.type==='hourly'?m.total:(w.salary||0);
+      const stt=w.resignDate?'<span class="tag gray">퇴사</span>':'<span class="tag g">재직</span>';
+      h+=`<tr style="${w.resignDate?'opacity:.5':''}"><td><b>${w.name}</b></td><td>${w.patrolRegion||'-'}</td><td class="c">${rs.length}개</td><td class="c">${m.days}일</td><td class="r">${pay}</td><td class="r num"><b>${won(total)}</b></td><td class="c">${stt}</td></tr>`;
+    });
+    h+=`</tbody></table></div></div></div>`;
+  }
+
+  /* ── 권역 미지정 경고 ── */
+  const noRegion=S.stores.filter(s=>!s.region);
+  if(noRegion.length){h+=`<div class="panel" style="border:2px dashed var(--amber);background:#fffbeb"><div class="pbody" style="padding:16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:20px">\u26A0\uFE0F</span><b style="color:var(--amber)">권역 미지정 건물 ${noRegion.length}개</b></div><p style="font-size:13px;color:var(--mut);margin:0">${noRegion.map(s=>`<span style="background:#fef3c7;padding:2px 8px;border-radius:6px;margin:2px;display:inline-block;font-size:12px">${shortName(s)}</span>`).join(' ')}</p><p style="font-size:12px;color:var(--amber);margin-top:8px">매장 탭에서 권역을 지정하면 대시보드에 표시됩니다.</p></div></div>`;}
+
+  document.getElementById('dash').innerHTML=h;
+  /* 지도 렌더 */
+  if(hasCoords&&document.getElementById('patrolMap')){
+    const _rcColors=['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ec4899','#06b6d4','#84cc16','#ef4444','#6366f1','#14b8a6'];
+    const _regionList=[...new Set(S.stores.map(s=>s.region).filter(Boolean))].sort();
+    const _rclr=r=>{const i=_regionList.indexOf(r);return i>=0?_rcColors[i%_rcColors.length]:'#6b7280';};
+    const map=L.map('patrolMap').setView([37.5665,126.978],11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(map);
+    const bounds=[];
+    S.stores.filter(s=>s.lat&&s.lng).forEach(s=>{
+      const clr=_rclr(s.region);
+      const icon=L.divIcon({className:'',html:`<div style="width:28px;height:28px;border-radius:50% 50% 50% 0;background:${clr};transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:#fff;font-size:10px;font-weight:900">${(s.region||'?').charAt(0)}</span></div>`,iconSize:[28,28],iconAnchor:[14,28],popupAnchor:[0,-28]});
+      const ww=regionWorkers(s.region);const wNames=ww.map(w=>w.name).join(', ')||'미배정';
+      L.marker([s.lat,s.lng],{icon}).addTo(map).bindPopup(`<div style="min-width:160px"><b>${s.name||shortName(s)}</b><div style="font-size:11px;color:#666;margin-top:4px">권역: <b style="color:${clr}">${s.region||'미지정'}</b></div><div style="font-size:11px;color:#666">담당: ${wNames}</div><div style="font-size:11px;color:#666">수주: ${won(s.award||0)}</div>${s.bizAddr?'<div style="font-size:10px;color:#999;margin-top:4px">'+s.bizAddr+'</div>':''}</div>`);
+      bounds.push([s.lat,s.lng]);
+    });
+    if(bounds.length>1)map.fitBounds(bounds,{padding:[30,30]});
+    else if(bounds.length===1)map.setView(bounds[0],14);
+    /* 범례 */
+    const legend=L.control({position:'bottomright'});
+    legend.onAdd=()=>{const d=L.DomUtil.create('div','');d.style.cssText='background:#fff;padding:8px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:11px;line-height:1.8';d.innerHTML=_regionList.map(r=>`<div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${_rclr(r)};margin-right:6px;vertical-align:middle"></span>${r} (${regionStores(r).length})</div>`).join('');return d;};
+    legend.addTo(map);
+    setTimeout(()=>map.invalidateSize(),100);
+  }
+}
+function renderDash(){
+  if(isPatrol()){renderDashPatrol();return;}
+  const _RD=rangeDates();
+  const dashStores=activeStores();
+  const award=dashStores.reduce((a,s)=>a+(s.award||0),0);
+  let albaCost=0,subCost=0,nightT=0,otT=0;
+  dashStores.forEach(s=>{ if(isSub(s))subCost+=s.subFee||0; else {albaCost+=storeDirectCost(s,_RD);} });
+  const agg=workerAgg(_RD); S.workers.forEach(w=>{const m=agg[w.id];if(w.type==='hourly'){nightT+=m.night;otT+=m.otpay;}});
+  const salaryT=S.workers.filter(w=>w.type==='salary').reduce((a,w)=>a+(w.salary||0),0);
+  const personalT=S.workers.filter(w=>w.type==='personal').reduce((a,w)=>a+(w.salary||0),0);
+  const reqTotal=dashStores.filter(s=>!isSub(s)).reduce((a,s)=>a+positionsOf(s).length,0);
+  const placedTotal=dashStores.filter(s=>!isSub(s)).reduce((a,s)=>a+storePeople(s,_RD),0);
+  const margin=award-albaCost-subCost-personalT; const mrate=award?Math.round(margin/award*100):0;
+  const nDir=dashStores.filter(s=>!isSub(s)).length,nSub=dashStores.filter(isSub).length;
+  const _pr=S.payRange||{preset:'cycle'};
+  const _presets=[['cycle','마감사이클(25~24)'],['m1to25','1~25일'],['mfull','이번달 전체'],['custom','사용자지정']];
+  let h=`<div class="panel" style="margin-bottom:12px"><div class="pbody" style="padding:14px 18px"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><label class="fld" style="margin:0">📅 정산기간</label>
+    <div class="seg" style="flex-wrap:wrap;gap:6px">${_presets.map(p=>`<button class="${_pr.preset===p[0]?'on':''}" style="flex:0 0 auto;min-width:90px;padding:6px 10px" onclick="setPreset('${p[0]}')">${p[1]}</button>`).join('')}</div></div>
+    <div class="row" style="margin-top:8px;${_pr.preset==='custom'?'':'display:none'}"><div style="flex:1"><label class="fld">시작일</label><input type="date" id="pr_s" value="${_pr.start||iso(_RD[0]||new Date())}"></div>
+      <div style="flex:1"><label class="fld">종료일</label><input type="date" id="pr_e" value="${_pr.end||iso((_RD[_RD.length-1])||new Date())}"></div>
+      <button class="btn pri" onclick="applyCustom()">적용</button></div>
+    <div style="margin-top:6px;font-size:12.5px;color:var(--purple);font-weight:700">\uD83D\uDCC5 ${rangeLabel()} · ${_RD.length}일</div></div></div>
+  <div class="cards">
+    <div class="kpi accent"><div class="lab">월 수주(하도) 합계 <span style="font-size:10px;font-weight:400;color:var(--mut)">(공급가액)</span></div><div class="val num">${won(award)}</div><div class="sub">VAT포함 ${won(vat(award))} · 직영 ${nDir} · 도급 ${nSub}</div></div>
+    <div class="kpi"><div class="lab">원가 (알바+도급+개인) <span style="font-size:10px;font-weight:400;color:var(--mut)">(공급가액)</span></div><div class="val num">${won(albaCost+subCost+personalT)}</div><div class="sub">VAT포함 ${won(vat(albaCost+subCost+personalT))} · 알바 ${won(albaCost)} / 도급 ${won(subCost)}${personalT?' / 개인 '+won(personalT):''}</div></div>
+    <div class="kpi gd"><div class="lab">마진 (수주−원가) <span style="font-size:10px;font-weight:400;color:var(--mut)">(공급가액)</span></div><div class="val num">${won(margin)}</div><div class="sub">VAT포함 ${won(vat(margin))} · 마진율 ${mrate}% · 팀장급여 별도(개인 포함)</div></div>
+    <div class="kpi pp"><div class="lab">월급제 급여(팀장+개인)</div><div class="val num">${won(salaryT+personalT)}</div><div class="sub">팀장 ${won(salaryT)} / 개인 ${won(personalT)} · 원천징수 별도</div></div>
+    <div class="kpi"><div class="lab">필요 투입 인원(정원)</div><div class="val num">${reqTotal}명</div><div class="sub">배치 ${placedTotal}명 / 정원 ${reqTotal}명</div></div>
+  </div>`;
+  const nsStores=dashStores.map(s=>({s,n:storeNoShows(s,_RD)})).filter(x=>x.n>0);
+  const nsTotal=nsStores.reduce((a,x)=>a+x.n,0);
+  if(nsTotal>0){ h+=`<div class="pbanner" style="background:var(--red-l);border-color:#f3c3cb;color:var(--red)">\u26A0\uFE0F 노쇼/미완료 ${nsTotal}건 발생 — ${nsStores.map(x=>shortName(x.s)+' '+x.n+'건').join(' · ')}</div>`; }
+  h+=`<div class="panel"><div class="phead"><h2>매장별 현황</h2><div style="display:flex;gap:8px;align-items:center">${storeSortControl()}<span class="hint">정원=투입 자리 수 · 배치=실제 인원</span></div></div><div class="pbody" style="overflow-x:auto">`;
+  h+=`
+    <table><thead><tr><th>매장</th><th class="c">상태</th><th class="c">방식</th><th class="c">권역</th><th class="c">정원</th><th class="c">배치</th><th class="c">자재관리</th><th class="r">수주(공급)</th><th class="r">수주(VAT포함)</th><th class="r">예산(공급)</th><th class="r">예산(VAT포함)</th><th class="r">예산마진</th><th class="c">마진율</th><th class="c">현황</th></tr></thead><tbody>`;
+  sortStoresBy(dashStores).forEach(s=>{const cst=isSub(s)?(s.subFee||0):(s.laborBudget||0);const mg=(s.award||0)-cst;const rt=s.award?Math.round(mg/s.award*100):0;
+    const req=isSub(s)?'-':positionsOf(s).length;const ppl=isSub(s)?'-':storePeople(s,_RD);const jm=S.workers.filter(w=>w.storeId===s.id&&w.posKey==='자재관리').map(w=>w.name).join(', ');
+    const shortfall=(!isSub(s)&&ppl<req);
+    let stat=isSub(s)?`완료 ${subAgg(s,_RD).done}/${subAgg(s,_RD).planned}일`:`팀장대체 ${storeLeadDays(s,_RD)}일`;
+    h+=`<tr><td><b>${shortName(s)}</b></td><td class="c"><span class="tag ${isSub(s)?'t':'b'}">${isSub(s)?'도급':'직영'}</span></td><td class="c"><span class="tag gray">${s.region}</span></td>
+      <td class="c">${req}${isSub(s)?'':'명'}</td><td class="c" style="${shortfall?'color:var(--red);font-weight:700':''}">${ppl}${isSub(s)?'':'명'}${shortfall?' ▼':''}</td><td class="c" style="font-size:11px">${jm||'<span style="color:#cbd3dc">-</span>'}</td>
+      <td class="r num">${won(s.award)}</td><td class="r num" style="color:var(--mut)">${won(vat(s.award))}</td><td class="r num">${won(cst)}</td><td class="r num" style="color:var(--mut)">${won(vat(cst))}</td><td class="r num" style="color:${mg<0?'var(--red)':'var(--green)'}"><b>${won(mg)}</b></td><td class="c"><span class="tag ${mg<0?'r':'g'}">${rt}%</span></td><td class="c" style="font-size:12px;color:var(--mut)">${stat}</td></tr>`;});
+  const budgetTotal=dashStores.reduce((a,s)=>a+(isSub(s)?(s.subFee||0):(s.laborBudget||0)),0);const budgetMargin=award-budgetTotal;const budgetRate=award?Math.round(budgetMargin/award*100):0;
+  h+=`<tr style="background:var(--blue);color:#fff"><td colspan="3" style="font-weight:900">합계</td><td class="c">${reqTotal}</td><td class="c">${placedTotal}</td><td></td><td class="r num">${won(award)}</td><td class="r num">${won(vat(award))}</td><td class="r num">${won(budgetTotal)}</td><td class="r num">${won(vat(budgetTotal))}</td><td class="r num"><b>${won(budgetMargin)}</b></td><td class="c">${budgetRate}%</td><td></td></tr>`;
+  h+=`</tbody></table></div></div>`;
+  document.getElementById('dash').innerHTML=h;
+}
+
+function normSearch(v){return String(v||'').toLowerCase().replace(/\s+/g,'');}
+function safeVal(v){return String(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function storeSearchText(s){return normSearch([s.name,shortName(s),s.region,s.sido,s.addr,s.mgr,s.mgrPhone,s.subVendor,s.subContact,s.mode==='sub'?'도급':'직영'].join(' '));}
+function workerSearchText(w){const st=w.storeId?storeOf(w.storeId):null;return normSearch([w.name,w.phone,w.memo,w.posKey,w.bankName,w.bankAccount,w.bankHolder,w.type==='hourly'?'알바 시급':(w.type==='salary'?'팀장 월급':'개인 월급'),st?st.name:'',st?shortName(st):''].join(' '));}
+let SEARCH_T=null;
+function setSearch(k,v,immediate){
+  S[k]=v||'';
+  store.set(wsKey(),JSON.stringify(S));
+  clearTimeout(SEARCH_T);
+  SEARCH_T=setTimeout(()=>{save();render();},immediate?0:700);
+}
+function handleSearchInput(k,el){
+  S[k]=el.value||'';
+  store.set(wsKey(),JSON.stringify(S));
+  if(el.dataset.composing==='1')return;
+  clearTimeout(SEARCH_T);
+  SEARCH_T=setTimeout(()=>{save();render();},700);
+}
+function clearSearch(k){S[k]='';save();render();}
+function searchBox(key,placeholder){const v=safeVal(S[key]||'');return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><input value="${v}" oncompositionstart="this.dataset.composing='1'" oncompositionend="this.dataset.composing='0';setSearch('${key}',this.value,true)" oninput="handleSearchInput('${key}',this)" onkeydown="if(event.key==='Enter'){event.preventDefault();setSearch('${key}',this.value,true);}" placeholder="${placeholder}" style="max-width:320px;min-width:210px"><button class="btn ghost sm" onclick="clearSearch('${key}')">초기화</button></div>`;}
+function sortAlbaPayWorkers(list,agg){const k=S.albaPaySort||'default';const a=list.slice();const taxOf=w=>{const m=agg[w.id]||{total:0};return m.total*((w.withhold!=null?w.withhold:3.3)/100);};
+  if(k==='nameAsc')a.sort((x,y)=>x.name.localeCompare(y.name,'ko'));
+  else if(k==='nameDesc')a.sort((x,y)=>y.name.localeCompare(x.name,'ko'));
+  else if(k==='amountDesc')a.sort((x,y)=>((agg[y.id]||{}).total||0)-((agg[x.id]||{}).total||0)||x.name.localeCompare(y.name,'ko'));
+  else if(k==='amountAsc')a.sort((x,y)=>((agg[x.id]||{}).total||0)-((agg[y.id]||{}).total||0)||x.name.localeCompare(y.name,'ko'));
+  else if(k==='netDesc')a.sort((x,y)=>((((agg[y.id]||{}).total||0)-taxOf(y))-(((agg[x.id]||{}).total||0)-taxOf(x)))||x.name.localeCompare(y.name,'ko'));
+  else if(k==='netAsc')a.sort((x,y)=>((((agg[x.id]||{}).total||0)-taxOf(x))-(((agg[y.id]||{}).total||0)-taxOf(y)))||x.name.localeCompare(y.name,'ko'));
+  return a;}
+
+function renderStores(){
+  const q=normSearch(S.storeSearch);
+  const rows=sortStoresBy(S.stores).filter(s=>!q||storeSearchText(s).includes(q));
+  let h=`<div class="panel"><div class="phead"><h2>매장 관리 (${rows.length}/${S.stores.length})</h2><div style="display:flex;gap:8px;align-items:center">${storeSortControl()}<button class="btn pri sm" onclick="addStore()">+ 매장 추가</button></div></div><div class="pbody">${searchBox('storeSearch','매장명, 지역, 도급사, 담당자 검색')}<div style="overflow-x:auto">
+    <table><thead><tr><th>매장</th><th class="c">방식</th><th class="c">권역</th><th class="c">휴무</th><th>담당자</th><th class="r">수주</th><th>자리 / 도급업체</th><th class="r">인건비예산/도급비</th><th class="c"></th></tr></thead><tbody>`;
+  rows.forEach(s=>{
+    const detail=isSub(s)?`${s.subVendor||'<span style="color:var(--red)">업체 미입력</span>'}`:`${positionsOf(s).map(p=>p.key).join(', ')} · ${hmLabel(defShiftH())}`;
+    const money=isSub(s)?won(s.subFee):won(s.laborBudget);
+    h+=`<tr style="${!isActiveStore(s)?'opacity:.58;background:#fafbfc':''}"><td><b>${shortName(s)}</b>${!isActiveStore(s)?' <span class="tag gray">비활성</span>':''}${s.note?`<div class="note-box">⚑ ${s.note}</div>`:''}</td><td class="c"><span class="tag ${isActiveStore(s)?'g':'gray'}">${isActiveStore(s)?'활성':'비활성'}</span></td><td class="c"><span class="tag ${isSub(s)?'t':'b'}">${isSub(s)?'도급':'직영'}</span></td>
+      <td class="c"><span class="tag gray">${s.region}</span></td><td class="c">${s.off||'-'}</td><td style="font-size:12px">${s.mgr||'-'}${s.mgrPhone?`<div style="color:var(--mut);font-size:11px">${s.mgrPhone}</div>`:''}</td><td class="r num">${won(s.award)}</td>
+      <td style="font-size:12px;color:var(--mut);white-space:normal;max-width:220px">${detail}</td><td class="r num">${money}</td>
+      <td class="c"><button class="btn ghost sm" onclick="editStore('${s.id}')">편집</button> <button class="btn danger sm" onclick="delStore('${s.id}')">삭제</button></td></tr>`;});
+  if(!rows.length)h+=`<tr><td colspan="9" class="c" style="color:var(--mut);padding:18px">검색 결과가 없습니다.</td></tr>`;
+  h+=`</tbody></table></div></div></div>`;
+  document.getElementById('stores').innerHTML=h;
+}
+
+function docChip(w,key,label){const on=w.docs&&w.docs[key];return `<span onclick="toggleDoc('${w.id}','${key}')" title="${label} ${on?'완료':'미수령'}" style="cursor:pointer;display:inline-block;padding:2px 7px;border-radius:14px;font-size:10px;font-weight:700;margin:1px;background:${on?'var(--green-l)':'#eef1f5'};color:${on?'var(--green)':'#9aa4b0'}">${on?'✓':'·'} ${label}</span>`;}
+function toggleDoc(id,key){const w=workerOf(id);w.docs=w.docs||{};w.docs[key]=!w.docs[key];save();renderPeople();}
+function payKey(wid,month){return wid+'|'+(month||S.month);} // 사람별 + 정산월별 지급상태
+function payDateForMonth(month){const [y,m]=(month||S.month).split('-').map(Number);return y+'-'+String(m).padStart(2,'0')+'-25';}
+function setPayMonth(month){if(!month)return;S.month=month;const mp=document.getElementById('monthPick');if(mp)mp.value=month;if((S.payRange||{}).preset==='custom')S.payRange={preset:'cycle'};save();render();}
+function movePayMonth(delta){const [y,m]=S.month.split('-').map(Number);const d=new Date(y,m-1+delta,1);setPayMonth(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
+function getPay(wid,month){return (S.pay||{})[payKey(wid,month)];}
+function setPaid(wid,date){const k=payKey(wid);S.pay=S.pay||{};if(date){S.pay[k]={paid:true,date:date};}else{delete S.pay[k];}}
+function togglePay(wid){const ps=getPay(wid);if(ps&&ps.paid){setPaid(wid,'');}else{setPaid(wid,payDateForMonth(S.month));}save();render();}
+function setPayDate(wid,d){setPaid(wid,d);save();render();}
+function setPayFilter(v){S.payFilter=v;save();render();}
+function markAllHourlyPaid(){const agg=workerAgg(rangeDates());S.workers.filter(w=>w.type==='hourly'&&agg[w.id]&&agg[w.id].days>0).forEach(w=>setPaid(w.id,payDateForMonth(S.month)));save();render();}
+function clearAllHourlyPaid(){const agg=workerAgg(rangeDates());S.workers.filter(w=>w.type==='hourly'&&agg[w.id]&&agg[w.id].days>0).forEach(w=>setPaid(w.id,''));save();render();}
+function subPayKey(contractId,month){return 'SUBPAY|'+contractId+'|'+(month||S.month);}
+function getSubPay(contractId,month){return (S.subPay||{})[subPayKey(contractId,month)];}
+function setSubPaid(contractId,date){const k=subPayKey(contractId);S.subPay=S.subPay||{};if(date){S.subPay[k]={paid:true,date:date};}else{delete S.subPay[k];}}
+function toggleSubPay(contractId){const ps=getSubPay(contractId);if(ps&&ps.paid){setSubPaid(contractId,'');}else{setSubPaid(contractId,payDateForMonth(S.month));}save();render();}
+function setSubPayDate(contractId,d){setSubPaid(contractId,d);save();render();}
+function setSubPayFilter(v){S.subPayFilter=v;save();render();}
+function markAllSubPaid(){activeSubStoresForDates(rangeDates()).forEach(s=>setSubPaid(s.id,payDateForMonth(S.month)));save();render();}
+function clearAllSubPaid(){activeSubStoresForDates(rangeDates()).forEach(s=>setSubPaid(s.id,''));save();render();}
+function toggleHideResigned(){S.hideResigned=!S.hideResigned;save();renderPeople();}
+function renderPeople(){
+  const agg=workerAgg();
+  const resignedCount=S.workers.filter(w=>w.resignDate).length;
+  const q=normSearch(S.peopleSearch);
+  const baseWorkers=S.hideResigned?S.workers.filter(w=>!w.resignDate):S.workers;
+  const visibleWorkers=baseWorkers.filter(w=>!q||workerSearchText(w).includes(q));
+  let h=`<div class="panel"><div class="phead"><h2>인력풀 — 알바 · 본사 팀장 (${visibleWorkers.length}/${baseWorkers.length})</h2><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${peopleSortControl()}<button class="btn ghost sm" onclick="exportWorkersCSV()">엑셀(CSV) 저장</button><button class="btn pri sm" onclick="addWorker()">+ 인력 추가</button></div></div><div class="pbody">${searchBox('peopleSearch','이름, 매장명, 자리, 연락처 검색')}
+    <p style="font-size:12px;color:var(--mut);margin-bottom:10px">아래 3가지를 입력하면 <b>근무 스케줄에 자동 반영</b>됩니다 → ① 소속 지점 ② 담당 자리(홀/주방/샐러드) ③ 입사일(~퇴사일). 세 가지가 다 채워진 사람만 자동으로 채워지고, 하나라도 비면 <span style="color:var(--amber)">주황 배지</span>로 표시됩니다. 노쇼·교대는 스케줄에서 해당 칸만 클릭해 수정하세요.</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-bottom:10px;background:${S.hideResigned?'var(--purple-l)':'#f7f9fc'};border-radius:10px;border:1px solid ${S.hideResigned?'var(--purple)':'#e3e8ef'}">
+      <span style="font-size:13px;color:${S.hideResigned?'var(--purple)':'var(--mut)'}">전체 ${S.workers.length}명 · 재직 ${S.workers.length-resignedCount}명 · 퇴사 ${resignedCount}명</span>
+      <button class="btn ${S.hideResigned?'pri':'ghost'} sm" onclick="toggleHideResigned()" style="min-width:120px">${S.hideResigned?'👁️ 퇴사자 보기':'퇴사자 숨기기'}</button>
+    </div>
+    <div class="people-scroll-hint">↔ 표 안에서 손가락으로 좌우로 밀면 인력풀 전체 항목을 볼 수 있습니다.</div><div class="people-table-wrap"><table class="people-table"><thead><tr><th>이름</th><th class="c">구분</th><th>소속지점</th><th class="c">상태</th><th class="r">시급/월급</th><th class="c">기간 근무</th><th class="r">지급액(기간)</th><th>연락처/계좌</th><th class="c">서류</th><th class="c"></th></tr></thead><tbody>`;
+  sortWorkers(visibleWorkers).forEach(w=>{const m=agg[w.id];
+    const pay = (w.type==='salary'||w.type==='personal')? won(w.salary)+' /월' : (w.rate?won(w.rate):`자리시급`);
+    const earn = (w.type==='salary'||w.type==='personal')? `${won((w.salary||0)*(1-(w.withhold||0)/100))} <span style="font-size:10px;color:var(--mut)">(3.3%후)</span>` : won(m.total);
+    const dd = (w.type==='salary'||w.type==='personal')? `대체 ${m.leaddays}일` : `${m.days}일 / ${m.reg.toFixed(1)}h`;
+    const _pMode=isPatrol();
+    const br = _pMode&&w.patrolRegion ? w.patrolRegion+' 권역 ('+regionStores(w.patrolRegion).length+'개 건물)' : (w.storeId&&storeOf(w.storeId))?shortName(storeOf(w.storeId)):'-';
+
+    const stt = w.resignDate?`<span class="tag gray">퇴사 ${w.resignDate.slice(2)}</span>`:'<span class="tag g">재직</span>';
+    h+=`<tr style="${w.resignDate?'opacity:.6':''}"><td><b>${w.name}</b>${w.memo?`<div style="font-size:10px;color:var(--mut)">${w.memo}</div>`:''}</td>
+      <td class="c"><span class="tag ${w.type==='hourly'?'b':'p'}">${w.type==='hourly'?'알바(시급)':(w.type==='salary'?'월급(팀장)':'개인(월급)')}</span></td>
+      <td style="font-size:12px;color:var(--mut)">${br}${w.posKey?' · '+w.posKey:''}<div style="margin-top:3px">${(w.type==='salary'||w.type==='personal')?`<span class="tag p" style="font-size:9px">${w.type==='salary'?'대체(수동)':'개인(수동)'}</span>`:(!w.storeId?'<span class="tag a" style="font-size:9px">지점 미지정·자동X</span>':(w.posKey==='후보자'?'<span class="tag gray" style="font-size:9px">후보자(대기)</span>':(!w.posKey?'<span class="tag a" style="font-size:9px">자리 미지정·자동X</span>':(posIsGrid(storeOf(w.storeId),w.posKey)?`<span class="tag g" style="font-size:9px">자동반영 ✓ ${m.days}일</span>`:`<span class="tag gray" style="font-size:9px">역할 ${w.posKey}</span>`))))}</div></td><td class="c">${stt}</td>
+      <td class="r num" style="font-size:12px">${pay}</td><td class="c" style="font-size:12px">${dd}</td><td class="r num">${earn}</td>
+      <td style="color:var(--mut);font-size:12px">${w.phone||'-'}${(w.bankName||w.bankAccount||w.bankHolder)?`<div style="font-size:11px;color:var(--blue-d);margin-top:2px">${w.bankName||'-'} ${w.bankAccount||''}${w.bankHolder?' ('+w.bankHolder+')':''}</div>`:''}</td>
+      <td class="c" style="white-space:normal;min-width:120px">${docChip(w,'contract','계약서')}${docChip(w,'idcard','신분증')}${docChip(w,'bankbook','통장')}</td>
+      <td class="c"><button class="btn ghost sm" onclick="editWorker('${w.id}')">편집</button> ${w.id!=='W-lead'?`<button class="btn danger sm" onclick="delWorker('${w.id}')">삭제</button>`:''}</td></tr>`;});
+  if(!visibleWorkers.length)h+=`<tr><td colspan="10" class="c" style="color:var(--mut);padding:18px">검색 결과가 없습니다.</td></tr>`;
+  h+=`</tbody></table></div></div></div>`;
+  // sub vendors
+  const subs=S.stores.filter(s=>isSub(s)&&isActiveStore(s));
+  if(subs.length){h+=`<div class="panel"><div class="phead"><h2>도급 매장 (${subs.length})</h2>${subSortControl()}</div><div class="pbody">`;
+    sortSubsBy(subs).forEach(s=>h+=`<div class="card-sub"><div style="display:flex;justify-content:space-between;align-items:center"><b style="color:var(--teal)">${shortName(s)} <span class="tag t">도급</span></b><button class="btn ghost sm" onclick="editStore('${s.id}')">편집</button></div>
+      <div style="font-size:12.5px;color:var(--mut);margin-top:6px">업체 <b style="color:var(--ink)">${s.subVendor||'미입력'}</b> · ${s.subContact||'-'} · 월 도급비 <b style="color:var(--ink)" class="num">${won(s.subFee)}</b></div>
+      ${s.bizNo||s.bizName?`<div style="font-size:11.5px;color:var(--mut);margin-top:4px">상호 ${s.bizName||'-'} · 사업자 ${s.bizNo||'-'} · 대표 ${s.bizOwner||'-'}${s.bizType?' · '+s.bizType:''}${s.bizItem?'/'+s.bizItem:''}</div>`:''}
+      ${s.bankName||s.bankAccount?`<div style="font-size:11.5px;color:var(--mut);margin-top:2px">계좌 ${s.bankName||'-'} ${s.bankAccount||'-'} (${s.bankHolder||'-'})</div>`:''}</div>`);
+    h+=`</div></div>`;}
+  document.getElementById('people').innerHTML=h;
+}
+
+function renderSched(){
+  const view=S.schedView||'table';
+  const DTS=periodDates();
+  let head=`<th class="who">자리 / 일자</th>`;
+  DTS.forEach(dt=>{const wd=dt.getDay();const cls=wd===0?'we':(wd===6?'sa':'');head+=`<th class="c"><div class="dhead ${cls}"><span class="mo">${dt.getMonth()+1}/</span>${dt.getDate()}</div><div class="dhead ${cls}" style="font-size:9px">${WD[wd]}</div></th>`;});
+  let body='';
+  sortStoresBy(S.stores).forEach(s=>{
+    const sub=isSub(s);
+    body+=`<tr class="storerow ${sub?'sub':'dir'}"><td colspan="${DTS.length+1}" style="padding:0"><div class="store-label" style="position:sticky;left:0;z-index:4;display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:0 8px 8px 0;background:${sub?'#e2f3f4':'var(--blue-l)'}">${sub?'[도급] ':'[직영] '}${shortName(s)} · ${s.region} · 휴무 ${s.off||'-'}${s.note?' · ⚑ '+s.note:''}</div></td></tr>`;
+    if(sub){
+      body+=`<tr><td class="who">${s.subVendor||'도급업체'}<div style="font-size:10px;color:var(--mut)">월 도급비 ${won(s.subFee)}</div></td>`;
+      DTS.forEach(dt=>{const a=getSub(s,dt);let cls='dc-plan',lab='·';if(a.status==='off'){cls='dc-off';lab=a.reason?'휴*':'휴';}else if(a.status==='done'){cls='dc-done';lab='O';}else if(a.status==='undone'){cls='dc-noshow';lab='X';}
+        body+=`<td class="daycell ${cls}" onclick="openSub('${s.id}','${iso(dt)}')">${lab}</td>`;});
+      body+=`</tr>`;
+    } else {
+      positionsOf(s).forEach(p=>{
+        const roster=posRoster(s,p.key);
+        const rosterHtml=roster.length?`<div style="font-size:10px;color:var(--blue-d);margin-top:2px;white-space:normal">${roster.map(r=>`${r.w.name}(${r.w.hireDate?'입사 '+r.w.hireDate.slice(5)+' · ':''}${r.days}일)`).join(' · ')}</div>`:'';
+        body+=`<tr><td class="who">${p.key} <span style="font-size:10px;color:var(--mut)">${won(p.wage)}/h</span>${rosterHtml}</td>`;
+        DTS.forEach(dt=>{const a=getAtt(s,p.key,dt);let cls='dc-plan',inner='·',ttl='';
+          if(a.status==='off'){cls='dc-off';inner=a.reason?`휴<div class="hh">${a.reason}</div>`:'휴';ttl=a.reason?'휴무 · '+a.reason:'휴무';}
+          else if(a.status==='noshow'){const w=workerOf(a.workerId);cls='dc-noshow';inner=`<span class="nm">${w?w.name:''}</span><span class="hh" style="color:var(--red);font-weight:700">노쇼</span>`;ttl='노쇼'+(w?' · '+w.name:'');}
+          else if(a.status==='work'){const w=workerOf(a.workerId);const lead=w&&w.type==='salary';cls=lead?'dc-lead':(a.auto?'dc-work dc-auto':'dc-work');if(w&&w.resignDate)cls+=' dc-resigned';const nh=attNight(a);
+            ttl=(w?w.name:'?')+' · '+hmLabel(a.reg)+(a.ot?' (+'+hmLabel(a.ot)+')':'')+(nh===0?' · 주간':' · 심야 '+hmLabel(nh))+(a.auto?' · 자동(인력풀)':'');
+            inner=`<span class="nm">${w?w.name:'?'}</span><span class="hh">${hmLabel(a.reg)}${nh===0?' 주':''}</span>${a.ot?`<span class="ot">+${hmLabel(a.ot)}</span>`:''}`;}
+          body+=`<td class="daycell ${cls}" title="${ttl}" onclick="openCell('${s.id}','${p.key}','${iso(dt)}')">${inner}</td>`;});
+        body+=`</tr>`;
+      });
+    }
+  });
+  const toggle=`<div class="seg" style="margin:0"><button class="${view==='table'?'on':''}" style="padding:6px 12px" onclick="setSchedView('table')">표 보기</button><button class="${view==='week'?'on':''}" style="padding:6px 12px" onclick="setSchedView('week')">주간 캘린더</button></div>`;
+  let h=banner()+`<div class="panel"><div class="phead"><h2>근무 스케줄</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${toggle}${storeSortControl()}</div></div><div class="pbody">`;
+  if(view==='week'){ h+=renderWeek(); }
+  else { h+=`<div class="sched-scroll-hint" style="display:none;font-size:11.5px;color:var(--mut);margin-bottom:6px">↔ 표 안에서 손가락으로 좌우로 밀면 날짜별 스케줄을 볼 수 있습니다.</div><div class="sched-wrap"><table class="sched"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--blue)"></i> 알바 근무 <span style="font-size:10px;color:#9aa4b0">(흰 점 = 인력풀 자동)</span></span>
+      <span><i class="sw" style="background:var(--purple)"></i> 팀장 대체</span>
+      <span><i class="sw" style="background:var(--teal)"></i> 도급 완료</span>
+      <span><i class="sw" style="background:var(--red-l);border-color:#f3c3cb"></i> 노쇼/미완료</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(45deg,#f1f3f7,#f1f3f7 3px,#e8ebf0 3px,#e8ebf0 6px)"></i> 휴무</span>
+      <span style="color:var(--amber)"><b>+n</b> 초과</span><span><b style="color:var(--blue-d)">주</b> 주간(심야 미적용)</span></div>`; }
+  h+=`</div></div>`;
+  document.getElementById('sched').innerHTML=h;
+}
+function weekDates(){let base=S.weekStart?new Date(S.weekStart+'T00:00:00'):new Date();if(isNaN(base))base=new Date();const d=new Date(base);const day=d.getDay();const diff=(day===0?-6:1-day);d.setDate(d.getDate()+diff);const out=[];for(let i=0;i<7;i++){const x=new Date(d);x.setDate(d.getDate()+i);out.push(x);}return out;}
+function setSchedView(v){S.schedView=v;if(v==='week'&&!S.weekStart){const pd=periodDates();S.weekStart=iso(pd[0]||new Date());}save();renderSched();}
+function weekNav(delta){const wd=weekDates();const base=new Date(wd[0]);base.setDate(base.getDate()+delta*7);S.weekStart=iso(base);save();renderSched();}
+function weekThis(){S.weekStart=iso(new Date());save();renderSched();}
+function renderWeek(){
+  const days=weekDates();
+  const nav=`<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+    <button class="btn ghost sm" onclick="weekNav(-1)">◀ 이전주</button>
+    <b style="font-size:13px" class="num">${iso(days[0])} ~ ${iso(days[6])}</b>
+    <button class="btn ghost sm" onclick="weekNav(1)">다음주 ▶</button>
+    <button class="btn ghost sm" onclick="weekThis()">이번주</button></div>`;
+  let cards='';
+  days.forEach(dt=>{const wd=dt.getDay();const we=wd===0||wd===6;let items='';
+    sortStoresBy(S.stores).forEach(s=>{
+      if(isSub(s)){const a=getSub(s,dt);if(a.status==='done'||a.status==='undone'){const ok=a.status==='done';items+=`<div onclick="openSub('${s.id}','${iso(dt)}')" style="cursor:pointer;background:${ok?'var(--teal-l)':'var(--red-l)'};color:${ok?'var(--teal)':'var(--red)'};border-radius:7px;padding:5px 7px;margin-bottom:4px;font-size:11.5px"><b>${shortName(s)}</b> · 도급 ${ok?'완료':'미완료'}</div>`;}}
+      else{positionsOf(s).forEach(p=>{const a=getAtt(s,p.key,dt);
+        if(a.status==='work'){const w=workerOf(a.workerId);const lead=w&&w.type==='salary';const nh=attNight(a);
+          items+=`<div onclick="openCell('${s.id}','${p.key}','${iso(dt)}')" style="cursor:pointer;background:${lead?'var(--purple-l)':'var(--blue-l)'};color:${lead?'var(--purple)':'var(--blue-d)'};border-radius:7px;padding:5px 7px;margin-bottom:4px;font-size:11.5px"><b>${w?w.name:'?'}</b> · ${shortName(s)} ${p.key} · ${hmLabel(a.reg)}${a.ot?'(+'+hmLabel(a.ot)+')':''}${nh===0?' 주간':''}</div>`;}
+        else if(a.status==='noshow'){const w=workerOf(a.workerId);items+=`<div onclick="openCell('${s.id}','${p.key}','${iso(dt)}')" style="cursor:pointer;background:var(--red-l);color:var(--red);border-radius:7px;padding:5px 7px;margin-bottom:4px;font-size:11.5px"><b>노쇼${w?' '+w.name:''}</b> · ${shortName(s)} ${p.key}</div>`;}
+      });}
+    });
+    if(!items)items=`<div style="font-size:11px;color:#c2cad4;text-align:center;padding:10px 0">근무 없음</div>`;
+    cards+=`<div style="flex:1 1 150px;min-width:148px;border:1px solid var(--line);border-radius:10px;overflow:hidden">
+      <div style="background:${we?'#fbeef0':'#eef4fc'};color:${we?'var(--red)':'var(--blue-d)'};padding:7px;text-align:center;font-weight:700;font-size:12.5px">${dt.getMonth()+1}/${dt.getDate()} (${WD[wd]})</div>
+      <div style="padding:7px;min-height:60px">${items}</div></div>`;});
+  return nav+`<div style="display:flex;gap:8px;flex-wrap:wrap">${cards}</div>`;
+}
+
+/* ---------- 수동 정산 (과거/추가 급여 기록) ---------- */
+function manualPayModal(item,isNew){
+  document.getElementById('mbox').innerHTML=`<h3>${isNew?'수동 정산 항목 추가':'항목 편집'}</h3><div class="msub">인력풀에 없는 과거·추가 급여를 기록합니다</div>
+    <label class="fld">이름(지급 대상)</label><input id="mp_name" value="${(item.name||'').replace(/"/g,'&quot;')}">
+    <div class="grid2" style="margin-top:10px">
+      <div><label class="fld">지급 총액</label><input type="number" id="mp_amount" value="${item.amount||0}"></div>
+      <div><label class="fld">원천징수율 (%)</label><input type="number" step="0.1" id="mp_tax" value="${item.taxRate!=null?item.taxRate:3.3}"></div>
+      <div><label class="fld">지급일</label><input type="date" id="mp_date" value="${item.date||''}"></div>
+      <div><label class="fld">정산 대상월</label><input type="month" id="mp_month" value="${item.month||S.month}"></div></div>
+    <label class="fld" style="margin-top:10px">메모 (사유 등)</label><input id="mp_memo" value="${(item.memo||'').replace(/"/g,'&quot;')}" placeholder="예: 5월분 잔여 급여">
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn pri" style="flex:1" onclick="saveManualPay('${isNew?'NEW':item.id}')">저장</button><button class="btn ghost" onclick="closeModal()">취소</button></div>`;
+  document.getElementById('modal').classList.add('on');
+}
+function addManualPay(){manualPayModal({},true);}
+function editManualPay(id){const item=(S.manualPay||[]).find(x=>x.id===id);if(item)manualPayModal(item,false);}
+function saveManualPay(id){
+  const d={name:document.getElementById('mp_name').value.trim()||'이름없음',amount:parseInt(document.getElementById('mp_amount').value)||0,taxRate:parseFloat(document.getElementById('mp_tax').value)||0,date:document.getElementById('mp_date').value||'',month:document.getElementById('mp_month').value||S.month,memo:document.getElementById('mp_memo').value};
+  S.manualPay=S.manualPay||[];
+  if(id==='NEW'){d.id='MP'+Date.now();S.manualPay.push(d);}
+  else{const item=S.manualPay.find(x=>x.id===id);if(item)Object.assign(item,d);}
+  save();closeModal();render();
+}
+function delManualPay(id){if(!confirm('이 항목을 삭제할까요?'))return;S.manualPay=(S.manualPay||[]).filter(x=>x.id!==id);save();render();}
+
+function renderPay(){
+  const DTS=rangeDates(); const agg=workerAgg(DTS);
+  const r=S.payRange||{preset:'cycle'};
+  const presets=[['cycle','마감사이클(25~24)'],['m1to25','1~25일'],['mfull','이번달 전체'],['custom','사용자지정']];
+  let tot={days:0,total:0,night:0,otpay:0,tax:0,net:0};S.workers.filter(w=>w.type==='hourly').forEach(w=>{const m=agg[w.id];const tax=m.total*((w.withhold!=null?w.withhold:3.3)/100);tot.days+=m.days;tot.total+=m.total;tot.night+=m.night;tot.otpay+=m.otpay;tot.tax+=tax;tot.net+=m.total-tax;});
+  const monthLabel=S.month.split('-')[1].replace(/^0/,'')+'월';
+  const payWorkers=S.workers.filter(w=>w.type==='hourly'&&agg[w.id]&&agg[w.id].days>0).length;
+  const paidWorkers=S.workers.filter(w=>w.type==='hourly'&&agg[w.id]&&agg[w.id].days>0&&getPay(w.id)&&getPay(w.id).paid).length;
+  const paySubs=activeSubStoresForDates(DTS).length;
+  const paidSubs=activeSubStoresForDates(DTS).filter(s=>getSubPay(s.id)&&getSubPay(s.id).paid).length;
+  let h=`<div class="panel"><div class="pbody" style="padding:14px 18px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="min-width:230px;flex:0 0 260px"><label class="fld">정산월 선택</label><div class="row" style="gap:6px"><button class="btn ghost sm" onclick="movePayMonth(-1)">◀ 이전달</button><input type="month" value="${S.month}" onchange="setPayMonth(this.value)" style="max-width:130px;font-weight:700"><button class="btn ghost sm" onclick="movePayMonth(1)">다음달 ▶</button></div></div>
+      <div style="flex:1;min-width:220px;background:var(--purple-l);border:1px solid #ddd0f3;color:var(--purple);border-radius:10px;padding:9px 12px;font-size:12.5px;font-weight:700">${monthLabel} 급여 지급 기준일: ${payDateForMonth(S.month)} · 알바 지급완료 ${paidWorkers}/${payWorkers}명 · 도급 지급완료 ${paidSubs}/${paySubs}건</div>
+    </div>
+    <label class="fld">정산 기간 선택</label>
+    <div class="seg" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">${presets.map(p=>`<button class="${r.preset===p[0]?'on':''}" style="flex:0 0 auto;min-width:104px" onclick="setPreset('${p[0]}')">${p[1]}</button>`).join('')}</div>
+    <div class="row" style="${r.preset==='custom'?'':'display:none'}"><div style="flex:1"><label class="fld">시작일</label><input type="date" id="pr_s" value="${r.start||iso(DTS[0]||new Date())}"></div>
+      <div style="flex:1"><label class="fld">종료일</label><input type="date" id="pr_e" value="${r.end||iso((DTS[DTS.length-1])||new Date())}"></div>
+      <button class="btn pri" onclick="applyCustom()">적용</button></div>
+    <div style="margin-top:8px;font-size:12.5px;color:var(--purple);font-weight:700">\uD83D\uDCC5 ${rangeLabel()} · ${DTS.length}일</div></div></div>
+    <div class="cards"><div class="kpi accent"><div class="lab">${monthLabel} 알바 지급 합계</div><div class="val num">${won(tot.total)}</div><div class="sub">세전 ${won(tot.total)} · 실지급 ${won(tot.net)}</div></div>
+      <div class="kpi"><div class="lab">알바 근무 연인원</div><div class="val num">${tot.days}건</div><div class="sub">심야 ${won(tot.night)} · 초과 ${won(tot.otpay)} · 3.3%공제 ${won(tot.tax)}</div></div>
+      <div class="kpi"><div class="lab">${monthLabel} 알바 지급 체크</div><div class="val num">${paidWorkers}/${payWorkers}명</div><div class="sub">입금완료는 ${S.month} 정산월에만 반영</div></div><div class="kpi"><div class="lab">${monthLabel} 도급 지급 체크</div><div class="val num">${paidSubs}/${paySubs}건</div><div class="sub">계약기간과 겹치는 도급매장 기준</div></div>${(()=>{
+        const _mp=(S.manualPay||[]).filter(x=>x.month===S.month);const _mpAmt=_mp.reduce((a,x)=>a+(x.amount||0),0);const _mpNet=_mp.reduce((a,x)=>{const tx=(x.amount||0)*(x.taxRate||0)/100;return a+((x.amount||0)-tx);},0);
+        const _salAll=S.workers.filter(w=>w.type==='personal');
+        const _salGross=_salAll.reduce((a,w)=>a+salaryProration(w,DTS).gross,0);
+        const _salNet=_salAll.reduce((a,w)=>a+salaryProration(w,DTS).net,0);
+        const grandTotal=tot.net+_salNet+_mpNet;
+        return (_mp.length?`<div class="kpi"><div class="lab">수동 정산 (${S.month})</div><div class="val num">${won(_mpNet)}</div><div class="sub">${_mp.length}건 · 세전 ${won(_mpAmt)}</div></div>`:'')+
+          `<div class="kpi gd"><div class="lab">월 총지급 합계 (실지급 기준)</div><div class="val num">${won(grandTotal)}</div><div class="sub">알바 실지급 ${won(tot.net)} + 개인 월급 실지급 ${won(_salNet)}${_salGross!==_salNet?' · 개인 세전 '+won(_salGross):''} ${_mp.length?'+ 수동 '+won(_mpNet):''}</div></div>`;
+      })()}</div>`;
+  // alba settlement
+  const albaQ=normSearch(S.albaPaySearch);
+  h+=`<div class="panel"><div class="phead"><h2>알바(시급) 정산 — 사람별</h2><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button class="btn pri sm" onclick="markAllHourlyPaid()">${monthLabel} 전체 입금완료(25일)</button><button class="btn ghost sm" onclick="clearAllHourlyPaid()">전체 입금대기</button><select onchange="setPayFilter(this.value)" style="font-size:12px;padding:5px 8px;width:auto">${[['all','지급: 전체'],['pending','입금대기만'],['paid','입금완료만']].map(o=>`<option value="${o[0]}" ${(S.payFilter||'all')===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>${albaPaySortControl()}<button class="btn ghost sm" onclick="exportCSV()">CSV 내보내기</button></div></div><div class="pbody">${searchBox('albaPaySearch','알바 이름 또는 근무 매장명 검색')}<div style="overflow-x:auto">
+    <table><thead><tr><th>이름</th><th class="r">적용시급</th><th>근무 매장</th><th class="c">근무일</th><th class="r">정규h</th><th class="r">초과h</th><th class="r">기본급</th><th class="r">심야</th><th class="r">초과수당</th><th class="r">지급액</th><th class="r">3.3%공제</th><th class="r">실지급액</th><th class="c">지급상태</th><th class="c">입금완료일</th></tr></thead><tbody>`;
+  let gT={days:0,reg:0,ot:0,base:0,night:0,otpay:0,total:0};let albaShown=0;
+  sortAlbaPayWorkers(S.workers.filter(w=>w.type==='hourly'),agg).forEach(w=>{const m=agg[w.id];if(m.days===0&&m.total===0){return;}
+    const _paid=!!(getPay(w.id)&&getPay(w.id).paid);const _pf=S.payFilter||'all';if(_pf==='paid'&&!_paid)return;if(_pf==='pending'&&_paid)return;
+    const stores=Object.keys(m.byStore).map(id=>shortName(storeOf(id))+`(${m.byStore[id].d})`).join(', ');
+    if(albaQ&&!normSearch([w.name,stores,Object.keys(m.byStore).map(id=>storeOf(id)?storeOf(id).name:'').join(' ')].join(' ')).includes(albaQ))return;
+    albaShown++;
+    const tax=m.total*((w.withhold!=null?w.withhold:3.3)/100);const net=m.total-tax;
+    gT.days+=m.days;gT.reg+=m.reg;gT.ot+=m.ot;gT.base+=m.base;gT.night+=m.night;gT.otpay+=m.otpay;gT.total+=m.total;gT.tax=(gT.tax||0)+tax;gT.net=(gT.net||0)+net;
+    h+=`<tr><td><b>${w.name}</b>${(w.bankName||w.bankAccount)?`<div style="font-size:10px;color:var(--mut)">${w.bankName||'-'} ${w.bankAccount||''}${w.bankHolder?' ('+w.bankHolder+')':''}</div>`:''}</td><td class="r" style="font-size:12px">${w.rate?`<b style="color:var(--blue-d)">${won(w.rate)}</b><div style="font-size:9px;color:var(--blue-d)">개별시급</div>`:`<span style="color:var(--mut)">자리시급</span>`}${(m.reg+m.ot)>0?`<div style="font-size:9px;color:#999">실적용 ${won(Math.round(m.base/(m.reg+m.ot)))}</div>`:''}</td><td style="font-size:12px;color:var(--mut);white-space:normal;max-width:200px">${stores||'-'}</td>
+      <td class="c">${m.days}</td><td class="r num">${m.reg.toFixed(1)}</td><td class="r num" style="color:${m.ot?'var(--amber)':'inherit'}">${m.ot.toFixed(1)}</td>
+      <td class="r num">${won(m.base)}</td><td class="r num" style="color:var(--night)">${won(m.night)}</td><td class="r num" style="color:var(--amber)">${m.otpay?won(m.otpay):'-'}</td><td class="r num"><b>${won(m.total)}</b></td><td class="r num" style="color:var(--red)">−${won(tax)}</td><td class="r num"><b>${won(net)}</b></td>
+      <td class="c">${(()=>{const ps=getPay(w.id);return ps&&ps.paid?`<span class="tag g" style="cursor:pointer" onclick="togglePay('${w.id}')">입금완료 ${ps.date?ps.date.slice(5):''}</span>`:`<span class="tag a" style="cursor:pointer" onclick="togglePay('${w.id}')">입금대기중</span>`;})()}</td>
+      <td class="c"><input type="date" value="${(getPay(w.id)||{}).date||''}" onchange="setPayDate('${w.id}',this.value)" style="font-size:12px;padding:5px;width:148px"></td></tr>`;});
+  if(!albaShown)h+=`<tr><td colspan="14" class="c" style="color:var(--mut);padding:18px">검색/지급 필터에 해당하는 알바 정산 항목이 없습니다.</td></tr>`;
+  h+=`</tbody><tfoot><tr style="background:var(--blue);color:#fff"><td colspan="3" style="font-weight:900">알바 합계</td><td class="c">${gT.days}</td><td class="r num">${gT.reg.toFixed(0)}</td><td class="r num">${gT.ot.toFixed(0)}</td><td class="r num">${won(gT.base)}</td><td class="r num">${won(gT.night)}</td><td class="r num">${won(gT.otpay)}</td><td class="r num"><b>${won(gT.total)}</b></td><td class="r num">−${won(gT.tax||0)}</td><td class="r num"><b>${won(gT.net||0)}</b></td><td class="c">${(()=>{const paid=S.workers.filter(w=>w.type==='hourly'&&getPay(w.id)&&getPay(w.id).paid).length;const tot=S.workers.filter(w=>w.type==='hourly'&&agg[w.id].days>0).length;return `${paid}/${tot} 완료`;})()}</td><td></td></tr></tfoot></table>
+    <p style="font-size:11.5px;color:var(--mut);margin-top:8px">※ 지급상태는 ${S.month.split('-')[1]}월 급여지급 기준입니다. 정산기간 ${periodLabel()} 근무분을 ${payDateForMonth(S.month)}에 지급하면 해당 월 입금완료로 체크됩니다. 배지를 클릭하면 입금대기중 ↔ 입금완료로 전환됩니다.</p>
+    <p style="font-size:11.5px;color:var(--mut);margin-top:10px">※ 심야 = 야간(22:00~06:00)×시급×${Math.round(S.settings.nightRate*100)}% · 초과 = 초과시간×시급×${Math.round(S.settings.otRate*100)}% · 선택기간 ${rangeLabel()}<br>※ 도급비는 계약 시작일/만료일이 정산기간 일부에만 걸치면 <b>겹친 일수 기준으로 자동 일할 계산</b>됩니다.</p></div></div></div>`;
+  // salary (개인 월급만, 본사 팀장은 정산 제외)
+  const sal=S.workers.filter(w=>w.type==='personal');
+  h+=`<div class="panel"><div class="phead"><h2>월급제 정산 (개인)</h2><span class="hint">본사 팀장은 정산에서 제외 · 입사일/퇴사일 기준 일할계산</span></div><div class="pbody" style="overflow-x:auto">
+    <table><thead><tr><th>이름</th><th class="c">재직기간</th><th class="c">정산일수</th><th class="r">월 급여</th><th class="r">일할 지급액</th><th class="r">3.3% 원천징수</th><th class="r">실지급액</th><th>계산방식</th></tr></thead><tbody>`;
+  let salGross=0,salTax=0,salNet=0;
+  sal.forEach(w=>{const sp=salaryProration(w,DTS);salGross+=sp.gross;salTax+=sp.tax;salNet+=sp.net;
+    const period=(w.hireDate||'입사일 없음')+' ~ '+(w.resignDate||'재직중');
+    h+=`<tr><td><b>${w.name}</b>${(w.bankName||w.bankAccount)?`<div style="font-size:10px;color:var(--mut)">${w.bankName||'-'} ${w.bankAccount||''}${w.bankHolder?' ('+w.bankHolder+')':''}</div>`:''}</td><td class="c" style="font-size:12px;color:var(--mut)">${period}</td><td class="c"><span class="tag ${sp.days===sp.totalDays?'g':'a'}">${sp.label}</span></td><td class="r num">${won(w.salary)}</td><td class="r num"><b>${won(sp.gross)}</b></td><td class="r num" style="color:var(--red)">−${won(sp.tax)} <span style="font-size:10px;color:var(--mut)">(${sp.rate}%)</span></td><td class="r num"><b>${won(sp.net)}</b></td><td style="font-size:12px;color:var(--mut)">정산기간 ${rangeLabel()} 중 재직일수 기준 · 휴무와 무관</td></tr>`;});
+  if(!sal.length)h+=`<tr><td colspan="8" class="c" style="color:var(--mut);padding:18px">등록된 개인 월급제가 없습니다.</td></tr>`;
+  h+=`</tbody><tfoot><tr style="background:#f7f9fc"><td colspan="4" style="font-weight:700">개인 월급 합계</td><td class="r num"><b>${won(salGross)}</b></td><td class="r num" style="color:var(--red)">−${won(salTax)}</td><td class="r num"><b>${won(salNet)}</b></td><td></td></tr></tfoot></table>
+    <p style="font-size:11.5px;color:var(--mut);margin-top:8px">※ 월급제(개인)는 알바처럼 근무일/휴무일 기준이 아니라 <b>정산기간 전체일수 대비 재직일수</b>로 일할계산합니다. 입사일 전·퇴사일 후는 자동 제외됩니다.</p></div></div>`;
+  // sub
+  const subs=activeSubStoresForDates(DTS);
+  if(subs.length){h+=`<div class="panel"><div class="phead"><h2>도급 정산 — 월별</h2><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button class="btn pri sm" onclick="markAllSubPaid()">${monthLabel} 도급 전체 입금완료(25일)</button><button class="btn ghost sm" onclick="clearAllSubPaid()">도급 전체 입금대기</button><select onchange="setSubPayFilter(this.value)" style="font-size:12px;padding:5px 8px;width:auto">${[['all','지급: 전체'],['pending','입금대기만'],['paid','입금완료만']].map(o=>`<option value="${o[0]}" ${(S.subPayFilter||'all')===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select><span class="hint">비활성 매장도 계약기간이 겹치면 과거 정산에 표시 · 일부 운영은 일할 계산</span></div></div><div class="pbody" style="overflow-x:auto">
+    <table><thead><tr><th>매장</th><th>도급업체</th><th class="c">상태</th><th class="c">계약기간</th><th class="c">정산일수</th><th class="c">완료/예정</th><th class="r">수주(공급)</th><th class="r">수주(VAT포함)</th><th class="r">도급비(공급)</th><th class="r">도급비(VAT포함)</th><th class="r">마진(공급)</th><th class="c">마진율</th><th class="c">지급상태</th><th class="c">입금완료일</th></tr></thead><tbody>`;
+    let sA=0,sF=0,shown=0;subs.forEach(s=>{const _paid=!!(getSubPay(s.id)&&getSubPay(s.id).paid);const _pf=S.subPayFilter||'all';if(_pf==='paid'&&!_paid)return;if(_pf==='pending'&&_paid)return;const sm=subAgg(s,DTS);const pr=subProration(s,DTS);const mg=pr.award-pr.fee;const rt=pr.award?Math.round(mg/pr.award*100):0;sA+=pr.award;sF+=pr.fee;shown++;
+      const prNote=pr.denomLabel||((pr.days===pr.totalDays)?'전체':`${pr.days}/${pr.totalDays}일`);
+      h+=`<tr><td><b>${shortName(s)}</b>${s.isCurrent?'':'<div style="font-size:10px;color:var(--mut)">과거 도급계약 이력</div>'}${s.active===false?'<div style="font-size:10px;color:var(--mut)">비활성 매장 · 과거 운영분 정산</div>':''}</td><td>${s.subVendor||'<span style="color:var(--red)">미입력</span>'}</td><td class="c"><span class="tag ${s.active===false?'gray':'g'}">${s.active===false?'비활성':'활성'}</span></td><td class="c" style="font-size:12px">${s.contractStart||'-'} ~ ${s.contractEnd||'계속'}</td><td class="c"><span class="tag ${pr.days===pr.totalDays?'g':'a'}">${prNote}</span></td><td class="c">${sm.done}/${sm.planned}</td><td class="r num">${won(pr.award)}</td><td class="r num" style="color:var(--mut)">${won(vat(pr.award))}</td><td class="r num"><b>${won(pr.fee)}</b>${pr.days!==pr.totalDays?`<div style="font-size:10px;color:var(--mut)">월도급 ${won(s.subFee)} · 해당 월 일수 기준</div>`:''}</td><td class="r num" style="color:var(--mut)">${won(vat(pr.fee))}</td><td class="r num" style="color:${mg<0?'var(--red)':'var(--green)'}"><b>${won(mg)}</b></td><td class="c"><span class="tag ${mg<0?'r':'g'}">${rt}%</span></td><td class="c">${(()=>{const ps=getSubPay(s.id);return ps&&ps.paid?`<span class="tag g" style="cursor:pointer" onclick="toggleSubPay('${s.id}')">입금완료 ${ps.date?ps.date.slice(5):''}</span>`:`<span class="tag a" style="cursor:pointer" onclick="toggleSubPay('${s.id}')">입금대기중</span>`;})()}</td><td class="c"><input type="date" value="${(getSubPay(s.id)||{}).date||''}" onchange="setSubPayDate('${s.id}',this.value)" style="font-size:12px;padding:5px;width:148px"></td></tr>`;});
+    if(!shown)h+=`<tr><td colspan="14" class="c" style="color:var(--mut);padding:18px">선택한 지급 필터에 해당하는 도급 정산 항목이 없습니다.</td></tr>`;
+    h+=`</tbody><tfoot><tr style="background:var(--teal);color:#fff"><td colspan="6" style="font-weight:900">도급 합계</td><td class="r num">${won(sA)}</td><td class="r num">${won(vat(sA))}</td><td class="r num">${won(sF)}</td><td class="r num">${won(vat(sF))}</td><td class="r num"><b>${won(sA-sF)}</b></td><td class="c">${sA?Math.round((sA-sF)/sA*100):0}%</td><td class="c">${paidSubs}/${paySubs} 완료</td><td></td></tr></tfoot></table>
+    <p style="font-size:11.5px;color:var(--mut);margin-top:8px">※ 도급 지급상태도 ${S.month} 정산월별로 저장됩니다. 매장이 비활성화되어도 계약기간이 정산기간과 겹치면 과거 운영분으로 남고, 실제 근무월의 총일수 기준으로 자동 일할 계산됩니다. 예: 6/9~6/14는 6일/6월 30일 기준입니다.</p></div></div>`;} else {h+=`<div class="panel"><div class="phead"><h2>도급 정산 — 월별</h2><span class="hint">계약기간 기준</span></div><div class="pbody"><p style="color:var(--mut);font-size:13px;text-align:center;padding:16px 0">${monthLabel} 정산기간에 해당하는 도급 계약 매장이 없습니다.</p></div></div>`;}
+  // manual pay (과거/추가 급여)
+  const mpItems=(S.manualPay||[]).filter(x=>x.month===S.month);
+  h+=`<div class="panel"><div class="phead"><h2>수동 정산 (과거/추가 급여)</h2><div style="display:flex;gap:6px;align-items:center"><span class="hint">${S.month} 기준 · 인력풀 밖의 기록</span><button class="btn pri sm" onclick="addManualPay()">+ 항목 추가</button></div></div><div class="pbody" style="overflow-x:auto">`;
+  if(mpItems.length){
+    h+=`<table><thead><tr><th>이름</th><th class="r">지급 총액</th><th class="r">원천징수</th><th class="r">실지급</th><th class="c">지급일</th><th>메모</th><th class="c"></th></tr></thead><tbody>`;
+    let mpTotal=0,mpNet=0;
+    mpItems.forEach(x=>{const tax=(x.amount||0)*(x.taxRate||0)/100;const net=(x.amount||0)-tax;mpTotal+=x.amount||0;mpNet+=net;
+      h+=`<tr><td><b>${x.name}</b></td><td class="r num">${won(x.amount)}</td><td class="r num" style="color:var(--red)">−${won(tax)} <span style="font-size:10px;color:var(--mut)">(${x.taxRate}%)</span></td><td class="r num"><b>${won(net)}</b></td><td class="c" style="font-size:12px">${x.date||'-'}</td><td style="font-size:12px;color:var(--mut)">${x.memo||'-'}</td><td class="c"><button class="btn ghost sm" onclick="editManualPay('${x.id}')">편집</button> <button class="btn danger sm" onclick="delManualPay('${x.id}')">삭제</button></td></tr>`;});
+    h+=`</tbody><tfoot><tr style="background:#f7f9fc"><td style="font-weight:700">합계 (${mpItems.length}건)</td><td class="r num">${won(mpTotal)}</td><td></td><td class="r num"><b>${won(mpNet)}</b></td><td colspan="3"></td></tr></tfoot></table>`;
+  } else { h+=`<p style="color:var(--mut);font-size:13px;text-align:center;padding:16px 0">이번 달 수동 정산 항목이 없습니다. 위 [+ 항목 추가]로 과거 급여 기록을 남겨보세요.</p>`; }
+  h+=`</div></div>`;
+  document.getElementById('pay').innerHTML=h;
+}
+
+function renderSet(){const st=S.settings;
+  let h=`<div class="panel"><div class="phead"><h2>설정 — 시급 · 수당 · 정산 시작일</h2></div><div class="pbody">
+    <div class="grid2">
+      <div><label class="fld">홀 / 주방 시급</label><input type="number" id="set_hk" value="${st.wageHK}"></div>
+      <div><label class="fld">샐러드바 시급(3인)</label><input type="number" id="set_salad" value="${st.wageSalad}"></div>
+      <div><label class="fld">심야 가산율 (%)</label><input type="number" id="set_night" value="${Math.round(st.nightRate*100)}"></div>
+      <div><label class="fld">초과 가산율 (%)</label><input type="number" id="set_ot" value="${Math.round(st.otRate*100)}"></div>
+      <div><label class="fld">근무 시작시간</label><input type="time" id="set_start" value="${st.shiftStart}" oninput="updateShiftTotal()"></div>
+      <div><label class="fld">근무 마감시간</label><input type="time" id="set_end" value="${st.shiftEnd||'00:00'}" oninput="updateShiftTotal()"></div>
+      <div><label class="fld">총 근무시간(기본)</label><input type="text" id="set_total" value="${shiftDurLabel(st.shiftStart,st.shiftEnd||'00:00')}" readonly style="background:#eef4fc;font-weight:700;color:var(--blue-d)"></div>
+      <div><label class="fld">정산 시작일</label><input type="number" id="set_cut" value="${st.cutoffDay}" min="2" max="28"></div>
+    </div>
+    <p style="font-size:11.5px;color:var(--mut);margin-top:8px">정산 시작일 ${st.cutoffDay}일 기준 → 정산기간은 전월 ${st.cutoffDay}일 ~ 당월 ${st.cutoffDay-1}일. 야간 구간은 22:00~06:00 고정.</p>
+    <div style="margin-top:14px"><button class="btn pri" onclick="saveSet()">설정 저장</button></div></div></div>
+  <div class="panel"><div class="phead"><h2>데이터 관리</h2></div><div class="pbody">
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" onclick="exportJSON()">전체 내보내기(JSON)</button>
+      <label class="btn ghost" style="display:inline-block">가져오기(JSON)<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+</div>
+    <p style="font-size:11.5px;color:var(--mut);margin-top:10px">데이터는 이 브라우저에 자동 저장. 공유는 JSON 내보내기/가져오기.</p></div></div>`;
+  document.getElementById('set').innerHTML=h;
+}
+
+/* ---------- direct cell modal ---------- */
+let CUR=null,SELWD={};
+function workerOptions(sel){
+  const alba=S.workers.filter(w=>w.type==='hourly'&&(!w.resignDate||w.id===sel)),lead=S.workers.filter(w=>w.type==='salary'&&(!w.resignDate||w.id===sel));
+  let o='<option value="">— 근무자 선택 —</option>';
+  o+='<optgroup label="알바">'+alba.map(w=>`<option value="${w.id}" ${w.id===sel?'selected':''}>${w.name}</option>`).join('')+'</optgroup>';
+  o+='<optgroup label="본사 팀장(월급)">'+lead.map(w=>`<option value="${w.id}" ${w.id===sel?'selected':''}>${w.name} (대체)</option>`).join('')+'</optgroup>';
+  return o;
+}
+function openCell(storeId,posKey,isoStr){
+  const s=storeOf(storeId);const dt=new Date(isoStr+'T00:00:00');const a=getAtt(s,posKey,dt);CUR={storeId,posKey,isoStr};SELWD={};
+  const reg=a.reg??defShiftH(),ot=a.ot??0;const wid=a.workerId||'';
+  const totN=(a.nReg!=null||a.nOt!=null)?null:(a.noNight?0:nightHours(S.settings.shiftStart,reg+ot));
+  let nReg,nOt; if(a.nReg!=null||a.nOt!=null){nReg=a.nReg||0;nOt=a.nOt||0;} else {nReg=Math.min(reg,totN);nOt=Math.min(ot,Math.max(0,totN-nReg));}
+  const dRp=hmParts(Math.max(0,reg-nReg)),nRp=hmParts(nReg),dOp=hmParts(Math.max(0,ot-nOt)),nOp=hmParts(nOt);
+  document.getElementById('mbox').innerHTML=`<h3>${shortName(s)} · ${posKey}</h3><div class="msub">${isoStr} (${WDFULL[dt.getDay()]})</div>
+    <div class="seg">
+      <button data-s="work" class="${a.status==='work'?'on':''}" onclick="segPick('work')">근무</button>
+      <button data-s="noshow" class="${a.status==='noshow'?'on':''}" onclick="segPick('noshow')">노쇼</button>
+      <button data-s="off" class="${a.status==='off'?'on':''}" onclick="segPick('off')">휴무</button>
+      <button data-s="plan" class="${a.status==='plan'?'on':''}" onclick="segPick('plan')">예정</button></div>
+    <div id="offFields" style="${a.status==='off'?'':'display:none'}">
+      <label class="fld">휴무사유</label><input id="f_reason" value="${(a.reason||'').replace(/\"/g,'&quot;')}" placeholder="예: 매장휴무, 공사, 임시휴무">
+    </div>
+    <div id="workFields" style="${a.status==='work'?'':'display:none'}">
+      <label class="fld">근무자 <button class="btn ghost sm" style="float:right;padding:2px 8px" onclick="quickAddWorker()">+ 새 인력</button></label>
+      <select id="f_worker" onchange="cellPreview()">${workerOptions(wid)}</select>
+      <div style="margin-top:10px;background:#f7faff;border:1px solid var(--line);border-radius:9px;padding:9px">
+        <div style="font-size:11.5px;font-weight:700;color:var(--mut);margin-bottom:5px">정규 근무 — 주간 ＋ 심야</div>
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+          <input type="number" min="0" id="f_dRegH" value="${dRp.h}" style="width:56px"><span style="font-size:11px">시</span><input type="number" min="0" max="59" step="5" id="f_dRegM" value="${dRp.m}" style="width:56px"><span style="font-size:11px">분 주간</span>
+          <span style="color:var(--night);font-weight:900">＋</span>
+          <input type="number" min="0" id="f_nRegH" value="${nRp.h}" style="width:56px"><span style="font-size:11px">시</span><input type="number" min="0" max="59" step="5" id="f_nRegM" value="${nRp.m}" style="width:56px"><span style="font-size:11px;color:var(--night)">분 심야</span></div></div>
+      <div style="margin-top:8px;background:#fffaf3;border:1px solid var(--line);border-radius:9px;padding:9px">
+        <div style="font-size:11.5px;font-weight:700;color:var(--mut);margin-bottom:5px">초과 근무 — 주간 ＋ 심야</div>
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+          <input type="number" min="0" id="f_dOtH" value="${dOp.h}" style="width:56px"><span style="font-size:11px">시</span><input type="number" min="0" max="59" step="5" id="f_dOtM" value="${dOp.m}" style="width:56px"><span style="font-size:11px">분 주간</span>
+          <span style="color:var(--night);font-weight:900">＋</span>
+          <input type="number" min="0" id="f_nOtH" value="${nOp.h}" style="width:56px"><span style="font-size:11px">시</span><input type="number" min="0" max="59" step="5" id="f_nOtM" value="${nOp.m}" style="width:56px"><span style="font-size:11px;color:var(--night)">분 심야</span></div></div>
+      <div id="preview" style="font-size:12px;color:var(--mut);margin-top:8px"></div>
+      <div style="border-top:1px dashed var(--line);margin-top:12px;padding-top:10px">
+        <label class="fld">요일 일괄적용 (예: 월·화·수 한 사람 / 목·금·토·일 다른 사람)</label>
+        <div class="wdrow">${[1,2,3,4,5,6,0].map(i=>`<button data-wd="${i}" onclick="toggleWD(${i})">${WD[i]}</button>`).join('')}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px"><button class="btn pri" style="flex:1" onclick="saveCell(false)">이 날만 저장</button><button class="btn ghost" onclick="saveCell(true)">선택요일 일괄적용</button></div>
+    <div style="margin-top:8px"><button class="btn danger" style="width:100%" onclick="delCell()">수동값 삭제 → 자동/예정 복귀 <span style="font-weight:400">(요일 선택 시 해당 요일 일괄삭제)</span></button></div>
+    <div style="margin-top:8px;text-align:center"><button class="btn ghost sm" onclick="closeModal()">취소</button></div>`;
+  document.getElementById('modal').classList.add('on');
+  ['f_dRegH','f_dRegM','f_nRegH','f_nRegM','f_dOtH','f_dOtM','f_nOtH','f_nOtM'].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener('input',cellPreview);});
+  CUR.status=a.status;cellPreview();
+}
+function segPick(s){CUR.status=s;document.querySelectorAll('#mbox .seg button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));const wf=document.getElementById('workFields');if(wf)wf.style.display=s==='work'?'':'none';const of=document.getElementById('offFields');if(of)of.style.display=s==='off'?'':'none';cellPreview();}
+function toggleWD(i){SELWD[i]=!SELWD[i];document.querySelector(`#mbox .wdrow button[data-wd="${i}"]`).classList.toggle('on',SELWD[i]);}
+function readHM(idH,idM){const h=parseInt(document.getElementById(idH).value)||0;const m=parseInt(document.getElementById(idM).value)||0;return h+m/60;}
+function cellPreview(){if(CUR.status!=='work')return;const wid=document.getElementById('f_worker').value;const w=workerOf(wid);
+  const nReg=readHM('f_nRegH','f_nRegM'),nOt=readHM('f_nOtH','f_nOtM');const reg=readHM('f_dRegH','f_dRegM')+nReg;const ot=readHM('f_dOtH','f_dOtM')+nOt;const nightH=nReg+nOt;const pv=document.getElementById('preview');
+  if(!w){pv.innerHTML='<span style="color:var(--red)">근무자를 선택하세요.</span>';return;}
+  if(w.type==='salary'){pv.innerHTML=`<span style="color:var(--purple)"><b>${w.name}</b> 대체근무 · 월급제(일별 비용 미부과)</span>`;return;}
+  const s=storeOf(CUR.storeId);const p=positionsOf(s).find(x=>x.key===CUR.posKey);const rate=rateFor(w,p.wage);const pay=dayPay(rate,reg,ot,nightH);
+  pv.innerHTML=`일급 <b style="color:var(--blue-d)">${won(pay.total)}</b> = 기본 ${won(pay.base)}${nightH>0?` + 심야 ${won(pay.night)}`:''}${ot?` + 초과 ${won(pay.ot)}`:''} <span style="color:#9aa4b0">(시급 ${won(rate)} · 근무 ${hmLabel(reg+ot)} · 심야 ${hmLabel(nightH)})</span>`;
+}
+function quickAddWorker(){const n=prompt('새 알바 이름을 입력하세요');if(!n)return;const w={id:'ST'+Date.now(),name:n.trim(),type:'hourly',salary:0,withhold:3.3,rate:null,phone:'',memo:''};S.workers.push(w);save();const sel=document.getElementById('f_worker');sel.innerHTML=workerOptions(w.id);cellPreview();}
+function applyOne(isoStr){
+  const k=attKey(CUR.storeId,CUR.posKey,isoStr);
+  if(CUR.status==='work'){const wid=document.getElementById('f_worker').value;if(!wid){alert('근무자를 선택하세요.');return false;}
+    const nReg=readHM('f_nRegH','f_nRegM'),nOt=readHM('f_nOtH','f_nOtM');
+    S.attendance[k]={status:'work',workerId:wid,reg:readHM('f_dRegH','f_dRegM')+nReg,ot:readHM('f_dOtH','f_dOtM')+nOt,nReg,nOt};}
+  else if(CUR.status==='noshow'){const we=document.getElementById('f_worker');S.attendance[k]={status:'noshow',workerId:(we&&we.value)||''};}
+  else if(CUR.status==='off'){const re=document.getElementById('f_reason');S.attendance[k]={status:'off',reason:(re&&re.value.trim())||''};}
+  else S.attendance[k]={status:CUR.status};
+  return true;
+}
+function saveCell(bulk){
+  if(!bulk){ if(!applyOne(CUR.isoStr))return; }
+  else{
+    const wds=Object.keys(SELWD).filter(k=>SELWD[k]).map(Number);
+    if(!wds.length){alert('적용할 요일을 선택하세요.');return;}
+    if(CUR.status==='work'&&!document.getElementById('f_worker').value){alert('근무자를 선택하세요.');return;}
+    const s=storeOf(CUR.storeId);
+    const _w=document.getElementById('f_worker').value,_nReg=readHM('f_nRegH','f_nRegM'),_nOt=readHM('f_nOtH','f_nOtM'),_r=readHM('f_dRegH','f_dRegM')+_nReg,_o=readHM('f_dOtH','f_dOtM')+_nOt,_reason=(document.getElementById('f_reason')&&document.getElementById('f_reason').value.trim())||'';
+    periodDates().forEach(dt=>{ if(!wds.includes(dt.getDay()))return; if(isOff(s,dt))return;
+      const k=attKey(CUR.storeId,CUR.posKey,iso(dt));
+      if(CUR.status==='work')S.attendance[k]={status:'work',workerId:_w,reg:_r,ot:_o,nReg:_nReg,nOt:_nOt};
+      else if(CUR.status==='noshow')S.attendance[k]={status:'noshow',workerId:_w};
+      else if(CUR.status==='off')S.attendance[k]={status:'off',reason:_reason};
+      else S.attendance[k]={status:CUR.status};
+    });
+  }
+  save();closeModal();render();
+}
+
+/* ---------- store bulk assign / scoped reset ---------- */
+function openStoreBulk(storeId){
+  const s=storeOf(storeId);const ps=positionsOf(s);CUR={storeId,bulk:true};SELWD={};
+  const rh=hmParts(defShiftH());
+  const posHtml=ps.map((p,i)=>`<div class="card-sub" style="margin-bottom:8px"><b>${p.key}</b> <span style="font-size:11px;color:var(--mut)">${won(p.wage)}/h</span>
+    <select id="b_w${i}" style="margin-top:6px">${workerOptions('')}</select>
+    <div class="row" style="margin-top:6px"><div style="flex:1"><label class="fld">정규 시/분</label><div style="display:flex;gap:4px"><input type="number" min="0" id="b_rh${i}" value="${rh.h}"><input type="number" min="0" max="59" step="5" id="b_rm${i}" value="${rh.m}"></div></div>
+      <div style="flex:1"><label class="fld">초과 시/분</label><div style="display:flex;gap:4px"><input type="number" min="0" id="b_oh${i}" value="0"><input type="number" min="0" max="59" step="5" id="b_om${i}" value="0"></div></div></div>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;font-weight:700"><input type="checkbox" id="b_n${i}" checked style="width:auto"> 심야수당 적용</label></div>`).join('');
+  document.getElementById('mbox').innerHTML=`<h3>${shortName(s)} · 여러 자리 동시 입력</h3><div class="msub">자리별 근무자를 한 번에 배정 · 비워둔 자리는 건너뜀</div>
+    <label class="fld">적용 요일 <span style="font-weight:400;color:var(--mut)">(미선택 시 기간 전체)</span></label>
+    <div class="wdrow" style="margin-bottom:10px">${[1,2,3,4,5,6,0].map(i=>`<button data-wd="${i}" onclick="toggleWD(${i})">${WD[i]}</button>`).join('')}</div>
+    ${posHtml}
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="btn pri" style="flex:1" onclick="saveStoreBulk()">선택 자리 일괄 배정</button><button class="btn danger" onclick="bulkResetStore()">선택 요일 예정 초기화</button></div>
+    <div style="margin-top:8px;text-align:center"><button class="btn ghost sm" onclick="closeModal()">닫기</button></div>`;
+  document.getElementById('modal').classList.add('on');
+}
+function bulkTargetDates(s){const wds=Object.keys(SELWD).filter(k=>SELWD[k]).map(Number);return periodDates().filter(dt=>!isOff(s,dt)&&(wds.length===0||wds.includes(dt.getDay())));}
+function saveStoreBulk(){const s=storeOf(CUR.storeId);const ps=positionsOf(s);const dts=bulkTargetDates(s);let cnt=0;
+  ps.forEach((p,i)=>{const wid=document.getElementById('b_w'+i).value;if(!wid)return;
+    const reg=readHM('b_rh'+i,'b_rm'+i),ot=readHM('b_oh'+i,'b_om'+i),nOn=document.getElementById('b_n'+i).checked;
+    dts.forEach(dt=>{S.attendance[attKey(s.id,p.key,iso(dt))]={status:'work',workerId:wid,reg,ot,noNight:!nOn};cnt++;});});
+  if(!cnt){alert('근무자를 한 자리 이상 선택하세요.');return;}
+  save();closeModal();render();}
+function bulkResetStore(){const s=storeOf(CUR.storeId);const ps=positionsOf(s);const dts=bulkTargetDates(s);
+  if(!dts.length){alert('대상 날짜가 없습니다.');return;}
+  if(!confirm(`${shortName(s)} · ${dts.length}일을 예정으로 초기화할까요? (입력값 삭제)`))return;
+  ps.forEach(p=>dts.forEach(dt=>{delete S.attendance[attKey(s.id,p.key,iso(dt))];}));
+  save();closeModal();render();}
+
+function assignPos(storeId,posKey,workerId){if(!workerId)return;const s=storeOf(storeId);const w=workerOf(workerId);
+  const dts=periodDates().filter(dt=>!isOff(s,dt));
+  if(!confirm(`${shortName(s)} · ${posKey} 자리를 기간 전체(${dts.length}일)를 ${w.name}(으)로 채울까요?\n휴무일 제외 · 기존 입력 덮어씀 · 이후 특정 날짜는 셀 클릭으로 다른 사람 지정 가능`))return;
+  dts.forEach(dt=>{S.attendance[attKey(s.id,posKey,iso(dt))]={status:'work',workerId,reg:defShiftH(),ot:0,noNight:false};});
+  save();render();}
+
+/* ---------- sub modal ---------- */
+function openSub(storeId,isoStr){const s=storeOf(storeId);const dt=new Date(isoStr+'T00:00:00');const a=getSub(s,dt);CUR={storeId,isoStr,subStatus:a.status};
+  document.getElementById('mbox').innerHTML=`<h3>${s.subVendor||'도급업체'} <span class="tag t">도급</span></h3><div class="msub">${isoStr} (${WDFULL[dt.getDay()]}) · ${shortName(s)}</div>
+    <div class="seg"><button data-s="done" class="${a.status==='done'?'on':''}" onclick="subPick('done')">작업완료</button><button data-s="undone" class="${a.status==='undone'?'on':''}" onclick="subPick('undone')">미완료</button><button data-s="off" class="${a.status==='off'?'on':''}" onclick="subPick('off')">휴무</button><button data-s="plan" class="${a.status==='plan'?'on':''}" onclick="subPick('plan')">예정</button></div>
+    <div id="subReason" style="${a.status==='off'?'':'display:none'}"><label class="fld">휴무사유</label><input id="sub_reason" value="${(a.reason||'').replace(/"/g,'&quot;')}" placeholder="예: 매장휴무, 공사, 임시휴무"></div>
+    <p style="font-size:11.5px;color:var(--mut);margin-top:8px">도급비는 월 정액이라 일별 체크는 작업현황 확인용입니다.</p>
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn pri" style="flex:1" onclick="saveSub()">저장</button><button class="btn ghost" onclick="closeModal()">닫기</button></div>`;
+  document.getElementById('modal').classList.add('on');}
+function subPick(status){CUR.subStatus=status;document.querySelectorAll('#mbox .seg button').forEach(b=>b.classList.toggle('on',b.dataset.s===status));const r=document.getElementById('subReason');if(r)r.style.display=status==='off'?'':'none';}
+function saveSub(){const status=CUR.subStatus;const k=subKey(CUR.storeId,CUR.isoStr);if(status==='plan')delete S.subatt[k];else if(status==='off'){const re=document.getElementById('sub_reason');S.subatt[k]={status:'off',reason:(re&&re.value.trim())||''};}else S.subatt[k]={status};save();closeModal();render();}
+function delCell(){const wds=Object.keys(SELWD).filter(k=>SELWD[k]).map(Number);const s=storeOf(CUR.storeId);
+  if(wds.length){let n=0;periodDates().forEach(dt=>{if(wds.includes(dt.getDay())){const k=attKey(CUR.storeId,CUR.posKey,iso(dt));if(S.attendance[k]){delete S.attendance[k];n++;}}});if(!n){alert('선택 요일에 삭제할 수동값이 없습니다.');return;}}
+  else{const k=attKey(CUR.storeId,CUR.posKey,CUR.isoStr);if(!S.attendance[k]){alert('이 칸은 이미 자동/예정 상태입니다(수동값 없음).');return;}delete S.attendance[k];}
+  save();closeModal();render();}
+function closeModal(){document.getElementById('modal').classList.remove('on');}
+
+/* ---------- store add/edit/del ---------- */
+function storeForm(s,isNew){const sub=s.mode==='sub';
+  document.getElementById('mbox').innerHTML=`<h3>${isNew?'매장 추가':shortName(s)}</h3><div class="msub">${isNew?'신규 매장 등록':'매장 정보 편집'}</div>
+    <label class="fld">매장명</label><input id="e_name" value="${(s.name||'').replace(/"/g,'&quot;')}" placeholder="예: 애슐리퀸즈 ○○점">
+    <div class="grid2" style="margin-top:10px">
+      <div><label class="fld">운영 방식</label><select id="e_mode" onchange="toggleMode()"><option value="direct" ${!sub?'selected':''}>직영</option><option value="sub" ${sub?'selected':''}>도급</option></select></div>
+      <div><label class="fld">권역</label><input id="e_region" value="${s.region||''}" placeholder="서울 / 경기·인천"></div>
+      <div><label class="fld">휴무 요일</label><select id="e_off"><option value="">없음</option>${WDFULL.map(w=>`<option ${s.off===w?'selected':''}>${w}</option>`).join('')}</select></div>
+      <div><label class="fld">수주(하도) 금액</label><input type="number" id="e_aw" value="${s.award||0}"></div></div>
+    <div id="dirFields" style="${sub?'display:none':''}"><div class="grid2" style="margin-top:10px">
+      <div><label class="fld">투입 인원(자리)</label><select id="e_hc"><option value="1" ${s.headcount==1?'selected':''}>1인</option><option value="2" ${s.headcount==2||!s.headcount?'selected':''}>2인</option><option value="3" ${s.headcount==3?'selected':''}>3인</option></select></div>
+      <div><label class="fld">1일 기본 근무시간</label><input id="e_sh" value="${defShiftH()}" readonly style="background:#eef4fc;color:var(--blue-d);font-weight:700"><div style="font-size:10px;color:var(--mut);margin-top:3px">설정의 총 근무시간을 따름 (추가는 셀에서 수동)</div></div>
+      <div><label class="fld">인건비 예산</label><input type="number" id="e_lb" value="${s.laborBudget||0}"></div></div></div>
+    <div id="subFields" style="${sub?'':'display:none'}"><div class="grid2" style="margin-top:10px">
+      <div><label class="fld">도급업체명</label><input id="e_sv" value="${(s.subVendor||'').replace(/"/g,'&quot;')}"></div>
+      <div><label class="fld">월 도급비</label><input type="number" id="e_sf" value="${s.subFee||0}"></div>
+      <div><label class="fld">계약 시작일</label><input type="date" id="e_cstart" value="${s.contractStart||''}"><div style="font-size:10px;color:var(--mut);margin-top:3px">이 날부터 청소비 지급</div></div>
+      <div><label class="fld">계약 만료일</label><input type="date" id="e_cend" value="${s.contractEnd||''}"><div style="font-size:10px;color:var(--mut);margin-top:3px">비워두면 계속 계약</div></div>
+      <div style="grid-column:1/-1"><label class="fld">업체 연락처</label><input id="e_sc" value="${(s.subContact||'').replace(/"/g,'&quot;')}"></div></div>
+    <div class="note-box" style="margin-top:10px">도급 계약종료 후 운영방식을 직영으로 바꾸면, 현재 도급 설정은 자동으로 '도급 계약 이력'에 보관되어 이후 정산월에도 남습니다.</div>
+    <div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--mut);margin-bottom:6px">사업자등록증 정보</div>
+      <div class="grid2"><div><label class="fld">상호</label><input id="e_bizname" value="${(s.bizName||'').replace(/"/g,'&quot;')}"></div>
+        <div><label class="fld">사업자등록번호</label><input id="e_bizno" value="${(s.bizNo||'').replace(/"/g,'&quot;')}" placeholder="000-00-00000"></div></div>
+      <div class="grid2" style="margin-top:4px"><div><label class="fld">이름(대표자)</label><input id="e_bizowner" value="${(s.bizOwner||'').replace(/"/g,'&quot;')}"></div>
+        <div><label class="fld">업태</label><input id="e_biztype" value="${(s.bizType||'').replace(/"/g,'&quot;')}"></div></div>
+      <div class="grid2" style="margin-top:4px"><div><label class="fld">종목</label><input id="e_bizitem" value="${(s.bizItem||'').replace(/"/g,'&quot;')}"></div>
+        <div><label class="fld">이메일</label><input id="e_bizemail" value="${(s.bizEmail||'').replace(/"/g,'&quot;')}" type="email"></div></div>
+      <div style="margin-top:4px"><label class="fld">주소</label><input id="e_bizaddr" value="${(s.bizAddr||'').replace(/"/g,'&quot;')}"></div>
+      <div class="grid2" style="margin-top:4px"><div><label class="fld">위도 (lat)</label><input type="number" step="any" id="e_lat" value="${s.lat||''}" placeholder="37.5665"></div>
+        <div><label class="fld">경도 (lng)</label><input type="number" step="any" id="e_lng" value="${s.lng||''}" placeholder="126.9780"></div></div>
+      <div style="font-size:10px;color:var(--mut);margin-top:2px">구글맵에서 건물 우클릭 → 좌표 복사 → 붙여넣기</div></div>
+    <div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--mut);margin-bottom:6px">계좌 정보</div>
+      <div class="grid2"><div><label class="fld">은행명</label><input id="e_bankname" value="${(s.bankName||'').replace(/"/g,'&quot;')}" placeholder="우리은행"></div>
+        <div><label class="fld">계좌번호</label><input id="e_bankacct" value="${(s.bankAccount||'').replace(/"/g,'&quot;')}"></div>
+        <div><label class="fld">예금주</label><input id="e_bankholder" value="${(s.bankHolder||'').replace(/"/g,'&quot;')}"></div></div></div></div>
+    <div class="grid2" style="margin-top:10px"><div><label class="fld">담당자</label><input id="e_mgr" value="${(s.mgr||'').replace(/"/g,'&quot;')}" placeholder="현장 담당자"></div>
+      <div><label class="fld">담당자 연락처</label><input id="e_mgrp" value="${(s.mgrPhone||'').replace(/"/g,'&quot;')}" placeholder="010-0000-0000"></div></div>
+    <label class="fld" style="margin-top:10px">특이사항</label><input id="e_note" value="${(s.note||'').replace(/"/g,'&quot;')}">
+    ${(s.subContracts&&s.subContracts.length)?`<div class="note-box" style="margin-top:10px;background:#f7f9fc;border-color:#e3e8ef;color:var(--mut)"><b>도급 계약 이력 수정</b><div style="font-size:11px;color:#9aa4b0;margin:3px 0 8px">과거 도급 계약의 업체명, 기간, 금액, 계좌를 수정할 수 있습니다. 삭제 체크 후 저장하면 해당 이력이 삭제됩니다.</div><input type="hidden" id="hist_count" value="${s.subContracts.length}">${s.subContracts.map((c,i)=>`<div style="border:1px solid #e3e8ef;border-radius:10px;padding:9px;margin-top:7px;background:#fff"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><b style="font-size:12px;color:var(--teal)">도급 이력 #${i+1}</b><label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--red);font-weight:700"><input type="checkbox" id="hist_del_${i}" style="width:auto"> 삭제</label></div><div class="grid2"><div><label class="fld">도급업체명</label><input id="hist_sv_${i}" value="${safeVal(c.subVendor||'')}"></div><div><label class="fld">월 도급비</label><input type="number" id="hist_sf_${i}" value="${c.subFee||0}"></div><div><label class="fld">계약 시작일</label><input type="date" id="hist_cs_${i}" value="${c.contractStart||''}"></div><div><label class="fld">계약 만료일</label><input type="date" id="hist_ce_${i}" value="${c.contractEnd||''}"></div><div><label class="fld">업체 연락처</label><input id="hist_sc_${i}" value="${safeVal(c.subContact||'')}"></div><div><label class="fld">은행명</label><input id="hist_bn_${i}" value="${safeVal(c.bankName||'')}"></div><div><label class="fld">계좌번호</label><input id="hist_ba_${i}" value="${safeVal(c.bankAccount||'')}"></div><div><label class="fld">예금주</label><input id="hist_bh_${i}" value="${safeVal(c.bankHolder||'')}"></div></div></div>`).join('')}</div>`:''}
+    <label style="display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12px;font-weight:700;color:var(--mut)"><input type="checkbox" id="e_active" ${s.active===false?'':'checked'} style="width:auto"> 매장 활성화 <span style="font-weight:400;color:#9aa4b0">(해제 시 대시보드에서는 제외, 정산은 계약기간 기준으로 남음)</span></label>
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn pri" style="flex:1" onclick="saveStore('${isNew?'NEW':s.id}')">저장</button><button class="btn ghost" onclick="closeModal()">취소</button></div>`;
+  document.getElementById('modal').classList.add('on');}
+function toggleMode(){const m=document.getElementById('e_mode').value;document.getElementById('dirFields').style.display=m==='sub'?'none':'';document.getElementById('subFields').style.display=m==='sub'?'':'none';}
+function addStore(){storeForm({mode:'direct',headcount:2,shiftH:2,active:true},true);}
+function editStore(id){storeForm(storeOf(id),false);}
+function saveStore(id){const mode=document.getElementById('e_mode').value;
+  const old=id==='NEW'?null:storeOf(id);
+  const d={name:document.getElementById('e_name').value.trim()||'신규 매장',mode,region:document.getElementById('e_region').value.trim(),off:document.getElementById('e_off').value||null,award:parseInt(document.getElementById('e_aw').value)||0,note:document.getElementById('e_note').value,mgr:document.getElementById('e_mgr').value,mgrPhone:document.getElementById('e_mgrp').value,active:document.getElementById('e_active').checked,lat:parseFloat(document.getElementById('e_lat').value)||null,lng:parseFloat(document.getElementById('e_lng').value)||null};
+  d.subContracts=(old&&Array.isArray(old.subContracts))?old.subContracts.slice():[];
+  const hcEl=document.getElementById('hist_count');
+  if(hcEl&&old&&Array.isArray(old.subContracts)){
+    const nextHist=[];
+    for(let i=0;i<parseInt(hcEl.value||'0');i++){
+      const prev={...(old.subContracts[i]||{})};
+      const del=document.getElementById('hist_del_'+i); if(del&&del.checked)continue;
+      const gv=id=>{const el=document.getElementById(id+'_'+i);return el?el.value:''};
+      prev.subVendor=gv('hist_sv'); prev.subFee=parseInt(gv('hist_sf'))||0; prev.contractStart=gv('hist_cs'); prev.contractEnd=gv('hist_ce'); prev.subContact=gv('hist_sc');
+      prev.bankName=gv('hist_bn'); prev.bankAccount=gv('hist_ba'); prev.bankHolder=gv('hist_bh');
+      if(!prev.id)prev.id='SUBC_'+(old.id||'STORE')+'_'+Date.now()+'_'+i;
+      nextHist.push(prev);
+    }
+    d.subContracts=nextHist;
+  }
+  function archiveOldSub(){
+    if(!old||!isSub(old))return;
+    if(!(old.subVendor||old.subFee||old.contractStart||old.contractEnd))return;
+    const hist={id:'SUBC_'+old.id+'_'+Date.now(),subVendor:old.subVendor||'',subFee:old.subFee||0,subContact:old.subContact||'',contractStart:old.contractStart||'',contractEnd:old.contractEnd||'',bizName:old.bizName||'',bizNo:old.bizNo||'',bizOwner:old.bizOwner||'',bizType:old.bizType||'',bizItem:old.bizItem||'',bizAddr:old.bizAddr||'',bizEmail:old.bizEmail||'',bankName:old.bankName||'',bankAccount:old.bankAccount||'',bankHolder:old.bankHolder||''};
+    const dup=d.subContracts.some(c=>(c.subVendor||'')===hist.subVendor&&(c.contractStart||'')===hist.contractStart&&(c.contractEnd||'')===hist.contractEnd&&(c.subFee||0)===hist.subFee);
+    if(!dup)d.subContracts.push(hist);
+  }
+  if(mode==='sub'){
+    d.subVendor=document.getElementById('e_sv').value;d.subFee=parseInt(document.getElementById('e_sf').value)||0;d.subContact=document.getElementById('e_sc').value;d.contractStart=document.getElementById('e_cstart').value||'';d.contractEnd=document.getElementById('e_cend').value||'';d.bizName=document.getElementById('e_bizname').value;d.bizNo=document.getElementById('e_bizno').value;d.bizOwner=document.getElementById('e_bizowner').value;d.bizType=document.getElementById('e_biztype').value;d.bizItem=document.getElementById('e_bizitem').value;d.bizAddr=document.getElementById('e_bizaddr').value;d.bizEmail=document.getElementById('e_bizemail').value;d.bankName=document.getElementById('e_bankname').value;d.bankAccount=document.getElementById('e_bankacct').value;d.bankHolder=document.getElementById('e_bankholder').value;d.laborBudget=0;
+  }
+  else{
+    archiveOldSub();
+    d.headcount=parseInt(document.getElementById('e_hc').value)||2;d.shiftH=defShiftH();d.laborBudget=parseInt(document.getElementById('e_lb').value)||0;d.subFee=0;d.subVendor='';d.subContact='';d.contractStart='';d.contractEnd='';
+  }
+  if(id==='NEW')S.stores.push({id:'S'+Date.now(),...d,contacts:[]});else Object.assign(storeOf(id),d);
+  save();closeModal();render();}
+function delStore(id){const s=storeOf(id);if(!confirm(shortName(s)+' 매장을 삭제할까요? 기록도 함께 삭제됩니다.'))return;
+  S.stores=S.stores.filter(x=>x.id!==id);
+  Object.keys(S.attendance).forEach(k=>{if(k.startsWith(id+'#'))delete S.attendance[k];});
+  Object.keys(S.subatt).forEach(k=>{if(k.startsWith('SUB#'+id+'#'))delete S.subatt[k];});
+  save();render();}
+
+/* ---------- worker add/edit/del ---------- */
+function workerModal(w,isNew){const sal=w.type==='salary';const isM=(sal||w.type==='personal');
+  const allStores=S.stores;
+  let storeOpts=allStores.map(s=>`<option value="${s.id}" ${w.storeId===s.id?'selected':''}>${shortName(s)}${isSub(s)?' (도급)':''}</option>`).join('');
+  const _patrolMode=isPatrol();
+  document.getElementById('mbox').innerHTML=`<h3>${isNew?'인력 추가':w.name}</h3><div class="msub">알바(시급) / 본사 팀장(월급) / 개인(월급) 등록</div>
+    <label class="fld">이름</label><input id="w_name" value="${(w.name||'').replace(/"/g,'&quot;')}">
+    <div class="grid2" style="margin-top:10px"><div><label class="fld">구분</label><select id="w_type" onchange="toggleWType()"><option value="hourly" ${w.type==='hourly'?'selected':''}>알바(시급)</option><option value="salary" ${w.type==='salary'?'selected':''}>본사 팀장(월급)</option><option value="personal" ${w.type==='personal'?'selected':''}>개인(월급)</option></select></div>
+      <div><label class="fld">${_patrolMode?'담당 권역':'소속 지점'}</label>${_patrolMode?`<select id="w_region">${regionOptions(w.patrolRegion||'')}</select><input type="hidden" id="w_store" value="${w.storeId||''}">`:`<select id="w_store" onchange="refreshWPos()"><option value="">미지정</option>${storeOpts}</select>`}</div></div>
+    <div id="wPosWrap" style="margin-top:10px;${(sal||_patrolMode)?'display:none':''}"><label class="fld">담당 자리 <span style="font-weight:400;color:var(--mut)">(지정 시 입사~퇴사 기간 동안 스케줄 자동 반영)</span></label><select id="w_pos">${posOptionsFor(w.storeId,w.posKey)}</select></div>
+    <div class="grid2" style="margin-top:10px"><div><label class="fld">연락처</label><input id="w_phone" value="${(w.phone||'').replace(/"/g,'&quot;')}"></div>
+      <div><label class="fld">입사일</label><input type="date" id="w_hire" value="${w.hireDate||''}"></div></div>
+    <div class="grid2" style="margin-top:10px"><div><label class="fld">은행명</label><input id="w_bank" value="${(w.bankName||'').replace(/"/g,'&quot;')}" placeholder="예: 국민은행"></div>
+      <div><label class="fld">계좌번호</label><input id="w_acct" value="${(w.bankAccount||'').replace(/"/g,'&quot;')}" placeholder="숫자/하이픈 가능"></div>
+      <div><label class="fld">예금주</label><input id="w_holder" value="${(w.bankHolder||'').replace(/"/g,'&quot;')}" placeholder="예금주명"></div></div>
+    <label class="fld" style="margin-top:10px">퇴사일 <span style="font-weight:400;color:var(--mut)">(입력 시 배정 목록에서 자동 제외)</span></label><input type="date" id="w_resign" value="${w.resignDate||''}">
+    <div id="wHourly" style="${isM?'display:none':''}"><label class="fld" style="margin-top:10px">개별 시급 (비우면 자리 시급 적용)</label><input type="number" id="w_rate" value="${w.rate||''}" placeholder="자리 시급 따름">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;padding:10px 14px;border-radius:10px;background:${w.noNight?'#fceaed':'#f7f9fc'};border:1px solid ${w.noNight?'var(--red)':'#e3e8ef'}">
+        <input type="checkbox" id="w_nonight" ${w.noNight?'checked':''} style="width:18px;height:18px;accent-color:var(--red)">
+        <span style="font-size:13px;font-weight:600;color:${w.noNight?'var(--red)':'var(--mut)'}">심야수당 미적용 <span style="font-weight:400;font-size:11px">(체크 시 이 직원은 심야 50% 가산 제외)</span></span></label></div>
+    <div id="wSalary" style="${isM?'':'display:none'}"><div class="grid2" style="margin-top:10px"><div><label class="fld">월 급여</label><input type="number" id="w_salary" value="${w.salary||3500000}"></div>
+      <div><label class="fld">원천징수율 (%)</label><input type="number" step="0.1" id="w_with" value="${w.withhold!=null?w.withhold:3.3}"></div></div></div>
+    <label class="fld" style="margin-top:10px">메모</label><input id="w_memo" value="${(w.memo||'').replace(/"/g,'&quot;')}">
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn pri" style="flex:1" onclick="saveWorker('${isNew?'NEW':w.id}')">저장</button><button class="btn ghost" onclick="closeModal()">취소</button></div>`;
+  document.getElementById('modal').classList.add('on');}
+const EXTRA_ROLES=['홀','주방','샐러드','자재관리'];
+function posIsGrid(s,k){return !!s&&!isSub(s)&&positionsOf(s).some(p=>p.key===k);}
+function posOptionsFor(storeId,sel){const s=storeOf(storeId);let o='<option value="">자리 미지정</option>';const grid=s?positionsOf(s).map(p=>p.key):[];if(s)positionsOf(s).forEach(p=>o+=`<option value="${p.key}" ${p.key===sel?'selected':''}>${p.key}</option>`);EXTRA_ROLES.forEach(r=>{if(!grid.includes(r))o+=`<option value="${r}" ${r===sel?'selected':''}>${r}</option>`;});o+=`<option value="후보자" ${sel==='후보자'?'selected':''}>후보자 (대기·자동배정 안함)</option>`;return o;}
+function refreshWPos(){const sid=document.getElementById('w_store').value;document.getElementById('w_pos').innerHTML=posOptionsFor(sid,'');}
+function toggleWType(){const t=document.getElementById('w_type').value;const isM=(t==='salary'||t==='personal');document.getElementById('wHourly').style.display=isM?'none':'';document.getElementById('wSalary').style.display=isM?'':'none';const pw=document.getElementById('wPosWrap');if(pw)pw.style.display=t==='salary'?'none':'';}
+function addWorker(){workerModal({type:'hourly',withhold:3.3},true);}
+function editWorker(id){workerModal(workerOf(id),false);}
+function saveWorker(id){const t=document.getElementById('w_type').value;
+  const d={name:document.getElementById('w_name').value.trim()||'이름없음',type:t,phone:document.getElementById('w_phone').value,memo:document.getElementById('w_memo').value,storeId:document.getElementById('w_store').value||'',hireDate:document.getElementById('w_hire').value||'',resignDate:document.getElementById('w_resign').value||'',bankName:document.getElementById('w_bank').value,bankAccount:document.getElementById('w_acct').value,bankHolder:document.getElementById('w_holder').value};
+  if(isPatrol()){const rSel=document.getElementById('w_region');d.patrolRegion=rSel?rSel.value:'';const rr=regionStores(d.patrolRegion);if(rr.length)d.storeId=rr[0].id;d.posKey='';}else{d.patrolRegion='';}
+  if(t==='salary'){d.salary=parseInt(document.getElementById('w_salary').value)||0;d.withhold=parseFloat(document.getElementById('w_with').value)||0;d.rate=null;d.posKey='';}
+  else if(t==='personal'){d.salary=parseInt(document.getElementById('w_salary').value)||0;d.withhold=parseFloat(document.getElementById('w_with').value)||0;d.rate=null;d.posKey=document.getElementById('w_pos').value||'';}
+  else{const r=parseInt(document.getElementById('w_rate').value);d.rate=r||null;d.salary=0;d.withhold=3.3;d.posKey=document.getElementById('w_pos').value||'';d.noNight=!!document.getElementById('w_nonight').checked;}
+  if(id==='NEW')S.workers.push({id:'W'+Date.now(),...d});else Object.assign(workerOf(id),d);
+  save();closeModal();render();}
+function delWorker(id){if(id==='W-lead'){alert('기본 팀장은 삭제할 수 없습니다. 이름을 바꿔 사용하세요.');return;}
+  const used=Object.keys(S.attendance).filter(k=>S.attendance[k]&&S.attendance[k].workerId===id);
+  if(used.length&&!confirm(`이 인력의 근무기록 ${used.length}건이 근무 스케줄에서 함께 삭제됩니다. 계속할까요?`))return;
+  used.forEach(k=>delete S.attendance[k]);
+  Object.keys(S.pay||{}).forEach(k=>{if(k.startsWith(id+'|'))delete S.pay[k];});
+  S.workers=S.workers.filter(w=>w.id!==id);save();render();}
+
+/* ---------- settings ---------- */
+function saveSet(){const hk=parseInt(document.getElementById('set_hk').value)||12500;const sal=parseInt(document.getElementById('set_salad').value)||10000;
+  S.settings.wageHK=hk;S.settings.wageSalad=sal;S.settings.nightRate=(parseFloat(document.getElementById('set_night').value)||50)/100;
+  S.settings.otRate=(parseFloat(document.getElementById('set_ot').value)||50)/100;S.settings.shiftStart=document.getElementById('set_start').value||'22:00';S.settings.shiftEnd=document.getElementById('set_end').value||'00:00';
+  S.settings.cutoffDay=Math.min(28,Math.max(2,parseInt(document.getElementById('set_cut').value)||25));
+  save();render();alert('저장되었습니다.');}
+
+/* ---------- export/import ---------- */
+function exportJSON(){dl('애슐리_플랫폼_'+S.month+'.json',JSON.stringify(S,null,2),'application/json');}
+function importJSON(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{S=migrate(JSON.parse(r.result));save();document.getElementById('monthPick').value=S.month;render();alert('가져왔습니다.');}catch(e){alert('파일을 읽을 수 없습니다.');}};r.readAsText(f);}
+function setPreset(p){S.payRange={...(S.payRange||{}),preset:p};if(p==='custom'&&!(S.payRange.start&&S.payRange.end)){const d=rangeDates();S.payRange.start=iso(d[0]);S.payRange.end=iso(d[d.length-1]);}save();render();}
+function applyCustom(){const s=document.getElementById('pr_s').value,e=document.getElementById('pr_e').value;if(!s||!e){alert('시작일과 종료일을 선택하세요.');return;}if(e<s){alert('종료일이 시작일보다 빠릅니다.');return;}S.payRange={preset:'custom',start:s,end:e};save();render();}
+function exportCSV(){const DTS=rangeDates();const agg=workerAgg(DTS);let rows=[['정산기간',rangeLabel()],['구분','이름','은행','계좌번호','예금주','근무일','정규h','초과h','기본급','심야','초과','지급액','3.3%공제','실지급액']];
+  sortAlbaPayWorkers(S.workers.filter(w=>w.type==='hourly'),agg).forEach(w=>{const m=agg[w.id];if(m.days===0)return;const tax=m.total*((w.withhold!=null?w.withhold:3.3)/100);rows.push(['알바',w.name,w.bankName||'',w.bankAccount||'',w.bankHolder||'',m.days,m.reg.toFixed(1),m.ot.toFixed(1),Math.round(m.base),Math.round(m.night),Math.round(m.otpay),Math.round(m.total),Math.round(tax),Math.round(m.total-tax)]);});
+  dl('애슐리_정산_'+periodLabel()+'.csv','\uFEFF'+rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'),'text/csv');}
+function exportWorkersCSV(){let rows=[['이름','구분','소속지점','시급/월급','입사일','퇴사일','상태','연락처','은행','계좌번호','예금주','메모']];
+  S.workers.forEach(w=>rows.push([w.name,w.type==='salary'?'팀장(월급)':(w.type==='personal'?'개인(월급)':'알바(시급)'),(w.storeId&&storeOf(w.storeId))?shortName(storeOf(w.storeId)):'',w.type==='salary'||w.type==='personal'?(w.salary||0):(w.rate||'자리시급'),w.hireDate||'',w.resignDate||'',w.resignDate?'퇴사':'재직',w.phone||'',w.bankName||'',w.bankAccount||'',w.bankHolder||'',w.memo||'']));
+  dl('인력풀_'+S.month+'.csv','\uFEFF'+rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'),'text/csv');}
+function dl(name,content,type){const b=new Blob([content],{type});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+
+/* ---------- nav ---------- */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));document.getElementById(t.dataset.v).classList.add('on');});
+document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')closeModal();};
+const mp=document.getElementById('monthPick');mp.value=S.month;mp.onchange=()=>{setPayMonth(mp.value);};
+render();
+sbStart();
+
+</script>
+</body>
+</html>
