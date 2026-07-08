@@ -44,14 +44,7 @@
   .db-dot.err { background: var(--red); }
 
   /* SETUP BANNER */
-  .setup-banner { background: var(--yellow-light); border: 1px solid #FCD34D; border-radius: var(--radius); padding: 16px 20px; margin: 20px 24px; display: flex; align-items: flex-start; gap: 12px; }
-  .setup-banner h3 { font-size: 14px; font-weight: 600; color: var(--yellow); margin-bottom: 8px; }
-  .setup-banner p { font-size: 13px; color: var(--gray-600); line-height: 1.6; }
-  .setup-banner input { width: 100%; border: 1px solid var(--gray-300); border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-top: 8px; }
-  .setup-banner input:focus { outline: none; border-color: var(--blue); }
-  .setup-form { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-  .setup-row { display: flex; gap: 8px; }
-  .setup-row input { flex: 1; }
+
 
   /* NAV TABS */
   .nav { background: #fff; border-bottom: 1px solid var(--gray-200); padding: 0 24px; display: flex; gap: 0; overflow-x: auto; }
@@ -228,24 +221,7 @@
   </div>
 </div>
 
-<!-- SETUP BANNER -->
-<div class="setup-banner" id="setupBanner">
-  <div style="font-size:20px;">⚙️</div>
-  <div style="flex:1;">
-    <h3>Supabase 연결 설정</h3>
-    <p>처음 한 번만 설정하면 모든 데이터가 자동 저장됩니다.</p>
-    <div class="setup-form" style="margin-top:10px;">
-      <div class="setup-row">
-        <input type="text" id="sbUrl" placeholder="Supabase Project URL (https://xxx.supabase.co)" />
-        <input type="text" id="sbKey" placeholder="anon public key" />
-      </div>
-      <div>
-        <button class="btn btn-primary" onclick="connectSupabase()">연결하기</button>
-        <button class="btn btn-ghost" style="margin-left:8px;" onclick="useLocalStorage()">로컬 저장소로 사용</button>
-      </div>
-    </div>
-  </div>
-</div>
+
 
 <!-- NAV -->
 <nav class="nav">
@@ -700,7 +676,31 @@ let DB = {
   logs: []
 };
 
-let supabase = null;
+// ==================== SUPABASE CONFIG ====================
+const SB_URL = 'https://wzoueltggehrtkiyuzcs.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6b3VlbHRnZ2VocnRraXl1emNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDI3NDAsImV4cCI6MjA5NzA3ODc0MH0.agVBVC08qtWx9i6FNjJ2YGLHMD5UilbchyA-MG8s1Uw';
+const SB_HEAD = () => ({'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation'});
+
+async function sbGet(table, order = 'created_at') {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?order=${order}`, { headers: SB_HEAD() });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function sbInsert(table, data) {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: SB_HEAD(), body: JSON.stringify(data) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function sbUpdate(table, id, data) {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'PATCH', headers: SB_HEAD(), body: JSON.stringify(data) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function sbDelete(table, id) {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'DELETE', headers: SB_HEAD() });
+  if (!res.ok) throw new Error(await res.text());
+}
+
 let useLocal = false;
 
 // ==================== PRELOADED DATA ====================
@@ -740,73 +740,13 @@ window.onload = () => {
   document.getElementById('settleMonth').value = ym;
   document.getElementById('lDate').value = now.toISOString().slice(0,10);
 
-  // Try auto-connect from localStorage
-  const savedUrl = localStorage.getItem('sb_url');
-  const savedKey = localStorage.getItem('sb_key');
-  if (savedUrl && savedKey) {
-    document.getElementById('sbUrl').value = savedUrl;
-    document.getElementById('sbKey').value = savedKey;
-    connectSupabase(true);
-  } else if (localStorage.getItem('use_local') === 'true') {
-    useLocalStorage(true);
-  }
+  // Supabase 자동 연결
+  document.getElementById('dbDot').className = 'db-dot ok';
+  document.getElementById('dbStatusText').textContent = 'Supabase 연결됨';
+  loadAll();
 };
 
 // ==================== SUPABASE ====================
-async function connectSupabase(auto = false) {
-  const url = document.getElementById('sbUrl').value.trim();
-  const key = document.getElementById('sbKey').value.trim();
-  if (!url || !key) { showToast('URL과 Key를 입력해주세요'); return; }
-
-  // Load Supabase JS
-  if (!window.supabaseLib) {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-    document.head.appendChild(script);
-    await new Promise(r => script.onload = r);
-    window.supabaseLib = true;
-  }
-
-  supabase = window.supabase.createClient(url, key);
-
-  // Test connection
-  try {
-    const { error } = await supabase.from('workers').select('id').limit(1);
-    if (error && error.code === '42P01') {
-      // Tables don't exist, create them
-      await createTables();
-    }
-    localStorage.setItem('sb_url', url);
-    localStorage.setItem('sb_key', key);
-    useLocal = false;
-    document.getElementById('dbDot').className = 'db-dot ok';
-    document.getElementById('dbStatusText').textContent = 'Supabase 연결됨';
-    document.getElementById('setupBanner').style.display = 'none';
-    showToast('✅ Supabase 연결 성공!');
-    await loadAll();
-  } catch(e) {
-    document.getElementById('dbDot').className = 'db-dot err';
-    document.getElementById('dbStatusText').textContent = '연결 실패';
-    if (!auto) showToast('❌ 연결 실패: ' + e.message);
-  }
-}
-
-async function createTables() {
-  // Use RPC or just catch missing table gracefully
-  // Tables need to be created in Supabase dashboard
-  showToast('⚠️ Supabase에 테이블을 생성해주세요 (하단 SQL 참고)', 4000);
-}
-
-function useLocalStorage(auto = false) {
-  useLocal = true;
-  localStorage.setItem('use_local', 'true');
-  document.getElementById('dbDot').className = 'db-dot ok';
-  document.getElementById('dbStatusText').textContent = '로컬 저장소';
-  document.getElementById('setupBanner').style.display = 'none';
-  if (!auto) showToast('💾 로컬 저장소 모드로 시작합니다');
-  loadLocalData();
-  renderAll();
-}
 
 function loadLocalData() {
   try {
@@ -815,23 +755,6 @@ function loadLocalData() {
     DB.logs = JSON.parse(localStorage.getItem('db_logs') || '[]');
   } catch(e) {}
 
-  // 최초 실행 시 건물 데이터 자동 삽입
-  if (!DB.buildings.length && PRELOADED_BUILDINGS.length) {
-    DB.buildings = PRELOADED_BUILDINGS.map(b => ({
-      id: genId(),
-      name: b.name,
-      address: b.address,
-      contract_amount: b.contract_amount,
-      cleaning_type: '일상청소',
-      worker_ids: [],
-      memo: [b.note, b.schedule].filter(Boolean).join(' | '),
-      region: b.region,
-      branch: b.branch,
-      created_at: new Date().toISOString()
-    }));
-    saveLocalData();
-    setTimeout(() => showToast('🏢 건물 데이터 24개가 자동으로 불러와졌습니다!', 3000), 500);
-  }
   renderAll();
 }
 
@@ -843,16 +766,19 @@ function saveLocalData() {
 
 async function loadAll() {
   if (useLocal) { loadLocalData(); return; }
-  if (!supabase) return;
-  const [w, b, l] = await Promise.all([
-    supabase.from('workers').select('*').order('created_at'),
-    supabase.from('buildings').select('*').order('created_at'),
-    supabase.from('logs').select('*').order('date')
-  ]);
-  DB.workers = w.data || [];
-  DB.buildings = b.data || [];
-  DB.logs = l.data || [];
-  renderAll();
+  try {
+    const [workers, buildings, logs] = await Promise.all([
+      sbGet('workers', 'created_at'),
+      sbGet('buildings', 'created_at'),
+      sbGet('logs', 'date')
+    ]);
+    DB.workers = workers || [];
+    DB.buildings = buildings || [];
+    DB.logs = logs || [];
+    renderAll();
+  } catch(e) {
+    showToast('❌ 데이터 로드 실패: ' + e.message);
+  }
 }
 
 function genId() {
@@ -928,7 +854,7 @@ async function saveWorker() {
       DB.workers[idx] = { ...DB.workers[idx], ...data };
       saveLocalData();
     } else {
-      await supabase.from('workers').update(data).eq('id', editId);
+      await sbUpdate('workers', editId, data);
       await loadAll();
     }
   } else {
@@ -936,7 +862,7 @@ async function saveWorker() {
       DB.workers.push({ ...data, id: genId(), created_at: new Date().toISOString() });
       saveLocalData();
     } else {
-      await supabase.from('workers').insert(data);
+      await sbInsert('workers', data);
       await loadAll();
     }
   }
@@ -1404,7 +1330,7 @@ async function deleteWorker(id) {
     DB.workers = DB.workers.filter(x => x.id !== id);
     saveLocalData();
   } else {
-    await supabase.from('workers').delete().eq('id', id);
+    await sbDelete('workers', id);
     await loadAll();
   }
   renderAll();
@@ -1485,7 +1411,7 @@ async function saveBuilding() {
       DB.buildings[idx] = { ...DB.buildings[idx], ...data };
       saveLocalData();
     } else {
-      await supabase.from('buildings').update(data).eq('id', editId);
+      await sbUpdate('buildings', editId, data);
       await loadAll();
     }
   } else {
@@ -1493,7 +1419,7 @@ async function saveBuilding() {
       DB.buildings.push({ ...data, id: genId(), created_at: new Date().toISOString() });
       saveLocalData();
     } else {
-      await supabase.from('buildings').insert(data);
+      await sbInsert('buildings', data);
       await loadAll();
     }
   }
@@ -1533,7 +1459,7 @@ async function deleteBuilding(id) {
     DB.buildings = DB.buildings.filter(x => x.id !== id);
     saveLocalData();
   } else {
-    await supabase.from('buildings').delete().eq('id', id);
+    await sbDelete('buildings', id);
     await loadAll();
   }
   renderAll();
@@ -1619,7 +1545,7 @@ async function saveLog() {
       DB.logs[idx] = { ...DB.logs[idx], ...data };
       saveLocalData();
     } else {
-      await supabase.from('logs').update(data).eq('id', editId);
+      await sbUpdate('logs', editId, data);
       await loadAll();
     }
   } else {
@@ -1627,7 +1553,7 @@ async function saveLog() {
       DB.logs.push({ ...data, id: genId(), created_at: new Date().toISOString() });
       saveLocalData();
     } else {
-      await supabase.from('logs').insert(data);
+      await sbInsert('logs', data);
       await loadAll();
     }
   }
@@ -1705,7 +1631,7 @@ async function deleteLog(id) {
     DB.logs = DB.logs.filter(x => x.id !== id);
     saveLocalData();
   } else {
-    await supabase.from('logs').delete().eq('id', id);
+    await sbDelete('logs', id);
     await loadAll();
   }
   renderAll();
