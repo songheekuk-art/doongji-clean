@@ -214,6 +214,7 @@
     🏢 <span>둥지</span> 청소운영 대시보드
   </div>
   <div style="display:flex;align-items:center;gap:16px;">
+      <button class="btn btn-danger btn-sm" onclick="resetAllData()" style="font-size:11px;">🗑️ 로컬 데이터 초기화</button>
     <div class="db-status">
       <div class="db-dot" id="dbDot"></div>
       <span id="dbStatusText">Supabase 미연결</span>
@@ -704,32 +705,7 @@ async function sbDelete(table, id) {
 let useLocal = false;
 
 // ==================== PRELOADED DATA ====================
-const PRELOADED_BUILDINGS = [
-  { name: '태랑빌딩',          address: '서울시 마포구 어울마당로 44',     region: '마포구',  branch: '강서', contract_amount: 580000,  note: '둥지 후청구', schedule: '주 1회' },
-  { name: '홍영빌딩',          address: '서울시 마포구 어울마당로 46',     region: '마포구',  branch: '강서', contract_amount: 350000,  note: '',          schedule: '주 2회' },
-  { name: 'S&C타워',           address: '서울시 종로구 홀곡로 223-1',     region: '종로구',  branch: '강서', contract_amount: 0,       note: '임대인 직계약', schedule: '' },
-  { name: '공업빌딩',          address: '서울시 마포구 어울마당로 37',     region: '마포구',  branch: '강서', contract_amount: 170000,  note: '',          schedule: '2주 1회' },
-  { name: '청담빌딩',          address: '서울시 강남구 도산대로 81길 41',  region: '강남구',  branch: '강남', contract_amount: 150000,  note: '',          schedule: '주 1회' },
-  { name: '국재빌딩',          address: '서울시 강남구 논현로 828',        region: '강남구',  branch: '강남', contract_amount: 1400000, note: '',          schedule: '주 5회' },
-  { name: '동인빌딩',          address: '서울시 강남구 선릉로 131길 18',   region: '강남구',  branch: '강남', contract_amount: 550000,  note: '',          schedule: '주 3회' },
-  { name: '더하우스',          address: '서울시 강남구 도산대66길 53',     region: '강남구',  branch: '강남', contract_amount: 270000,  note: '',          schedule: '' },
-  { name: '아이앤티(강남)',     address: '서울시 강남구 언주로97길 31',     region: '강남구',  branch: '강남', contract_amount: 1200000, note: '둥지 후청구', schedule: '주 3회' },
-  { name: '라퓨타 레지던스',   address: '서울시 광진구 아차산로49길 37',   region: '광진구',  branch: '강남', contract_amount: 650000,  note: '',          schedule: '' },
-  { name: '지저스 선교재단',   address: '서울시 도봉구 덕릉로 235',        region: '창동',    branch: '강남', contract_amount: 800000,  note: '',          schedule: '' },
-  { name: 'SLA빌딩',           address: '서울시 강남구 봉은사로43길 6-8',  region: '강남구',  branch: '강남', contract_amount: 900000,  note: '',          schedule: '주 3회' },
-  { name: '미산빌딩',          address: '서울시 강남구 압구정로71길4',     region: '강남구',  branch: '강남', contract_amount: 800000,  note: '',          schedule: '주 3회' },
-  { name: '파우컴퍼니',        address: '서울시 강남구 언주로135길 28',    region: '강남구',  branch: '강남', contract_amount: 800000,  note: '',          schedule: '' },
-  { name: '인피니티 타워',     address: '서울시 성동구 서울숲7길 7',       region: '성동구',  branch: '강남', contract_amount: 0,       note: '임대인 직계약', schedule: '' },
-  { name: '명건빌딩',          address: '경기 성남시 분당구 판교로 434',   region: '분당구',  branch: '강남', contract_amount: 0,       note: '임대인 직계약', schedule: '' },
-  { name: '닥터설빌딩',        address: '경기 수원시 팔달구 호원로265번길 44', region: '팔달구', branch: '강남', contract_amount: 0,    note: '',          schedule: '' },
-  { name: '나라키울역삼A빌딩', address: '',                                 region: '강남구',  branch: '강남', contract_amount: 0,       note: '',          schedule: '' },
-  { name: '엑스트라 스페이스 가산', address: '',                           region: '금천구',  branch: '강서', contract_amount: 0,       note: '',          schedule: '' },
-  { name: '엑스트라 스페이스 영등포', address: '',                         region: '영등포구',branch: '강서', contract_amount: 0,       note: '',          schedule: '' },
-  { name: '엑스트라 스페이스 용산', address: '',                           region: '용산구',  branch: '강서', contract_amount: 0,       note: '',          schedule: '' },
-  { name: '엑스트라 스페이스 반포', address: '',                           region: '서초구',  branch: '강남', contract_amount: 0,       note: '',          schedule: '' },
-  { name: '드림타워',          address: '',                                 region: '은평구',  branch: '강서', contract_amount: 0,       note: '',          schedule: '' },
-  { name: '육원빌딩',          address: '',                                 region: '강남구',  branch: '강남', contract_amount: 900000,  note: '',          schedule: '' },
-];
+const PRELOADED_BUILDINGS = [];
 
 // ==================== INIT ====================
 window.onload = () => {
@@ -1842,6 +1818,21 @@ function fmtWon(n) {
 function closeModal(id) {
   document.getElementById(id).style.display = 'none';
 
+}
+
+function resetAllData() {
+  if (!confirm('로컬 저장소의 모든 데이터를 삭제할까요?\n(담당자, 건물, 근무기록 전부 삭제됩니다)')) return;
+  localStorage.removeItem('db_workers');
+  localStorage.removeItem('db_buildings');
+  localStorage.removeItem('db_logs');
+  localStorage.removeItem('use_local');
+  localStorage.removeItem('sb_url');
+  localStorage.removeItem('sb_key');
+  DB.workers = [];
+  DB.buildings = [];
+  DB.logs = [];
+  renderAll();
+  showToast('✅ 로컬 데이터가 초기화되었습니다');
 }
 
 function showToast(msg, duration = 2500) {
