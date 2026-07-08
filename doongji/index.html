@@ -752,10 +752,26 @@ async function loadAll() {
     DB.buildings = buildings || [];
     DB.logs = logs || [];
     renderAll();
+    updateSyncTime();
   } catch(e) {
+    document.getElementById('dbDot').className = 'db-dot err';
+    document.getElementById('dbStatusText').textContent = '연결 오류';
     showToast('❌ 데이터 로드 실패: ' + e.message);
   }
 }
+
+function updateSyncTime() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('dbDot').className = 'db-dot ok';
+  document.getElementById('dbStatusText').textContent = '동기화됨';
+  document.getElementById('dbSyncTime').textContent = `· 최신 동기화 ${hh}:${mm}:${ss}`;
+}
+
+// 30초마다 자동 폴링
+setInterval(() => { if (!useLocal) loadAll(); }, 30000);
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
