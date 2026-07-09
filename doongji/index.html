@@ -213,7 +213,7 @@
   .popup-meta { color:var(--gray-500); font-size:12px; line-height:1.5; }
   .popup-badge { display:inline-block; padding:2px 7px; border-radius:10px; font-size:10px; font-weight:600; margin-top:4px; }
 </style>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=ee1f4030a4720b67a4498a9d87ee6064&libraries=services"></script>
 </head>
 <body>
 
@@ -370,7 +370,7 @@
         <button class="btn btn-ghost btn-sm" onclick="closeMapPanel()">✕ 닫기</button>
       </div>
       <div id="mapBuildingList" style="padding:10px 14px;border-bottom:1px solid var(--gray-100);max-height:200px;overflow-y:auto;"></div>
-      <div id="workerLeafletMap" style="flex:1;min-height:0;z-index:1;"></div>
+      <div id="workerKakaoMap" style="flex:1;min-height:0;z-index:1;"></div>
     </div>
     <div id="mapPanelOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:299;" onclick="closeMapPanel()"></div>
   </div>
@@ -801,7 +801,7 @@ function switchTab(name, el) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'settlement') renderSettlement();
   // Invalidate map size when switching back to dashboard
-  if (name === 'dashboard' && dashMapInst) setTimeout(() => dashMapInst.invalidateSize(), 100);
+  if (name === 'dashboard') setTimeout(() => initDashMap(), 100);
 }
 
 // ==================== WORKERS ====================
@@ -928,30 +928,41 @@ function renderWorkerTable() {
   }).join('');
 }
 
-// ==================== MAP ENGINE (Leaflet) ====================
-// Address → lat/lng lookup via Nominatim (free, no key)
+// ==================== MAP ENGINE (Kakao Maps) ====================
 const geocodeCache = {};
+const WORKER_COLORS = ['#3B8CE4','#16A34A','#7C3AED','#DB2777','#0891B2','#EA580C','#059669','#CA8A04'];
+const UNASSIGNED_COLOR = '#F59E0B';
+
+function waitKakao() {
+  return new Promise(resolve => {
+    if (window.kakao && window.kakao.maps) return resolve();
+    const t = setInterval(() => {
+      if (window.kakao && window.kakao.maps) { clearInterval(t); resolve(); }
+    }, 100);
+  });
+}
 
 async function geocodeAddress(address) {
   if (!address) return null;
   if (geocodeCache[address]) return geocodeCache[address];
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=kr`, {
-      headers: { 'Accept-Language': 'ko' }
+  await waitKakao();
+  return new Promise(resolve => {
+    const geocoder = new kakao.maps.services.Geocoder();
+    geocoder.addressSearch(address, (result, status) => {
+      if (status === kakao.maps.services.Status.OK) {
+        const r = { lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) };
+        geocodeCache[address] = r;
+        resolve(r);
+      } else resolve(null);
     });
-    const data = await res.json();
-    if (data.length) {
-      const r = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-      geocodeCache[address] = r;
-      return r;
-    }
-  } catch(e) {}
-  return null;
+  });
 }
 
-// Worker color palette (per worker index)
-const WORKER_COLORS = ['#3B8CE4','#16A34A','#7C3AED','#DB2777','#0891B2','#EA580C','#059669','#CA8A04'];
-const UNASSIGNED_COLOR = '#F59E0B';
+function workerColorIndex() {
+  const map = {};
+  DB.workers.forEach((w, i) => { map[w.id] = WORKER_COLORS[i % WORKER_COLORS.length]; });
+  return map;
+}
 
 // ---- DASHBOARD MAP ----
 let dashMapInst = null;
@@ -960,33 +971,27 @@ let dashMapFilterWorkerId = null;
 
 async function initDashMap() {
   if (!document.getElementById('dashMap')) return;
-  if (dashMapInst) { dashMapInst.remove(); dashMapInst = null; }
+  await waitKakao();
+  if (dashMapInst) dashMapInst = null;
 
-  dashMapInst = L.map('dashMap', { zoomControl: true }).setView([37.5665, 126.9780], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors', maxZoom: 19
-  }).addTo(dashMapInst);
-
+  const container = document.getElementById('dashMap');
+  dashMapInst = new kakao.maps.Map(container, {
+    center: new kakao.maps.LatLng(37.5665, 126.9780),
+    level: 8
+  });
   await renderDashMapMarkers();
-}
-
-// Build worker color index once
-function workerColorIndex() {
-  const map = {};
-  DB.workers.forEach((w, i) => { map[w.id] = WORKER_COLORS[i % WORKER_COLORS.length]; });
-  return map;
 }
 
 async function renderDashMapMarkers(filterWorkerId = null) {
   dashMapFilterWorkerId = filterWorkerId;
   if (!dashMapInst) return;
 
-  // Clear old markers
-  dashMapMarkers.forEach(m => m.remove());
+  dashMapMarkers.forEach(m => m.setMap(null));
   dashMapMarkers = [];
 
   const colorMap = workerColorIndex();
-  const bounds = [];
+  const bounds = new kakao.maps.LatLngBounds();
+  let hasCoord = false;
 
   for (const b of DB.buildings) {
     if (!b.address) continue;
@@ -997,73 +1002,52 @@ async function renderDashMapMarkers(filterWorkerId = null) {
     const isHighlighted = !filterWorkerId || (b.worker_ids || []).includes(filterWorkerId);
     if (!isHighlighted) continue;
 
-    // Pick color: if multi-worker use first worker's color, else unassigned
-    const color = isAssigned
-      ? colorMap[(b.worker_ids || [])[0]] || WORKER_COLORS[0]
-      : UNASSIGNED_COLOR;
+    const color = isAssigned ? colorMap[(b.worker_ids||[])[0]] || WORKER_COLORS[0] : UNASSIGNED_COLOR;
+    const workerNames = (b.worker_ids||[]).map(id => DB.workers.find(w=>w.id===id)?.name).filter(Boolean).join(', ');
+    const pos = new kakao.maps.LatLng(coord.lat, coord.lng);
 
-    const workerNames = (b.worker_ids || [])
-      .map(id => DB.workers.find(w => w.id === id)?.name)
-      .filter(Boolean).join(', ');
+    const content = document.createElement('div');
+    content.style.cssText = `background:${color};color:#fff;padding:4px 9px;border-radius:14px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.22);border:2px solid rgba(255,255,255,0.8);cursor:pointer;`;
+    content.textContent = '🏢 ' + b.name;
 
-    const icon = L.divIcon({
-      className: '',
-      html: `<div style="
-        background:${color};color:#fff;padding:4px 9px;border-radius:14px;
-        font-size:11px;font-weight:700;white-space:nowrap;
-        box-shadow:0 2px 8px rgba(0,0,0,0.22);
-        border:2px solid rgba(255,255,255,0.8);
-        cursor:pointer;">
-        🏢 ${b.name}
-      </div>`,
-      iconAnchor: [0, 0]
-    });
+    const overlay = new kakao.maps.CustomOverlay({ position: pos, content, yAnchor: 1 });
+    overlay.setMap(dashMapInst);
 
-    const marker = L.marker([coord.lat, coord.lng], { icon })
-      .addTo(dashMapInst)
-      .bindPopup(`
-        <div class="popup-name">${b.name}</div>
-        <div class="popup-meta">
+    // 클릭 인포윈도우
+    const iw = new kakao.maps.InfoWindow({
+      content: `<div style="padding:10px 14px;min-width:160px;font-size:13px;">
+        <div style="font-weight:700;margin-bottom:4px;">${b.name}</div>
+        <div style="color:#64748B;font-size:12px;line-height:1.5;">
           ${b.address}<br>
-          담당: ${workerNames || '<span style="color:#F59E0B;font-weight:600;">⚠️ 미배정</span>'}<br>
-          청구: ${b.contract_amount ? '₩' + b.contract_amount.toLocaleString() : '-'}
-          ${(b.cleaning_days||[]).length ? '<br>청소: ' + DAY_ORDER.filter(d=>(b.cleaning_days||[]).includes(d)).map(d=>DAY_KO[d]).join('·') : ''}
+          담당: ${workerNames || '⚠️ 미배정'}<br>
+          청구: ${b.contract_amount ? '₩'+b.contract_amount.toLocaleString() : '-'}
         </div>
-        <span class="popup-badge" style="background:${isAssigned ? '#DCFCE7' : '#FEF3C7'};color:${isAssigned ? '#16A34A' : '#D97706'}">
-          ${isAssigned ? '배정 완료' : '미배정'}
-        </span>
-      `);
+        <span style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:${isAssigned?'#DCFCE7':'#FEF3C7'};color:${isAssigned?'#16A34A':'#D97706'};">${isAssigned?'배정 완료':'미배정'}</span>
+      </div>`,
+      removable: true
+    });
+    content.onclick = () => iw.open(dashMapInst, { getPosition: () => pos });
 
-    dashMapMarkers.push(marker);
-    bounds.push([coord.lat, coord.lng]);
+    dashMapMarkers.push(overlay);
+    bounds.extend(pos);
+    hasCoord = true;
   }
 
-  if (bounds.length > 1) dashMapInst.fitBounds(bounds, { padding: [40, 40] });
-  else if (bounds.length === 1) dashMapInst.setView(bounds[0], 15);
-
-  // Show/hide reset button
+  if (hasCoord) dashMapInst.setBounds(bounds);
   const resetBtn = document.getElementById('dashMapResetBtn');
   if (resetBtn) resetBtn.style.display = filterWorkerId ? 'inline-flex' : 'none';
 }
 
 function resetDashMap() {
   renderDashMapMarkers(null);
-  // Clear any row highlight
   document.querySelectorAll('#dashWorkerTable tr').forEach(r => r.style.background = '');
 }
 
 function filterDashMapByWorker(workerId, rowEl) {
-  // Toggle
-  if (dashMapFilterWorkerId === workerId) {
-    resetDashMap();
-    if (rowEl) rowEl.style.background = '';
-    return;
-  }
-  // Highlight row
+  if (dashMapFilterWorkerId === workerId) { resetDashMap(); if (rowEl) rowEl.style.background = ''; return; }
   document.querySelectorAll('#dashWorkerTable tr').forEach(r => r.style.background = '');
   if (rowEl) rowEl.style.background = 'var(--blue-light)';
   renderDashMapMarkers(workerId);
-  // Scroll to map
   document.getElementById('dashMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
@@ -1073,16 +1057,14 @@ let workerPanelMap = null;
 function openMapPanel(workerId) {
   const w = DB.workers.find(x => x.id === workerId);
   if (!w) return;
-  const buildings = DB.buildings.filter(b => (b.worker_ids || []).includes(workerId));
+  const buildings = DB.buildings.filter(b => (b.worker_ids||[]).includes(workerId));
 
   document.getElementById('mapPanelName').textContent = w.name + ' 담당자';
   document.getElementById('mapPanelSub').textContent = `담당 건물 ${buildings.length}개`;
-
   document.querySelectorAll('.worker-card').forEach(c => c.classList.remove('selected'));
   const card = document.getElementById('wcard-' + workerId);
   if (card) card.classList.add('selected');
 
-  // Building list
   const listEl = document.getElementById('mapBuildingList');
   listEl.innerHTML = buildings.length ? buildings.map((b, i) => `
     <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--gray-100);">
@@ -1098,60 +1080,46 @@ function openMapPanel(workerId) {
   document.getElementById('workerMapPanel').style.display = 'flex';
   document.getElementById('mapPanelOverlay').style.display = 'block';
   document.body.style.overflow = 'hidden';
-
-  // Init map after panel visible (needs size)
   setTimeout(() => initWorkerPanelMap(buildings, workerId), 80);
 }
 
 async function initWorkerPanelMap(buildings, workerId) {
-  if (workerPanelMap) { workerPanelMap.remove(); workerPanelMap = null; }
-
-  workerPanelMap = L.map('workerLeafletMap', { zoomControl: true }).setView([37.5665, 126.9780], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors', maxZoom: 19
-  }).addTo(workerPanelMap);
+  await waitKakao();
+  const container = document.getElementById('workerKakaoMap');
+  workerPanelMap = new kakao.maps.Map(container, {
+    center: new kakao.maps.LatLng(37.5665, 126.9780),
+    level: 8
+  });
 
   const colorMap = workerColorIndex();
   const color = colorMap[workerId] || WORKER_COLORS[0];
-  const bounds = [];
+  const bounds = new kakao.maps.LatLngBounds();
+  let hasCoord = false;
 
   for (const [i, b] of buildings.entries()) {
     if (!b.address) continue;
     const coord = await geocodeAddress(b.address);
     if (!coord) continue;
 
-    const icon = L.divIcon({
-      className: '',
-      html: `<div style="
-        background:${color};color:#fff;
-        width:28px;height:28px;border-radius:50%;
-        display:flex;align-items:center;justify-content:center;
-        font-size:12px;font-weight:700;
-        box-shadow:0 2px 8px rgba(0,0,0,0.25);
-        border:2px solid rgba(255,255,255,0.9);">
-        ${i+1}
-      </div>`,
-      iconSize: [28, 28], iconAnchor: [14, 14]
+    const pos = new kakao.maps.LatLng(coord.lat, coord.lng);
+    const content = document.createElement('div');
+    content.style.cssText = `width:28px;height:28px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid rgba(255,255,255,0.9);cursor:pointer;`;
+    content.textContent = i + 1;
+
+    const overlay = new kakao.maps.CustomOverlay({ position: pos, content, yAnchor: 0.5 });
+    overlay.setMap(workerPanelMap);
+
+    const iw = new kakao.maps.InfoWindow({
+      content: `<div style="padding:8px 12px;font-size:13px;font-weight:700;">${b.name}</div>`,
+      removable: true
     });
+    content.onclick = () => iw.open(workerPanelMap, { getPosition: () => pos });
 
-    const marker = L.marker([coord.lat, coord.lng], { icon })
-      .addTo(workerPanelMap)
-      .bindPopup(`<div class="popup-name">${b.name}</div><div class="popup-meta">${b.address}</div>`);
-
-    bounds.push([coord.lat, coord.lng]);
+    bounds.extend(pos);
+    hasCoord = true;
   }
 
-  if (bounds.length > 1) workerPanelMap.fitBounds(bounds, { padding: [30, 30] });
-  else if (bounds.length === 1) workerPanelMap.setView(bounds[0], 15);
-  else {
-    // No geocodable addresses — show message overlay
-    const el = document.getElementById('workerLeafletMap');
-    el.insertAdjacentHTML('beforeend', `
-      <div style="position:absolute;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,0.85);gap:8px;pointer-events:none;">
-        <div style="font-size:28px;">📍</div>
-        <div style="font-size:13px;color:var(--gray-500);text-align:center;">건물 주소를 등록하면<br>지도에서 위치가 표시됩니다</div>
-      </div>`);
-  }
+  if (hasCoord) workerPanelMap.setBounds(bounds);
 }
 
 function closeMapPanel() {
@@ -1904,6 +1872,6 @@ CREATE POLICY "allow_all_workers" ON workers FOR ALL USING (true);
 CREATE POLICY "allow_all_buildings" ON buildings FOR ALL USING (true);
 CREATE POLICY "allow_all_logs" ON logs FOR ALL USING (true);
 -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 </body>
 </html>
