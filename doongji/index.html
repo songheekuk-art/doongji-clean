@@ -550,7 +550,7 @@
             style="flex:1;">
           <button type="button" class="btn btn-primary" onclick="addrSearch()" style="white-space:nowrap;flex-shrink:0;">검색</button>
         </div>
-        <div id="addrResults" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid var(--gray-200);border-radius:8px;box-shadow:var(--shadow-md);z-index:300;max-height:200px;overflow-y:auto;"></div>
+        <div id="addrResults" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--gray-200);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:9999;max-height:200px;overflow-y:auto;"></div>
       </div>
       <div id="addrSelected" style="display:none;margin-top:6px;padding:8px 12px;background:var(--blue-light);border-radius:6px;font-size:13px;color:var(--blue);font-weight:500;"></div>
       <input type="hidden" id="bAddress">
@@ -608,8 +608,8 @@
       <textarea class="form-input form-textarea" id="bMemo" placeholder="특이사항 등 (엔터로 줄바꿈 가능)" rows="4" style="resize:vertical;min-height:90px;line-height:1.6;"></textarea>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('buildingModal')">취소</button>
-      <button class="btn btn-primary" onclick="saveBuilding()">저장</button>
+      <button class="btn btn-ghost" onclick="hideAddrResults();closeModal('buildingModal')">취소</button>
+      <button class="btn btn-primary" onclick="hideAddrResults();saveBuilding()">저장</button>
     </div>
   </div>
 </div>
