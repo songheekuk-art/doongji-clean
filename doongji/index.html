@@ -180,6 +180,15 @@
     .log-row { grid-template-columns: 1fr 1fr; }
   }
 
+  /* BUILDING DETAIL ROW */
+  .building-detail-row { background: var(--gray-50) !important; }
+  .building-detail-row td { padding: 0 !important; }
+  .building-detail-box { padding: 16px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; font-size: 13px; border-top: 2px solid var(--blue-mid); }
+  .building-detail-item label { display: block; font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .building-detail-item .val { color: var(--gray-800); line-height: 1.6; white-space: pre-wrap; }
+  .building-row-clickable { cursor: pointer; }
+  .building-row-clickable:hover td { background: var(--blue-light) !important; }
+
   /* CLEANING DAYS PICKER */
   .day-picker { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
   .day-btn { width:36px; height:36px; border-radius:50%; border:2px solid var(--gray-200); background:#fff; font-size:12px; font-weight:700; cursor:pointer; color:var(--gray-400); transition:all 0.15s; display:flex; align-items:center; justify-content:center; }
@@ -1359,6 +1368,13 @@ async function saveBuilding() {
   showToast('✅ 저장 완료');
 }
 
+let _expandedBuildingId = null;
+
+function toggleBuildingDetail(id) {
+  _expandedBuildingId = _expandedBuildingId === id ? null : id;
+  renderBuildingTable();
+}
+
 function renderBuildingTable() {
   const tbody = document.getElementById('buildingTable');
   if (!DB.buildings.length) {
@@ -1367,20 +1383,57 @@ function renderBuildingTable() {
   }
   tbody.innerHTML = DB.buildings.map(b => {
     const workers = (b.worker_ids || []).map(id => DB.workers.find(w => w.id === id)?.name).filter(Boolean);
-    return `<tr>
+    const isExpanded = _expandedBuildingId === b.id;
+    const memoShort = b.memo ? (b.memo.length > 20 ? b.memo.slice(0,20) + '...' : b.memo) : '-';
+
+    const mainRow = `<tr class="building-row-clickable" onclick="toggleBuildingDetail('${b.id}')">
       <td><span class="badge ${b.branch==='강남'?'badge-blue':'badge-green'}">${b.branch||'-'}</span></td>
-      <td><strong>${b.name}</strong></td>
-      <td style="font-size:12px;color:var(--gray-500);">${b.address || '-'}</td>
+      <td><strong>${b.name}</strong> <span style="color:var(--gray-300);font-size:11px;">${isExpanded ? '▲' : '▼'}</span></td>
+      <td style="font-size:12px;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.address || '-'}</td>
       <td><span class="badge badge-gray">${b.region||'-'}</span></td>
       <td>${fmtWon(b.contract_amount)}</td>
       <td><div class="assign-tags">${workers.length ? workers.map(n => `<span class="assign-tag">${n}</span>`).join('') : '<span class="badge badge-gray">미배정</span>'}</div></td>
       <td><div class="day-chips">${renderDayChips(b.cleaning_days)}</div></td>
-      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${b.memo || '-'}</td>
-      <td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${memoShort}</td>
+      <td onclick="event.stopPropagation()">
         <button class="btn btn-ghost btn-sm" onclick="openBuildingModal('${b.id}')">수정</button>
         <button class="btn btn-danger btn-sm" onclick="deleteBuilding('${b.id}')">삭제</button>
       </td>
     </tr>`;
+
+    const detailRow = isExpanded ? `<tr class="building-detail-row">
+      <td colspan="9">
+        <div class="building-detail-box">
+          <div class="building-detail-item" style="grid-column:1/-1;">
+            <label>📍 주소</label>
+            <div class="val">${b.address || '-'}${b.address_detail ? ' ' + b.address_detail : ''}</div>
+          </div>
+          <div class="building-detail-item">
+            <label>💰 월 계약금액</label>
+            <div class="val">${fmtWon(b.contract_amount)}</div>
+          </div>
+          <div class="building-detail-item">
+            <label>🧹 청소 유형</label>
+            <div class="val">${b.cleaning_type || '-'}</div>
+          </div>
+          <div class="building-detail-item">
+            <label>📅 청소 요일</label>
+            <div class="val"><div class="day-chips">${renderDayChips(b.cleaning_days)}</div></div>
+          </div>
+          <div class="building-detail-item">
+            <label>👤 담당자</label>
+            <div class="val">${workers.length ? workers.join(', ') : '미배정'}</div>
+          </div>
+          <div class="building-detail-item" style="grid-column:1/-1;">
+            <label>📝 메모 / 청소 범위 및 시간</label>
+            <div class="val" style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid var(--gray-200);min-height:60px;">${(b.memo || '-').replace(/
+/g,'<br>')}</div>
+          </div>
+        </div>
+      </td>
+    </tr>` : '';
+
+    return mainRow + detailRow;
   }).join('');
 }
 
