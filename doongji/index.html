@@ -1426,8 +1426,7 @@ function renderBuildingTable() {
           </div>
           <div class="building-detail-item" style="grid-column:1/-1;">
             <label>📝 메모 / 청소 범위 및 시간</label>
-            <div class="val" style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid var(--gray-200);min-height:60px;">${(b.memo || '-').replace(/
-/g,'<br>')}</div>
+            <div class="val" style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid var(--gray-200);min-height:60px;">${(b.memo || '-').split('\n').join('<br>')}</div>
           </div>
         </div>
       </td>
