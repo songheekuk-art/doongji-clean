@@ -214,7 +214,6 @@
     🏢 <span>둥지</span> 청소운영 대시보드
   </div>
   <div style="display:flex;align-items:center;gap:16px;">
-      <button class="btn btn-danger btn-sm" onclick="resetAllData()" style="font-size:11px;">🗑️ 로컬 데이터 초기화</button>
     <div class="db-status">
       <div class="db-dot" id="dbDot"></div>
       <span id="dbStatusText">Supabase 미연결</span>
@@ -1692,7 +1691,7 @@ function renderDashboard() {
   // Building table
   const btbody = document.getElementById('dashBuildingTable');
   if (!DB.buildings.length) {
-    btbody.innerHTML = '<tr><td colspan="6" class="empty">데이터 없음</td></tr>';
+    btbody.innerHTML = '<tr><td colspan="7" class="empty">데이터 없음</td></tr>';
   } else {
     btbody.innerHTML = DB.buildings.map(b => {
       const bLogs = logs.filter(l => l.building_id === b.id);
@@ -1716,6 +1715,7 @@ function renderDashboard() {
       const margin = b.contract_amount ? Math.round(profit / b.contract_amount * 100) : 0;
       const barClass = margin >= 30 ? '' : margin >= 10 ? 'warning' : 'danger';
       return `<tr>
+        <td><span class="badge ${b.branch==='강남'?'badge-blue':'badge-green'}">${b.branch||'-'}</span></td>
         <td><strong>${b.name}</strong></td>
         <td><div class="assign-tags">${workers.map(n => `<span class="assign-tag">${n}</span>`).join('') || '<span class="badge badge-gray">미배정</span>'}</div></td>
         <td>${fmtWon(b.contract_amount || 0)}</td>
@@ -1732,7 +1732,7 @@ function renderDashboard() {
   // Worker table
   const wtbody = document.getElementById('dashWorkerTable');
   if (!DB.workers.length) {
-    wtbody.innerHTML = '<tr><td colspan="6" class="empty">데이터 없음</td></tr>';
+    wtbody.innerHTML = '<tr><td colspan="7" class="empty">데이터 없음</td></tr>';
   } else {
     wtbody.innerHTML = DB.workers.map(w => {
       const wLogs = logs.filter(l => l.worker_id === w.id);
@@ -1834,21 +1834,6 @@ function fmtWon(n) {
 function closeModal(id) {
   document.getElementById(id).style.display = 'none';
 
-}
-
-function resetAllData() {
-  if (!confirm('로컬 저장소의 모든 데이터를 삭제할까요?\n(담당자, 건물, 근무기록 전부 삭제됩니다)')) return;
-  localStorage.removeItem('db_workers');
-  localStorage.removeItem('db_buildings');
-  localStorage.removeItem('db_logs');
-  localStorage.removeItem('use_local');
-  localStorage.removeItem('sb_url');
-  localStorage.removeItem('sb_key');
-  DB.workers = [];
-  DB.buildings = [];
-  DB.logs = [];
-  renderAll();
-  showToast('✅ 로컬 데이터가 초기화되었습니다');
 }
 
 function showToast(msg, duration = 2500) {
