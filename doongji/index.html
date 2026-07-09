@@ -539,23 +539,20 @@
     </div>
     <div class="form-group">
       <label class="form-label">주소 *</label>
-      <div style="position:relative;">
-        <div style="display:flex;gap:8px;">
-          <input class="form-input" id="bAddrQuery"
-            placeholder="도로명 또는 건물명 검색 (예: 어울마당로 44)"
-            autocomplete="off"
-            oninput="addrSearchDebounce()"
-            onkeydown="addrKeyNav(event)"
-            onblur="setTimeout(hideAddrResults,300)"
-            style="flex:1;">
-          <button type="button" class="btn btn-primary" onclick="addrSearch()" style="white-space:nowrap;flex-shrink:0;">검색</button>
-        </div>
-        <div id="addrResults" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--gray-200);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:9999;max-height:200px;overflow-y:auto;"></div>
+      <div style="display:flex;gap:8px;">
+        <input class="form-input" id="bAddrQuery"
+          placeholder="도로명 또는 건물명 검색 (예: 어울마당로 44)"
+          autocomplete="off"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addrSearch();}"
+          style="flex:1;">
+        <button type="button" class="btn btn-primary" onclick="addrSearch()" style="white-space:nowrap;flex-shrink:0;">검색</button>
       </div>
+      <!-- 검색 결과: 드롭다운 아닌 고정 리스트 -->
+      <div id="addrResults" style="display:none;margin-top:6px;border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;max-height:200px;overflow-y:auto;"></div>
       <div id="addrSelected" style="display:none;margin-top:6px;padding:8px 12px;background:var(--blue-light);border-radius:6px;font-size:13px;color:var(--blue);font-weight:500;"></div>
       <input type="hidden" id="bAddress">
       <input class="form-input" id="bAddressDetail" placeholder="상세주소 (동·호수·층 등)" style="margin-top:6px;">
-      <div class="form-hint">검색 후 결과를 클릭하면 지도에 정확히 표시됩니다</div>
+      <div class="form-hint">검색 후 결과를 선택하면 지도에 정확히 표시됩니다</div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -1173,18 +1170,11 @@ function renderDayChips(days) {
 }
 
 // ==================== ADDRESS SEARCH (Nominatim) ====================
-let _addrDebounceTimer = null;
 let _addrResultsData = [];
-let _addrFocusIdx = -1;
-
-function addrSearchDebounce() {
-  clearTimeout(_addrDebounceTimer);
-  _addrDebounceTimer = setTimeout(addrSearch, 400);
-}
 
 async function addrSearch() {
   const q = document.getElementById('bAddrQuery').value.trim();
-  if (!q || q.length < 2) { hideAddrResults(); return; }
+  if (!q || q.length < 2) return;
 
   const resultsEl = document.getElementById('addrResults');
   resultsEl.style.display = 'block';
@@ -1196,24 +1186,25 @@ async function addrSearch() {
       { headers: { 'User-Agent': 'DungjiDashboard/1.0' } }
     );
     const data = await res.json();
-
-    // 한국 결과만 필터링
     _addrResultsData = data.filter(d => d.address?.country_code === 'kr');
 
     if (!_addrResultsData.length) {
-      resultsEl.innerHTML = '<div style="padding:12px 14px;color:var(--gray-400);font-size:13px;">검색 결과가 없습니다. 다른 키워드로 시도해보세요.</div>';
+      resultsEl.innerHTML = '<div style="padding:12px 14px;color:var(--gray-400);font-size:13px;">결과 없음. 다른 키워드로 시도해보세요.</div>';
       return;
     }
 
-    _addrFocusIdx = -1;
     resultsEl.innerHTML = _addrResultsData.map((r, i) => {
-      const label = buildAddrLabel(r);
-      return `<div class="addr-result-item" data-idx="${i}"
-        onmousedown="selectAddr(${i})"
-        onmouseover="addrHover(${i})"
-        style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--gray-100);font-size:13px;line-height:1.5;">
-        <div style="font-weight:600;color:var(--gray-800);">${label.main}</div>
-        ${label.sub ? `<div style="font-size:11px;color:var(--gray-400);margin-top:1px;">${label.sub}</div>` : ''}
+      const a = r.address || {};
+      const road = [a.road, a.house_number].filter(Boolean).join(' ');
+      const city = a.city || a.town || a.county || '';
+      const district = a.suburb || a.borough || '';
+      const label = [city, district, road].filter(Boolean).join(' ') || r.display_name.split(',').slice(0,3).join(' ');
+      return `<div style="padding:10px 14px;border-bottom:1px solid var(--gray-100);font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div>
+          <div style="font-weight:600;color:var(--gray-800);">${label}</div>
+          <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${r.display_name.split(',').slice(0,4).join(', ')}</div>
+        </div>
+        <button type="button" onclick="selectAddr(${i})" class="btn btn-primary btn-sm" style="flex-shrink:0;">선택</button>
       </div>`;
     }).join('');
 
@@ -1222,77 +1213,25 @@ async function addrSearch() {
   }
 }
 
-function buildAddrLabel(r) {
-  const a = r.address || {};
-  // 도로명 주소 조합
-  const road = [a.road, a.house_number].filter(Boolean).join(' ');
-  const city = a.city || a.town || a.county || '';
-  const district = a.suburb || a.borough || a.district || '';
-  const state = a.province || a.state || '';
-
-  const main = road
-    ? [a.country !== '대한민국' ? '' : '', city, district, road].filter(Boolean).join(' ')
-    : r.display_name.split(',').slice(0,3).join(', ');
-
-  const sub = r.display_name.split(',').slice(0,4).join(', ');
-  return { main: main || r.display_name, sub: main ? sub : '' };
-}
-
-function addrHover(idx) {
-  _addrFocusIdx = idx;
-  document.querySelectorAll('.addr-result-item').forEach((el, i) => {
-    el.style.background = i === idx ? 'var(--blue-light)' : '';
-  });
-}
-
-function addrKeyNav(e) {
-  const items = document.querySelectorAll('.addr-result-item');
-  if (!items.length) return;
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    _addrFocusIdx = Math.min(_addrFocusIdx + 1, items.length - 1);
-    addrHover(_addrFocusIdx);
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    _addrFocusIdx = Math.max(_addrFocusIdx - 1, 0);
-    addrHover(_addrFocusIdx);
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    if (_addrFocusIdx >= 0) selectAddr(_addrFocusIdx);
-    else addrSearch();
-  } else if (e.key === 'Escape') {
-    hideAddrResults();
-  }
-}
-
 function selectAddr(idx) {
   const r = _addrResultsData[idx];
   if (!r) return;
-
   const a = r.address || {};
   const road = [a.road, a.house_number].filter(Boolean).join(' ');
   const city = a.city || a.town || a.village || '';
   const district = a.suburb || a.borough || '';
   const province = a.province || a.state || '';
+  const addrParts = [province !== '서울특별시' && province !== '경기도' ? province : '', city, district, road].filter(Boolean);
+  const fullAddr = addrParts.join(' ') || r.display_name.split(',').slice(0,3).join(' ').trim();
 
-  // 도로명 주소 조합
-  const addrParts = [province !== '서울특별시' && province !== '경기도' ? province : '', city, district, road]
-    .filter(Boolean);
-  const fullAddr = addrParts.length ? addrParts.join(' ') : r.display_name.split(',').slice(0,3).join(' ').trim();
-
-  // 필드 채우기
   document.getElementById('bAddress').value = fullAddr;
   document.getElementById('bAddrQuery').value = fullAddr;
-
-  // geocode 캐시에 좌표 저장 (지도에 바로 사용)
   geocodeCache[fullAddr] = { lat: parseFloat(r.lat), lng: parseFloat(r.lon) };
 
-  // 지역(구) 자동
   const gu = a.borough || a.suburb || a.county || '';
   const guMatch = gu.match(/([가-힣]+[구군])/);
   document.getElementById('bRegion').value = guMatch ? guMatch[1] : (a.county || '');
 
-  // 지점 자동 추정
   const gangnamGu = ['강남구','서초구','송파구','강동구','광진구','성동구','용산구','종로구','중구','마포구'];
   if (gangnamGu.some(g => fullAddr.includes(g))) {
     document.getElementById('bBranch').value = '강남';
@@ -1300,7 +1239,6 @@ function selectAddr(idx) {
     document.getElementById('bBranch').value = '강서';
   }
 
-  // 선택된 주소 표시
   const selEl = document.getElementById('addrSelected');
   selEl.textContent = '📍 ' + fullAddr;
   selEl.style.display = 'block';
@@ -1310,7 +1248,8 @@ function selectAddr(idx) {
 }
 
 function hideAddrResults() {
-  document.getElementById('addrResults').style.display = 'none';
+  const el = document.getElementById('addrResults');
+  if (el) el.style.display = 'none';
 }
 
 // 바깥 클릭 시 결과 닫기
