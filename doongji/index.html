@@ -1178,7 +1178,8 @@ function renderDayChips(days) {
     .join('');
 }
 
-// ==================== ADDRESS SEARCH (Nominatim) ====================
+// ==================== ADDRESS SEARCH (Kakao REST API) ====================
+const KAKAO_API_KEY = '568067872b554b2b55aa9831356efe21';
 let _addrResultsData = [];
 
 async function addrSearch() {
@@ -1190,57 +1191,70 @@ async function addrSearch() {
   resultsEl.innerHTML = '<div style="padding:12px 14px;color:var(--gray-400);font-size:13px;">검색 중...</div>';
 
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' 대한민국')}&format=json&limit=8&addressdetails=1&accept-language=ko`,
-      { headers: { 'User-Agent': 'DungjiDashboard/1.0' } }
-    );
-    const data = await res.json();
-    _addrResultsData = data.filter(d => d.address?.country_code === 'kr');
+    // 도로명 주소 검색
+    const [roadRes, keywordRes] = await Promise.all([
+      fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&size=5`, {
+        headers: { Authorization: `KakaoAK ${KAKAO_API_KEY}` }
+      }),
+      fetch(`https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=5`, {
+        headers: { Authorization: `KakaoAK ${KAKAO_API_KEY}` }
+      })
+    ]);
+
+    const roadData = await roadRes.json();
+    const keywordData = await keywordRes.json();
+
+    // 주소 검색 결과 + 키워드 검색 결과 합치기
+    const addrDocs = (roadData.documents || []).map(d => ({
+      name: d.address_name,
+      road: d.road_address?.address_name || d.address_name,
+      x: d.x, y: d.y,
+      type: 'address'
+    }));
+    const kwDocs = (keywordData.documents || []).map(d => ({
+      name: d.place_name,
+      road: d.road_address_name || d.address_name,
+      x: d.x, y: d.y,
+      type: 'keyword'
+    }));
+
+    _addrResultsData = [...addrDocs, ...kwDocs].slice(0, 8);
 
     if (!_addrResultsData.length) {
       resultsEl.innerHTML = '<div style="padding:12px 14px;color:var(--gray-400);font-size:13px;">결과 없음. 다른 키워드로 시도해보세요.</div>';
       return;
     }
 
-    resultsEl.innerHTML = _addrResultsData.map((r, i) => {
-      const a = r.address || {};
-      const road = [a.road, a.house_number].filter(Boolean).join(' ');
-      const city = a.city || a.town || a.county || '';
-      const district = a.suburb || a.borough || '';
-      const label = [city, district, road].filter(Boolean).join(' ') || r.display_name.split(',').slice(0,3).join(' ');
-      return `<div style="padding:10px 14px;border-bottom:1px solid var(--gray-100);font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+    resultsEl.innerHTML = _addrResultsData.map((r, i) => `
+      <div style="padding:10px 14px;border-bottom:1px solid var(--gray-100);font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div>
-          <div style="font-weight:600;color:var(--gray-800);">${label}</div>
-          <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${r.display_name.split(',').slice(0,4).join(', ')}</div>
+          <div style="font-weight:600;color:var(--gray-800);">${r.name}</div>
+          ${r.road && r.road !== r.name ? `<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">도로명: ${r.road}</div>` : ''}
         </div>
         <button type="button" onclick="selectAddr(${i})" class="btn btn-primary btn-sm" style="flex-shrink:0;">선택</button>
-      </div>`;
-    }).join('');
+      </div>`).join('');
 
   } catch(e) {
-    resultsEl.innerHTML = '<div style="padding:12px 14px;color:var(--red);font-size:13px;">검색 오류. 인터넷 연결을 확인해주세요.</div>';
+    resultsEl.innerHTML = '<div style="padding:12px 14px;color:var(--red);font-size:13px;">검색 오류가 발생했습니다.</div>';
   }
 }
 
 function selectAddr(idx) {
   const r = _addrResultsData[idx];
   if (!r) return;
-  const a = r.address || {};
-  const road = [a.road, a.house_number].filter(Boolean).join(' ');
-  const city = a.city || a.town || a.village || '';
-  const district = a.suburb || a.borough || '';
-  const province = a.province || a.state || '';
-  const addrParts = [province !== '서울특별시' && province !== '경기도' ? province : '', city, district, road].filter(Boolean);
-  const fullAddr = addrParts.join(' ') || r.display_name.split(',').slice(0,3).join(' ').trim();
 
+  const fullAddr = r.road || r.name;
   document.getElementById('bAddress').value = fullAddr;
   document.getElementById('bAddrQuery').value = fullAddr;
-  geocodeCache[fullAddr] = { lat: parseFloat(r.lat), lng: parseFloat(r.lon) };
 
-  const gu = a.borough || a.suburb || a.county || '';
-  const guMatch = gu.match(/([가-힣]+[구군])/);
-  document.getElementById('bRegion').value = guMatch ? guMatch[1] : (a.county || '');
+  // 좌표 캐시 저장
+  if (r.x && r.y) geocodeCache[fullAddr] = { lat: parseFloat(r.y), lng: parseFloat(r.x) };
 
+  // 지역(구) 자동 추출
+  const guMatch = fullAddr.match(/([가-힣]+[구군])/);
+  if (guMatch) document.getElementById('bRegion').value = guMatch[1];
+
+  // 지점 자동 추정
   const gangnamGu = ['강남구','서초구','송파구','강동구','광진구','성동구','용산구','종로구','중구','마포구'];
   if (gangnamGu.some(g => fullAddr.includes(g))) {
     document.getElementById('bBranch').value = '강남';
