@@ -277,7 +277,10 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
     <div id="building-list"></div>
     <div id="staff-panel"></div>
     <div id="bld-panel">
-      <input class="bm-search" type="text" placeholder="🔍 건물명 / 관명 검색..." oninput="renderBldMgmt(this.value)" id="bm-search">
+      <div style="display:flex;gap:6px;margin-bottom:8px;padding:8px 10px 0;">
+        <input class="bm-search" type="text" placeholder="🔍 건물명 / 관명 검색..." oninput="renderBldMgmt(this.value)" id="bm-search" style="flex:1;margin-bottom:0;">
+        <button onclick="openAddBldModal()" style="padding:7px 12px;background:#1a73e8;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">+ 추가</button>
+      </div>
       <div id="bld-mgmt-list"></div>
     </div>
   </div>
@@ -361,12 +364,12 @@ const BDATA=[
   {id:40,sheet:"대치",구분:"사무실",건물명:"대치TWENTY",주소:"대치동 932-24",관명:"컨설팅연구소",층들:[{층:"지하1층",면적:30}],총면적:30,lat:37.4994045,lng:127.0595613},
   {id:41,sheet:"대치",구분:"사무실",건물명:"베스킨라빈스 건물",주소:"대치동 989-1",관명:"재종교무실(베스킨)",층들:[{층:"3층",면적:40}],총면적:40,lat:37.4988116,lng:127.0616425},
   {id:42,sheet:"대치",구분:"사무실",건물명:"광오빌딩",주소:"대치동 931-22",관명:"재종교무실(광오)",층들:[{층:"지하1층",면적:53}],총면적:53,lat:37.5007467,lng:127.059549},
-  {id:43,sheet:"대치",구분:"새움",건물명:"대진빌딩",주소:"대치동 988-17",관명:"새움3관",층들:[{층:"2층",면적:64},{층:"5층",면적:78}],총면적:142,lat:37.4996664,lng:127.0622284},
-  {id:44,sheet:"대치",구분:"새움",건물명:"하늘도시",주소:"대치동 941-18",관명:"새움6관",층들:[{층:"6층",면적:45}],총면적:45,lat:37.499102,lng:127.0604069},
-  {id:45,sheet:"대치",구분:"새움",건물명:"태륭빌딩",주소:"대치동 1019-11",관명:"새움7관",층들:[{층:"4층",면적:52}],총면적:52,lat:37.4974041,lng:127.0612407},
-  {id:46,sheet:"대치",구분:"새움",건물명:"금강빌딩",주소:"대치동 940-06",관명:"새움9관",층들:[{층:"4층",면적:49}],총면적:49,lat:37.4988033,lng:127.0583171},
-  {id:47,sheet:"대치",구분:"새움",건물명:"고봉빌딩",주소:"대치동 939-25",관명:"새움8관",층들:[{층:"2층",면적:58},{층:"3층",면적:19}],총면적:77,lat:37.4982237,lng:127.0574317},
-  {id:48,sheet:"대치",구분:"새움",건물명:"고봉빌딩",주소:"대치동 939-25",관명:"새움입시연구소",층들:[{층:"4층",면적:29}],총면적:29,lat:37.4982237,lng:127.0574317},
+  {id:43,sheet:"대치",구분:"재종",건물명:"대진빌딩",주소:"대치동 988-17",관명:"새움3관",층들:[{층:"2층",면적:64},{층:"5층",면적:78}],총면적:142,lat:37.4996664,lng:127.0622284},
+  {id:44,sheet:"대치",구분:"재종",건물명:"하늘도시",주소:"대치동 941-18",관명:"새움6관",층들:[{층:"6층",면적:45}],총면적:45,lat:37.499102,lng:127.0604069},
+  {id:45,sheet:"대치",구분:"재종",건물명:"태륭빌딩",주소:"대치동 1019-11",관명:"새움7관",층들:[{층:"4층",면적:52}],총면적:52,lat:37.4974041,lng:127.0612407},
+  {id:46,sheet:"대치",구분:"재종",건물명:"금강빌딩",주소:"대치동 940-06",관명:"새움9관",층들:[{층:"4층",면적:49}],총면적:49,lat:37.4988033,lng:127.0583171},
+  {id:47,sheet:"대치",구분:"재종",건물명:"고봉빌딩",주소:"대치동 939-25",관명:"새움8관",층들:[{층:"2층",면적:58},{층:"3층",면적:19}],총면적:77,lat:37.4982237,lng:127.0574317},
+  {id:48,sheet:"대치",구분:"재종",건물명:"고봉빌딩",주소:"대치동 939-25",관명:"새움입시연구소",층들:[{층:"4층",면적:29}],총면적:29,lat:37.4982237,lng:127.0574317},
   {id:49,sheet:"목동",구분:"단과",건물명:"유니아나빌딩",주소:"목동 907-18",관명:"목동 시대인재",층들:[{층:"8층(뉴)",면적:32},{층:"8층",면적:32},{층:"7층",면적:65},{층:"6층",면적:65},{층:"4층",면적:34}],총면적:228,lat:37.5353227,lng:126.8788743},
   {id:50,sheet:"목동",구분:"단과",건물명:"목동트라팰리스",주소:"목동 962",관명:"목동시대인재 3관",층들:[{층:"601~602호",면적:59}],총면적:59,lat:37.5259926,lng:126.8703832},
   {id:51,sheet:"목동",구분:"단과",건물명:"하이페리온2차",주소:"목동 961",관명:"목동 하이페리온",층들:[{층:"301호",면적:54}],총면적:54,lat:37.5243479,lng:126.8699169},
@@ -400,6 +403,7 @@ const BDATA=[
   {id:78,sheet:"기타",구분:"컨텐츠",건물명:"제일빌딩(버거킹 지하)",주소:"대치동 941-24",관명:"생명과학 컨텐츠 연구실",층들:[{층:"지하1층",면적:52}],총면적:52,lat:37.4987688,lng:127.0593926},
   {id:79,sheet:"기타",구분:"컨텐츠",건물명:"호산빌딩",주소:"봉천동 853-1",관명:"국어 컨텐츠 연구소(호산)",층들:[{층:"6층",면적:93}],총면적:93,lat:37.4804826,lng:126.9537386},
   {id:80,sheet:"기타",구분:"컨텐츠",건물명:"영진빌딩",주소:"봉천동 1590-7",관명:"국어 컨텐츠 연구소(영진)",층들:[{층:"4층",면적:20}],총면적:20,lat:37.4776373,lng:126.9519269},
+  {id:81,sheet:"대치",구분:"단과",건물명:"메이저빌딩",주소:"대치동 1021-4",관명:"메이저관",층들:[{층:"7층",면적:23},{층:"6층",면적:73},{층:"5층",면적:84},{층:"4층",면적:84},{층:"3층",면적:79},{층:"2층",면적:79},{층:"1층",면적:69}],총면적:491,lat:37.4982,lng:127.0598},
 ];
 
 // ===== STATE =====
@@ -1014,6 +1018,63 @@ function deleteBld(id){
   showToast('삭제됐어요');
 }
 
+// ===== 건물 추가 =====
+function openAddBldModal(){
+  document.getElementById('ab-nm').value='';
+  document.getElementById('ab-bn').value='';
+  document.getElementById('ab-addr').value='';
+  document.getElementById('ab-floors').innerHTML='';
+  addFloorRow();
+  document.getElementById('add-bld-modal').style.display='flex';
+}
+function closeAddBldModal(){
+  document.getElementById('add-bld-modal').style.display='none';
+}
+function addFloorRow(){
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;gap:6px;margin-bottom:5px;align-items:center;';
+  div.innerHTML=`<input placeholder="층 (예: 3층)" style="flex:1.2;padding:5px 8px;border:1px solid #d0d5e8;border-radius:5px;font-size:12px;">
+    <input type="number" placeholder="면적(평)" style="flex:1;padding:5px 8px;border:1px solid #d0d5e8;border-radius:5px;font-size:12px;">
+    <button type="button" onclick="this.parentElement.remove()" style="background:#fee2e2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:12px;">×</button>`;
+  document.getElementById('ab-floors').appendChild(div);
+}
+async function submitAddBld(){
+  const 관명=document.getElementById('ab-nm').value.trim();
+  const 건물명=document.getElementById('ab-bn').value.trim();
+  const 주소=document.getElementById('ab-addr').value.trim();
+  const sheet=document.getElementById('ab-sheet').value;
+  const 구분=document.getElementById('ab-type').value;
+  if(!관명||!주소){alert('관명과 주소는 필수입니다');return;}
+
+  // 층 정보 수집
+  const rows=[...document.getElementById('ab-floors').children];
+  const 층들=rows.map(r=>{
+    const inputs=r.querySelectorAll('input');
+    return {층:inputs[0].value.trim(),면적:parseFloat(inputs[1].value)||0};
+  }).filter(f=>f.층);
+  const 총면적=층들.reduce((s,f)=>s+f.면적,0);
+
+  // 좌표 검색
+  let lat=37.498, lng=127.060;
+  try {
+    const res=await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(주소)}`,{headers:{Authorization:`KakaoAK ${KAKAO_API_KEY}`}});
+    const data=await res.json();
+    if(data.documents?.length){lat=parseFloat(data.documents[0].y);lng=parseFloat(data.documents[0].x);}
+  } catch(e){}
+
+  const newId=Math.max(...BDATA.map(b=>b.id))+1;
+  const newBld={id:newId,sheet,구분,건물명,주소,관명,층들,총면적,lat,lng};
+  BDATA.push(newBld);
+
+  // Supabase 저장
+  await sbSaveBldEdit(newBld);
+
+  closeAddBldModal();
+  renderAll();
+  if(currentTab===2) renderBldMgmt('');
+  showToast(`✅ ${관명} 추가됐어요!`);
+}
+
 function showToast(msg){
   let t=document.getElementById('hc-toast');
   if(!t){t=document.createElement('div');t.id='hc-toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1d2e;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;';document.body.appendChild(t);}
@@ -1266,5 +1327,40 @@ initMap();
 renderAll(); // 먼저 기본 데이터로 렌더
 sbLoad();    // 이후 Supabase 데이터로 업데이트
 </script>
+<!-- 건물 추가 모달 -->
+<div id="add-bld-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:28px;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+    <h3 style="font-size:16px;font-weight:800;color:#1a1d2e;margin-bottom:18px;">🏢 건물 추가</h3>
+    <div class="bm-field" style="margin-bottom:10px;"><label style="width:40px;">관명</label><input id="ab-nm" placeholder="예: 메이저관" style="flex:1;padding:7px 10px;border:1px solid #d0d5e8;border-radius:6px;font-size:13px;"></div>
+    <div class="bm-field" style="margin-bottom:10px;"><label style="width:40px;">건물명</label><input id="ab-bn" placeholder="예: 메이저빌딩" style="flex:1;padding:7px 10px;border:1px solid #d0d5e8;border-radius:6px;font-size:13px;"></div>
+    <div class="bm-field" style="margin-bottom:10px;"><label style="width:40px;">주소</label><input id="ab-addr" placeholder="예: 대치동 1021-4" style="flex:1;padding:7px 10px;border:1px solid #d0d5e8;border-radius:6px;font-size:13px;"></div>
+    <div class="bm-field" style="margin-bottom:10px;">
+      <label style="width:40px;">지역</label>
+      <select id="ab-sheet" style="flex:1;padding:7px 10px;border:1px solid #d0d5e8;border-radius:6px;font-size:13px;">
+        <option value="대치">대치</option>
+        <option value="목동">목동</option>
+        <option value="대전">대전</option>
+        <option value="기타">기타</option>
+      </select>
+    </div>
+    <div class="bm-field" style="margin-bottom:10px;"><label style="width:40px;">구분</label>
+      <select id="ab-type" style="flex:1;padding:7px 10px;border:1px solid #d0d5e8;border-radius:6px;font-size:13px;">
+        <option value="단과">단과</option>
+        <option value="재종">재종</option>
+        <option value="사무실">사무실</option>
+        <option value="컨텐츠">컨텐츠</option>
+      </select>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:6px;">층 정보</div>
+      <div id="ab-floors"></div>
+      <button type="button" onclick="addFloorRow()" style="margin-top:6px;padding:5px 12px;background:#f1f3f9;border:1px solid #d0d5e8;border-radius:6px;font-size:12px;cursor:pointer;color:#555;">+ 층 추가</button>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button type="button" onclick="closeAddBldModal()" style="padding:8px 16px;background:#f1f3f9;border:none;border-radius:7px;font-size:13px;cursor:pointer;">취소</button>
+      <button type="button" onclick="submitAddBld()" style="padding:8px 16px;background:#1a73e8;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">추가</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
