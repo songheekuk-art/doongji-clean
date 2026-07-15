@@ -1028,7 +1028,8 @@ setInterval(sbLoad, 30000);
 
 // ===== INIT =====
 initMap();
-sbLoad();
+renderAll(); // 먼저 기본 데이터로 렌더
+sbLoad();    // 이후 Supabase 데이터로 업데이트
 </script>
 </body>
 </html>
