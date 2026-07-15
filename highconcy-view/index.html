@@ -1081,18 +1081,28 @@ function doLogin() {
   const pw = document.getElementById('login-pw').value;
   const err = document.getElementById('login-err');
   if (ACCOUNTS[id] && ACCOUNTS[id] === pw) {
-    document.getElementById('login-overlay').style.display = 'none';
-    document.getElementById('app').classList.add('readonly-mode');
-    err.style.display = 'none';
-    // 로그인 후 초기화
-    initMap();
-    renderAll();
-    sbLoad();
+    sessionStorage.setItem('hc_logged_in', '1');
+    enterApp();
   } else {
     err.style.display = 'block';
     document.getElementById('login-pw').value = '';
   }
 }
+
+function enterApp() {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('app').classList.add('readonly-mode');
+  initMap();
+  renderAll();
+  sbLoad();
+}
+
+// 새로고침 시 로그인 상태 복원
+window.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem('hc_logged_in') === '1') {
+    enterApp();
+  }
+});
 
 // ===== SUPABASE =====
 const SB_URL = 'https://ugwzyxsynpvnbbsqlcqq.supabase.co';
