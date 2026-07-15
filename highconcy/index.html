@@ -146,6 +146,12 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 .popup-inner{padding:10px 12px}
 .pop-title{font-size:13px;font-weight:800;margin-bottom:2px}
 .pop-addr{font-size:10px;color:#888;margin-bottom:7px}
+.bulk-bar{display:flex;align-items:center;gap:6px;padding:5px 8px;background:#f8f9fc;border-radius:6px;margin-bottom:6px;flex-wrap:wrap}
+.bulk-bar select{padding:3px 6px;border:1px solid #d0d5e8;border-radius:5px;font-size:11px;color:#1a1d2e;background:#fff}
+.bulk-btn{padding:3px 10px;background:#1a73e8;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.bulk-btn:hover{background:#1557b0}
+.bulk-btn.clear{background:#f1f3f9;color:#666}
+.bulk-btn.clear:hover{background:#e2e5ef}
 .pop-floor-header{display:grid;grid-template-columns:80px 38px 1fr 1fr 1fr 1fr;gap:3px;font-size:9px;font-weight:700;color:#aaa;padding-bottom:3px;border-bottom:1px solid #eee;margin-bottom:3px}
 .pop-floor{display:grid;grid-template-columns:80px 38px 1fr 1fr 1fr 1fr;gap:3px;font-size:10px;padding:2px 0;border-bottom:1px dotted #eee;align-items:center}
 .pop-floor:last-child{border:none}
@@ -671,6 +677,22 @@ function renderBuildingList(){
         <span class="bld-area-badge" style="color:${areaColor};background:${areaBg}">${bld.총면적}평</span>
       </div>
       <div class="bld-assign">
+        <div class="bulk-bar">
+          <span style="font-size:11px;font-weight:700;color:#555;white-space:nowrap;">일괄적용:</span>
+          <select id="bulk-staff-${bld.id}" onclick="event.stopPropagation()" style="padding:3px 6px;border:1px solid #d0d5e8;border-radius:5px;font-size:11px;color:#1a1d2e;background:#fff">
+            <option value="">담당자 선택</option>
+            ${staffList.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+          </select>
+          <select id="bulk-sched-${bld.id}" onclick="event.stopPropagation()" style="padding:3px 6px;border:1px solid #d0d5e8;border-radius:5px;font-size:11px;color:#1a1d2e;background:#fff">
+            <option value="all">전체 스케줄</option>
+            <option value="평일주간">평일주간</option>
+            <option value="평일야간">평일야간</option>
+            <option value="주말주간">주말주간</option>
+            <option value="주말야간">주말야간</option>
+          </select>
+          <button class="bulk-btn" onclick="event.stopPropagation();bulkApply(${bld.id})">적용</button>
+          <button class="bulk-btn clear" onclick="event.stopPropagation();bulkClear(${bld.id})">초기화</button>
+        </div>
         <div class="floor-header">
           <span>층/호수</span><span>면적</span>${schedHdr}
         </div>
@@ -836,6 +858,35 @@ function clearSearch(){
   document.getElementById('bld-search').value='';
   searchQuery='';
   document.getElementById('search-clear').style.display='none';
+  renderBuildingList();
+  renderMarkers();
+}
+
+function bulkApply(bldId){
+  const bld = BDATA.find(b=>b.id===bldId);
+  if(!bld) return;
+  const staffSel = document.getElementById(`bulk-staff-${bldId}`);
+  const schedSel = document.getElementById(`bulk-sched-${bldId}`);
+  const sid = parseInt(staffSel.value);
+  const sch = schedSel.value;
+  if(!sid) { alert('담당자를 선택해주세요'); return; }
+  const scheds = sch==='all' ? SCHEDS : [sch];
+  bld.층들.forEach((_,fi)=>{
+    scheds.forEach(s=> setAss(bldId, fi, s, sid));
+  });
+  renderBuildingList();
+  renderMarkers();
+}
+
+function bulkClear(bldId){
+  const bld = BDATA.find(b=>b.id===bldId);
+  if(!bld) return;
+  const schedSel = document.getElementById(`bulk-sched-${bldId}`);
+  const sch = schedSel.value;
+  const scheds = sch==='all' ? SCHEDS : [sch];
+  bld.층들.forEach((_,fi)=>{
+    scheds.forEach(s=> setAss(bldId, fi, s, null));
+  });
   renderBuildingList();
   renderMarkers();
 }
