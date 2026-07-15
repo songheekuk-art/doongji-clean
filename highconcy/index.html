@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>하이컨시 청소 담당자 배정 v3</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=ee1f4030a4720b67a4498a9d87ee6064&libraries=services"></script>
+
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;height:100vh;overflow:hidden}
@@ -142,9 +142,7 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 @keyframes pulse-warn{0%,100%{box-shadow:0 0 0 3px #dc2626}50%{box-shadow:0 0 0 6px rgba(220,38,38,.4)}}
 
 /* POPUP */
-.leaflet-popup-content-wrapper{background:#fff;border:1px solid #e2e5ef;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);padding:0}
-.leaflet-popup-content{margin:0;min-width:260px}
-.leaflet-popup-tip{background:#fff}
+
 .popup-inner{padding:10px 12px}
 .pop-title{font-size:13px;font-weight:800;margin-bottom:2px}
 .pop-addr{font-size:10px;color:#888;margin-bottom:7px}
@@ -451,10 +449,11 @@ function getSchedCount(sch){
 
 // ===== MAP =====
 function initMap(){
-  map=L.map('map',{center:[37.4950,127.0630],zoom:15,zoomControl:true});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution:'© OpenStreetMap © CARTO',maxZoom:19
-  }).addTo(map);
+  const container = document.getElementById('map');
+  map = new kakao.maps.Map(container, {
+    center: new kakao.maps.LatLng(37.4950, 127.0630),
+    level: 4
+  });
   renderMarkers();
 }
 
@@ -484,7 +483,7 @@ function getGroupColor(items){
 }
 
 function renderMarkers(){
-  Object.values(markers).forEach(m=>m.remove());
+  Object.values(markers).forEach(m=>m.setMap(null));
   markers={};
   const groups=getBuildingGroups();
   groups.forEach(grp=>{
@@ -492,7 +491,6 @@ function renderMarkers(){
     const scheds=currentSched==='전체'?SCHEDS:[currentSched];
     const sids=new Set(grp.items.flatMap(bld=>bld.층들.flatMap((f,fi)=>scheds.map(sch=>getAss(bld.id,fi,sch)))).filter(Boolean));
     const isOver=[...sids].some(sid=>getStaffViewArea(sid)>areaLimit);
-    // 건물명 표시: 여러 관명이면 건물명, 하나면 관명
     const label=grp.items.length>1
       ? (grp.건물명||grp.items[0].관명).slice(0,3)
       : grp.items[0].관명.slice(0,3);
@@ -500,15 +498,16 @@ function renderMarkers(){
     const el=document.createElement('div');
     el.style.cssText='position:relative;';
     el.innerHTML=`<div class="cmarker${color==='#b0b8cc'?' unassigned':''}${isOver?' over-limit':''}" style="background:${color};width:30px;height:30px;"><span>${label}</span></div>${badge}`;
-    const icon=L.divIcon({html:el.outerHTML,iconSize:[30,30],iconAnchor:[15,15],className:''});
-    const mk=L.marker([grp.lat,grp.lng],{icon}).addTo(map);
-    mk.on('click',()=>{
-      showGroupPopup(grp,mk);
-      // 사이드바에서 첫번째 관명으로 스크롤
+    const pos = new kakao.maps.LatLng(grp.lat, grp.lng);
+    const overlay = new kakao.maps.CustomOverlay({position:pos, content:el, yAnchor:0.5});
+    overlay.setMap(map);
+    const iwContent = document.createElement('div');
+    el.style.cursor='pointer';
+    el.onclick = () => {
+      showGroupPopup(grp, pos);
       scrollToBld(grp.items[0].id);
-    });
-    // 그룹 내 모든 id에 동일 마커 등록
-    grp.items.forEach(bld=>{ markers[bld.id]=mk; });
+    };
+    grp.items.forEach(bld=>{ markers[bld.id]=overlay; });
   });
   renderRoutes();
   updateStats();
@@ -516,27 +515,15 @@ function renderMarkers(){
 }
 
 function updateMarkerColor(bldId){
-  // 같은 좌표 그룹 전체 색 업데이트
-  const bld=BDATA.find(b=>b.id===bldId);
-  if(!bld||!markers[bldId]) return;
-  const key=`${bld.lat},${bld.lng}`;
-  const grpItems=BDATA.filter(b=>visible(b)&&`${b.lat},${b.lng}`===key);
-  const color=getGroupColor(grpItems);
-  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
-  const sids=new Set(grpItems.flatMap(b=>b.층들.flatMap((f,fi)=>scheds.map(sch=>getAss(b.id,fi,sch)))).filter(Boolean));
-  const isOver=[...sids].some(sid=>getStaffViewArea(sid)>areaLimit);
-  const label=grpItems.length>1?(bld.건물명||grpItems[0].관명).slice(0,3):grpItems[0].관명.slice(0,3);
-  const badge=grpItems.length>1?`<span style="position:absolute;top:-6px;right:-6px;background:#fff;color:#333;border-radius:50%;width:14px;height:14px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;border:1px solid #ccc">${grpItems.length}</span>`:'';
-  const el=document.createElement('div');
-  el.style.cssText='position:relative;';
-  el.innerHTML=`<div class="cmarker${color==='#b0b8cc'?' unassigned':''}${isOver?' over-limit':''}" style="background:${color};width:30px;height:30px;"><span>${label}</span></div>${badge}`;
-  markers[bldId].setIcon(L.divIcon({html:el.outerHTML,iconSize:[30,30],iconAnchor:[15,15],className:''}));
+  // 배정 변경 후 마커 전체 재렌더 (카카오맵은 CustomOverlay content 교체가 복잡해서 재렌더)
+  renderMarkers();
 }
 
-function showGroupPopup(grp,mk){
+let currentInfoWindow = null;
+function showGroupPopup(grp, pos){
+  if(currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow=null; }
   const scheds=currentSched==='전체'?SCHEDS:[currentSched];
   const hdrcols=scheds.map(s=>`<span style="color:${SCHED_COLORS[s]};font-size:9px">${s.replace('평일주간','평주').replace('평일야간','평야').replace('주말주간','주주').replace('주말야간','주야')}</span>`).join('');
-  
   const sections=grp.items.map(bld=>{
     const rows=bld.층들.map((f,fi)=>{
       const cells=scheds.map(sch=>{
@@ -554,30 +541,38 @@ function showGroupPopup(grp,mk){
       ${rows}
     </div>`;
   }).join('');
-
   const totalArea=grp.items.reduce((s,b)=>s+b.총면적,0);
-  mk.bindPopup(`<div class="popup-inner">
-    <div class="pop-title">${grp.건물명||grp.items[0].관명}</div>
-    <div class="pop-addr">${grp.items[0].주소} · ${grp.items.length}개 관명 · 총 ${totalArea}평</div>
-    ${sections}
-  </div>`,{maxWidth:340,maxHeight:400}).openPopup();
+  const iw = new kakao.maps.InfoWindow({
+    position: pos,
+    content: `<div class="popup-inner" style="max-height:380px;overflow-y:auto;">
+      <div class="pop-title">${grp.건물명||grp.items[0].관명}</div>
+      <div class="pop-addr">${grp.items[0].주소} · ${grp.items.length}개 관명 · 총 ${totalArea}평</div>
+      ${sections}
+    </div>`,
+    removable: true
+  });
+  iw.open(map);
+  currentInfoWindow = iw;
 }
 
-function showPopup(bld,mk){
-  // 단일 관명용 (내부 호환)
+function showPopup(bld, pos){
   const grp={lat:bld.lat,lng:bld.lng,items:[bld],건물명:bld.건물명};
-  showGroupPopup(grp,mk);
+  showGroupPopup(grp, pos);
 }
 
 // ===== ROUTES =====
 function renderRoutes(){
-  routeLayers.forEach(l=>l.remove());
+  routeLayers.forEach(l=>l.setMap(null));
   routeLayers=[];
   staffList.forEach(s=>{
     if(!visibleRoutes[s.id]) return;
     const pts=getStaffPoints(s.id);
     if(pts.length<2) return;
-    const line=L.polyline(pts.map(p=>[p.lat,p.lng]),{color:s.color,weight:3,opacity:.85,dashArray:'6,4'}).addTo(map);
+    const line=new kakao.maps.Polyline({
+      path: pts.map(p=>new kakao.maps.LatLng(p.lat,p.lng)),
+      strokeColor: s.color, strokeWeight:3, strokeOpacity:.85, strokeStyle:'dashed'
+    });
+    line.setMap(map);
     routeLayers.push(line);
   });
 }
@@ -592,15 +587,23 @@ function optimizeRoute(){
     rem.forEach((p,i)=>{const d=Math.hypot(p.lat-last.lat,p.lng-last.lng);if(d<md){md=d;ni=i;}});
     opt.push(rem.splice(ni,1)[0]);
   }
-  routeLayers.forEach(l=>l.remove());routeLayers=[];
-  routeLayers.push(L.polyline(opt.map(p=>[p.lat,p.lng]),{color:s.color,weight:4,opacity:.9}).addTo(map));
+  routeLayers.forEach(l=>l.setMap(null));routeLayers=[];
+  const line=new kakao.maps.Polyline({
+    path:opt.map(p=>new kakao.maps.LatLng(p.lat,p.lng)),
+    strokeColor:s.color,strokeWeight:4,strokeOpacity:.9
+  });
+  line.setMap(map);routeLayers.push(line);
+  const bounds=new kakao.maps.LatLngBounds();
   opt.forEach((p,i)=>{
+    const pos=new kakao.maps.LatLng(p.lat,p.lng);
+    bounds.extend(pos);
     const el=document.createElement('div');
     el.style.cssText=`background:${s.color};color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,.3)`;
     el.textContent=i+1;
-    routeLayers.push(L.marker([p.lat,p.lng],{icon:L.divIcon({html:el.outerHTML,iconSize:[22,22],iconAnchor:[11,11],className:''})}).addTo(map));
+    const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:0.5});
+    ov.setMap(map);routeLayers.push(ov);
   });
-  map.fitBounds(L.latLngBounds(opt.map(p=>[p.lat,p.lng])),{padding:[40,40]});
+  map.setBounds(bounds);
   const schedLabel=currentSched==='전체'?'전체':currentSched;
   document.getElementById('rinfo').textContent=`${s.name}(${schedLabel}) 최적경로: ${opt.length}개 건물`;
 }
