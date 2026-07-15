@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>하이컨시 청소 담당자 배정 v3</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;height:100vh;overflow:hidden}
+#app{display:grid;grid-template-columns:380px 1fr;grid-template-rows:54px 44px 1fr;height:100vh}
+
+/* HEADER */
+#header{grid-column:1/-1;background:#1a1d2e;display:flex;align-items:center;padding:0 18px;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#header h1{font-size:14px;font-weight:700;color:#fff}
+.hbadge{background:#03c75a;color:#fff;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:700}
+.hspace{flex:1}
+#hstat{font-size:11px;color:#aaa}
+#btn-print{background:#1a73e8;border:none;color:#fff;padding:6px 14px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer}
+#btn-print:hover{background:#1557b0}
+
+/* SCHEDULE TAB BAR — full width */
+#sched-bar{grid-column:1/-1;background:#fff;border-bottom:2px solid #e2e5ef;display:flex;align-items:stretch;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.sched-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:700;color:#888;cursor:pointer;border-bottom:3px solid transparent;padding:0 8px;transition:all .15s;position:relative}
+.sched-tab:hover{color:#1a1d2e;background:#f8f9fc}
+.sched-tab.active{color:#fff;border-bottom-color:transparent}
+.sched-tab[data-sch="전체"].active{background:#1a1d2e;color:#fff}
+.sched-tab[data-sch="평일주간"].active{background:#1a73e8;color:#fff}
+.sched-tab[data-sch="평일야간"].active{background:#7c3aed;color:#fff}
+.sched-tab[data-sch="주말주간"].active{background:#03c75a;color:#fff}
+.sched-tab[data-sch="주말야간"].active{background:#e8710a;color:#fff}
+.sched-count{font-size:10px;background:rgba(255,255,255,.25);padding:1px 6px;border-radius:10px;font-weight:600}
+.sched-tab:not(.active) .sched-count{background:#f0f2f8;color:#888}
+
+/* SIDEBAR */
+#sidebar{background:#fff;border-right:1px solid #e2e5ef;display:flex;flex-direction:column;overflow:hidden}
+#tabs{display:flex;border-bottom:1px solid #e2e5ef;background:#f8f9fc}
+.tab{flex:1;padding:10px 6px;text-align:center;font-size:12px;font-weight:600;color:#888;cursor:pointer;border-bottom:2px solid transparent}
+.tab.active{color:#1a73e8;border-bottom-color:#1a73e8;background:#fff}
+
+/* FILTER + LIMIT */
+#filter-bar{padding:8px 10px;border-bottom:1px solid #e8eaf0;display:flex;gap:5px;flex-wrap:wrap;background:#f8f9fc}
+.fbtn{background:#fff;border:1px solid #dde1f0;color:#555;padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;transition:all .15s}
+.fbtn.active{color:#fff;border-color:transparent}
+.fbtn[data-s="전체"].active{background:#1a1d2e}
+.fbtn[data-s="대치"].active{background:#1a73e8}
+.fbtn[data-s="목동"].active{background:#e8710a}
+.fbtn[data-s="대전"].active{background:#7c3aed}
+.fbtn[data-s="기타"].active{background:#0891b2}
+#limit-bar{padding:6px 10px;background:#fffbf0;border-bottom:1px solid #f0e9cc;display:flex;align-items:center;gap:6px;font-size:11px;color:#7a6000}
+#limit-bar strong{color:#b45309}
+#limit-input{width:55px;border:1px solid #e0c96d;border-radius:4px;padding:2px 5px;font-size:11px;text-align:center;background:#fffef5}
+
+/* BUILDING LIST */
+#building-list{flex:1;overflow-y:auto;padding:8px}
+#building-list::-webkit-scrollbar{width:4px}
+#building-list::-webkit-scrollbar-thumb{background:#d0d5e8;border-radius:4px}
+
+.bld-card{background:#fff;border:1px solid #e4e7f4;border-radius:9px;margin-bottom:6px;overflow:hidden;cursor:pointer;transition:border .15s;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.bld-card:hover{border-color:#1a73e8}
+.bld-header{display:flex;align-items:center;padding:8px 10px;gap:8px}
+.bld-color-bar{width:5px;height:36px;border-radius:3px;flex-shrink:0}
+.bld-info{flex:1;min-width:0}
+.bld-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bld-sub{font-size:10px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.bld-area-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;flex-shrink:0}
+.bld-assign{padding:5px 10px 8px 23px;border-top:1px solid #f0f2f8;background:#fafbfe}
+
+/* floor rows — grid layout */
+.floor-row{display:grid;grid-template-columns:88px 38px 1fr 1fr 1fr 1fr;align-items:center;gap:3px;font-size:10px;padding:2px 0;border-bottom:1px dotted #eee}
+.floor-row:last-child{border:none}
+.floor-label{color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
+.floor-area{color:#1a73e8;font-weight:700;font-size:10px}
+.sched-cell select{width:100%;background:#fff;border:1px solid #dde1f0;color:#333;border-radius:4px;padding:2px 2px;font-size:10px}
+.sched-cell select:focus{outline:none;border-color:#1a73e8}
+.sched-cell select.assigned{font-weight:700}
+
+/* 스케줄 컬럼 헤더 */
+.floor-header{display:grid;grid-template-columns:88px 38px 1fr 1fr 1fr 1fr;gap:3px;font-size:9px;font-weight:700;color:#aaa;padding:3px 0 2px;border-bottom:1px solid #e8eaf0;margin-bottom:2px}
+.floor-header span{text-align:center}
+.floor-header span:nth-child(1){text-align:left;color:#888}
+.floor-header span:nth-child(2){text-align:center}
+.sh-평일주간{color:#1a73e8}
+.sh-평일야간{color:#7c3aed}
+.sh-주말주간{color:#03c75a}
+.sh-주말야간{color:#e8710a}
+
+/* STAFF PANEL */
+#staff-panel{flex:1;overflow-y:auto;padding:10px;display:none}
+#staff-panel.show{display:block}
+.staff-card{background:#fff;border:1px solid #e4e7f4;border-radius:9px;padding:10px 12px;margin-bottom:8px}
+.staff-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.staff-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.staff-name-in{flex:1;background:#f4f6fc;border:1px solid #dde1f0;color:#1a1d2e;border-radius:5px;padding:4px 8px;font-size:12px;font-weight:700}
+.staff-name-in:focus{outline:none;border-color:#1a73e8}
+.staff-meta{font-size:11px;color:#888;white-space:nowrap}
+.btn-del{background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;padding:0 2px}
+.area-gauge-track{height:6px;background:#e8eaf0;border-radius:3px;overflow:hidden;margin-bottom:3px}
+.area-gauge-fill{height:100%;border-radius:3px;transition:width .3s}
+.area-gauge-labels{display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:6px}
+.area-gauge-labels .over{color:#dc2626;font-weight:700}
+/* 스케줄별 breakdown */
+.sched-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px}
+.sched-box{border-radius:6px;padding:5px 8px;font-size:10px}
+.sched-box-label{font-weight:700;margin-bottom:1px}
+.sched-box-val{font-size:12px;font-weight:800}
+.staff-list-items{font-size:10px;color:#555;line-height:1.7}
+.staff-list-item{display:flex;gap:4px;align-items:baseline}
+.btn-add-staff{width:100%;background:#f4f6fc;border:1.5px dashed #c4cbdf;color:#666;padding:8px;border-radius:9px;font-size:12px;cursor:pointer;font-weight:600}
+.btn-add-staff:hover{border-color:#1a73e8;color:#1a73e8}
+
+/* MAP */
+#map-wrap{position:relative}
+#map{width:100%;height:100%}
+
+/* ROUTE CTRL */
+#route-ctrl{position:absolute;top:10px;right:10px;z-index:1000;background:#fff;border:1px solid #e2e5ef;border-radius:10px;padding:12px 14px;min-width:200px;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+#route-ctrl h3{font-size:12px;font-weight:700;margin-bottom:8px}
+.rstaff-item{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:11px;cursor:pointer}
+.rstaff-item input{accent-color:#1a73e8;width:13px;height:13px}
+.rdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.rcount{font-size:10px;color:#999;margin-left:auto}
+#btn-opt{width:100%;background:#1a73e8;border:none;color:#fff;padding:7px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;margin-top:6px}
+#btn-opt:hover{background:#1557b0}
+
+/* STATS BAR */
+#stats-bar{position:absolute;bottom:0;left:0;right:0;z-index:900;background:rgba(255,255,255,.94);border-top:1px solid #e2e5ef;padding:5px 14px;display:flex;gap:16px;align-items:center;font-size:11px}
+.stat{display:flex;gap:5px;align-items:center;color:#555}
+.stat-val{font-weight:700;font-size:13px;color:#1a1d2e}
+#rinfo{margin-left:auto;color:#1a73e8;font-weight:700;font-size:12px}
+
+/* LEGEND */
+#legend{position:absolute;bottom:38px;left:10px;z-index:900;background:#fff;border:1px solid #e2e5ef;border-radius:8px;padding:8px 12px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.leg-item{display:flex;align-items:center;gap:6px;margin-bottom:3px;color:#333}
+.leg-dot{width:10px;height:10px;border-radius:3px}
+
+/* MARKER */
+.cmarker{display:flex;align-items:center;justify-content:center;border-radius:6px;color:#fff;font-weight:700;font-size:9px;border:2px solid rgba(255,255,255,.9);box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer}
+.cmarker.unassigned{background:#b0b8cc}
+.cmarker.over-limit{animation:pulse-warn 1.2s infinite}
+@keyframes pulse-warn{0%,100%{box-shadow:0 0 0 3px #dc2626}50%{box-shadow:0 0 0 6px rgba(220,38,38,.4)}}
+
+/* POPUP */
+.leaflet-popup-content-wrapper{background:#fff;border:1px solid #e2e5ef;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);padding:0}
+.leaflet-popup-content{margin:0;min-width:260px}
+.leaflet-popup-tip{background:#fff}
+.popup-inner{padding:10px 12px}
+.pop-title{font-size:13px;font-weight:800;margin-bottom:2px}
+.pop-addr{font-size:10px;color:#888;margin-bottom:7px}
+.pop-floor-header{display:grid;grid-template-columns:80px 38px 1fr 1fr 1fr 1fr;gap:3px;font-size:9px;font-weight:700;color:#aaa;padding-bottom:3px;border-bottom:1px solid #eee;margin-bottom:3px}
+.pop-floor{display:grid;grid-template-columns:80px 38px 1fr 1fr 1fr 1fr;gap:3px;font-size:10px;padding:2px 0;border-bottom:1px dotted #eee;align-items:center}
+.pop-floor:last-child{border:none}
+.pop-fl-name{color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pop-fl-area{color:#1a73e8;font-weight:700}
+.pop-fl-staff{font-weight:700;text-align:center;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* PRINT */
+@media print{
+  body{background:#fff;overflow:auto;height:auto}
+  #app{display:none}
+  #print-overlay{display:block !important}
+}
+#print-overlay{display:none;position:fixed;inset:0;background:#fff;z-index:9999;overflow:auto}
+#print-overlay.show{display:block}
+.print-page{width:210mm;min-height:297mm;padding:12mm 13mm 10mm;margin:0 auto;background:#fff;font-family:'Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif}
+.print-logo-row{display:flex;align-items:center;gap:10px;margin-bottom:5px}
+.print-logo{font-size:18px;font-weight:900;color:#03c75a}
+.print-title{font-size:16px;font-weight:800;color:#1a1d2e}
+.print-date{font-size:10px;color:#888;margin-left:auto}
+.print-sched-label{font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px;color:#fff;margin-left:8px}
+.print-divider{border:none;border-top:2px solid #1a73e8;margin:7px 0 10px}
+.print-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+.print-sum-box{background:#f4f6fc;border-radius:7px;padding:7px 10px;text-align:center}
+.print-sum-label{font-size:9px;color:#888;margin-bottom:2px}
+.print-sum-val{font-size:15px;font-weight:800;color:#1a1d2e}
+.print-sum-unit{font-size:9px;color:#888}
+.print-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.print-staff-block{border:1px solid #dde1f0;border-radius:8px;overflow:hidden;break-inside:avoid}
+.psb-header{padding:7px 12px;display:flex;align-items:center;gap:8px;color:#fff}
+.psb-header-name{font-size:13px;font-weight:800}
+.psb-header-meta{font-size:10px;margin-left:auto;opacity:.9}
+.psb-gauge{height:3px;background:rgba(255,255,255,.3)}
+.psb-gauge-fill{height:100%;background:rgba(255,255,255,.8)}
+.psb-body{padding:7px 12px}
+.psb-row{display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:1px dotted #eee;font-size:10px}
+.psb-row:last-child{border:none}
+.psb-num{width:16px;font-weight:700;color:#888;flex-shrink:0}
+.psb-guan{font-weight:700;color:#1a1d2e;min-width:55px}
+.psb-bld{color:#666;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.psb-area{color:#1a73e8;font-weight:700;margin-left:auto;flex-shrink:0}
+.psb-floors{color:#999;font-size:9px;white-space:nowrap}
+.print-close-btn{position:fixed;top:16px;right:16px;z-index:10000;background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
+.print-act-btn{position:fixed;top:16px;right:120px;z-index:10000;background:#1a73e8;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- HEADER -->
+  <header id="header">
+    <span style="font-size:20px">🧹</span>
+    <h1>하이컨시 청소 담당자 배정 시스템</h1>
+    <span class="hbadge">시대인재</span>
+    <div class="hspace"></div>
+    <span id="hstat"></span>
+    <button id="btn-print" onclick="openPrint()">🖨️ A4 출력</button>
+  </header>
+
+  <!-- SCHEDULE TAB BAR -->
+  <div id="sched-bar">
+    <div class="sched-tab active" data-sch="전체" onclick="switchSched('전체',this)">
+      <span>📋 전체</span><span class="sched-count" id="sc-전체">0</span>
+    </div>
+    <div class="sched-tab" data-sch="평일주간" onclick="switchSched('평일주간',this)">
+      <span>☀️ 평일 주간</span><span class="sched-count" id="sc-평일주간">0</span>
+    </div>
+    <div class="sched-tab" data-sch="평일야간" onclick="switchSched('평일야간',this)">
+      <span>🌙 평일 야간</span><span class="sched-count" id="sc-평일야간">0</span>
+    </div>
+    <div class="sched-tab" data-sch="주말주간" onclick="switchSched('주말주간',this)">
+      <span>🌤️ 주말 주간</span><span class="sched-count" id="sc-주말주간">0</span>
+    </div>
+    <div class="sched-tab" data-sch="주말야간" onclick="switchSched('주말야간',this)">
+      <span>🌃 주말 야간</span><span class="sched-count" id="sc-주말야간">0</span>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div id="tabs">
+      <div class="tab active" onclick="switchTab(0)">🏢 건물 배정</div>
+      <div class="tab" onclick="switchTab(1)">👥 담당자 관리</div>
+    </div>
+    <div id="filter-bar">
+      <button class="fbtn active" data-s="전체" onclick="filterSheet('전체',this)">전체</button>
+      <button class="fbtn" data-s="대치" onclick="filterSheet('대치',this)">대치</button>
+      <button class="fbtn" data-s="목동" onclick="filterSheet('목동',this)">목동</button>
+      <button class="fbtn" data-s="대전" onclick="filterSheet('대전',this)">대전</button>
+      <button class="fbtn" data-s="기타" onclick="filterSheet('기타',this)">기타</button>
+    </div>
+    <div id="limit-bar">
+      ⚠️ 1인당 최대:&nbsp;
+      <input id="limit-input" type="number" value="400" min="100" max="2000" step="50" onchange="areaLimit=+this.value;renderAll()">
+      &nbsp;<strong>평</strong>
+    </div>
+    <div id="building-list"></div>
+    <div id="staff-panel"></div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="route-ctrl">
+      <h3 id="route-ctrl-title">🗺️ 동선 표시</h3>
+      <div id="route-staff-list"></div>
+      <button id="btn-opt" onclick="optimizeRoute()">⚡ 동선 최적화</button>
+    </div>
+    <div id="legend"></div>
+    <div id="stats-bar">
+      <div class="stat">건물 <span class="stat-val" id="sb">0</span></div>
+      <div class="stat">관명 <span class="stat-val" id="ss">0</span></div>
+      <div class="stat">배정층 <span class="stat-val" id="sa">0</span></div>
+      <div class="stat">미배정 <span class="stat-val" id="su">0</span></div>
+      <div class="stat">총면적 <span class="stat-val" id="stotal">0</span>평</div>
+      <span id="rinfo"></span>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT OVERLAY -->
+<div id="print-overlay">
+  <button class="print-close-btn" onclick="closePrint()">✕ 닫기</button>
+  <button class="print-act-btn" onclick="window.print()">🖨️ 인쇄</button>
+  <div id="print-content"></div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const SCHEDS=['평일주간','평일야간','주말주간','주말야간'];
+const SCHED_COLORS={'평일주간':'#1a73e8','평일야간':'#7c3aed','주말주간':'#03c75a','주말야간':'#e8710a'};
+const SCHED_BG={'평일주간':'#eff6ff','평일야간':'#f5f3ff','주말주간':'#f0fdf4','주말야간':'#fff7ed'};
+const COLORS=['#1a73e8','#03c75a','#e8710a','#7c3aed','#dc2626','#ca8a04','#0891b2','#db2777','#65a30d','#b45309'];
+const SHEET_COLORS={대치:'#1a73e8',목동:'#e8710a',대전:'#7c3aed',기타:'#0891b2'};
+
+const BDATA=[
+  {id:0,sheet:"대치",구분:"단과",건물명:"성창빌딩",주소:"대치동 989-2",관명:"2관",층들:[{층:"207호",면적:43},{층:"306호",면적:40}],총면적:83,lat:37.4989119,lng:127.0619546},
+  {id:1,sheet:"대치",구분:"단과",건물명:"성창빌딩",주소:"대치동 989-2",관명:"서바이벌관",층들:[{층:"201호",면적:18},{층:"202호",면적:18}],총면적:36,lat:37.4989119,lng:127.0619546},
+  {id:2,sheet:"대치",구분:"단과",건물명:"민자대치주차장",주소:"대치동 962-23",관명:"5관",층들:[{층:"3층",면적:76},{층:"2층",면적:76}],총면적:152,lat:37.5018392,lng:127.0597125},
+  {id:3,sheet:"대치",구분:"단과",건물명:"신해청 상가",주소:"대치동 974-1",관명:"A관",층들:[{층:"3층(301호)",면적:84},{층:"3층(302,303호)",면적:60}],총면적:144,lat:37.5008476,lng:127.0601302},
+  {id:4,sheet:"대치",구분:"단과",건물명:"성보빌딩",주소:"대치동 1019-1",관명:"농협관",층들:[{층:"3층",면적:72}],총면적:72,lat:37.4977699,lng:127.0606416},
+  {id:5,sheet:"대치",구분:"단과",건물명:"대덕빌딩",주소:"대치동 1023-9",관명:"대덕관",층들:[{층:"5층",면적:44},{층:"4층",면적:65},{층:"3층",면적:65},{층:"2층",면적:65},{층:"1층",면적:59}],총면적:298,lat:37.4975513,lng:127.058383},
+  {id:6,sheet:"대치",구분:"단과",건물명:"동선빌딩",주소:"대치동 1021-8",관명:"본관",층들:[{층:"6층",면적:79},{층:"4층",면적:86},{층:"3층",면적:77},{층:"1층",면적:80}],총면적:322,lat:37.4983942,lng:127.0606446},
+  {id:7,sheet:"대치",구분:"사무실",건물명:"동선빌딩",주소:"대치동 1021-8",관명:"본관 사무실",층들:[{층:"2층",면적:90},{층:"지하1층",면적:44}],총면적:134,lat:37.4983942,lng:127.0606446},
+  {id:8,sheet:"대치",구분:"단과",건물명:"청은빌딩",주소:"대치동 1023-7",관명:"생협관",층들:[{층:"6층",면적:26},{층:"3층",면적:66},{층:"2층",면적:65}],총면적:157,lat:37.4976364,lng:127.0579549},
+  {id:9,sheet:"대치",구분:"사무실",건물명:"청은빌딩",주소:"대치동 1023-7",관명:"컨텐츠도서관",층들:[{층:"지하1층",면적:73}],총면적:73,lat:37.4976364,lng:127.0579549},
+  {id:10,sheet:"대치",구분:"단과",건물명:"더스톤대치",주소:"대치동 940-8",관명:"스톤관",층들:[{층:"1층",면적:42}],총면적:42,lat:37.4984471,lng:127.0584639},
+  {id:11,sheet:"대치",구분:"사무실",건물명:"더스톤대치",주소:"대치동 940-8",관명:"스톤 사무실",층들:[{층:"8층",면적:98},{층:"7층",면적:109},{층:"6층",면적:109},{층:"5층",면적:53}],총면적:369,lat:37.4984471,lng:127.0584639},
+  {id:12,sheet:"대치",구분:"단과",건물명:"윤성빌딩",주소:"대치동 939-28",관명:"S1관",층들:[{층:"306호",면적:19},{층:"301호",면적:26}],총면적:45,lat:37.497826,lng:127.0567677},
+  {id:13,sheet:"대치",구분:"단과",건물명:"윤성빌딩",주소:"대치동 939-28",관명:"카이로스논술",층들:[{층:"2층",면적:70}],총면적:70,lat:37.497826,lng:127.0567677},
+  {id:14,sheet:"대치",구분:"단과",건물명:"대치빌딩",주소:"대치동 1021-5",관명:"엣지관",층들:[{층:"6층",면적:82},{층:"3층",면적:82}],총면적:164,lat:37.498302,lng:127.0600906},
+  {id:15,sheet:"대치",구분:"단과",건물명:"현민빌딩",주소:"대치동 941-26",관명:"여상진수리논술연구소",층들:[{층:"2층",면적:80}],총면적:80,lat:37.4986522,lng:127.059031},
+  {id:16,sheet:"대치",구분:"단과",건물명:"삼보빌딩",주소:"대치동 989-5",관명:"중등 수학스쿨",층들:[{층:"2층",면적:56}],총면적:56,lat:37.498729,lng:127.0620103},
+  {id:17,sheet:"대치",구분:"단과",건물명:"동원빌딩",주소:"대치동 1021-14",관명:"커피관",층들:[{층:"3층",면적:26}],총면적:26,lat:37.4978398,lng:127.0592568},
+  {id:18,sheet:"대치",구분:"단과",건물명:"진성빌딩",주소:"대치동 931-20",관명:"특목관",층들:[{층:"5층",면적:43},{층:"4층",면적:37},{층:"3층",면적:40},{층:"2층",면적:19}],총면적:139,lat:37.5010216,lng:127.0594045},
+  {id:19,sheet:"대치",구분:"사무실",건물명:"진성빌딩",주소:"대치동 931-20",관명:"컨텐츠연구소",층들:[{층:"지하1층",면적:49}],총면적:49,lat:37.5010216,lng:127.0594045},
+  {id:20,sheet:"대치",구분:"단과",건물명:"TJ삼영대치",주소:"대치동 988-1",관명:"트러스관",층들:[{층:"7층",면적:273},{층:"6층",면적:37},{층:"5층",면적:37},{층:"4층",면적:37},{층:"3층",면적:37},{층:"2층",면적:37}],총면적:458,lat:37.4998704,lng:127.0607488},
+  {id:21,sheet:"대치",구분:"단과",건물명:"지석빌딩",주소:"대치동 1022-4",관명:"컨텐츠강의실",층들:[{층:"5층",면적:33}],총면적:33,lat:37.4976861,lng:127.0587286},
+  {id:22,sheet:"대치",구분:"단과",건물명:"금마빌딩",주소:"대치동 1019-13",관명:"해석관",층들:[{층:"301호",면적:42}],총면적:42,lat:37.4978277,lng:127.0610138},
+  {id:23,sheet:"대치",구분:"단과",건물명:"덕산빌딩",주소:"대치동 1021-3",관명:"고등수학스쿨 상담센터",층들:[{층:"6층",면적:63}],총면적:63,lat:37.4981124,lng:127.0597594},
+  {id:24,sheet:"대치",구분:"단과",건물명:"진흥빌딩",주소:"대치동 1022-2",관명:"입시R&D 상담센터",층들:[{층:"4층(401호)",면적:38}],총면적:38,lat:37.4979348,lng:127.0588248},
+  {id:25,sheet:"대치",구분:"단과",건물명:"삼성상가",주소:"대치동 990",관명:"7관",층들:[{층:"311,312호",면적:63}],총면적:63,lat:37.4992034,lng:127.0630995},
+  {id:26,sheet:"대치",구분:"단과",건물명:"태륭빌딩",주소:"대치동 1019-11",관명:"R&D컨설팅센터",층들:[{층:"3층",면적:59}],총면적:59,lat:37.4974041,lng:127.0612407},
+  {id:27,sheet:"대치",구분:"사무실",건물명:"태륭빌딩",주소:"대치동 1019-11",관명:"교재팀 사무실",층들:[{층:"2층",면적:58}],총면적:58,lat:37.4974041,lng:127.0612407},
+  {id:28,sheet:"대치",구분:"단과",건물명:"남평빌딩",주소:"대치동 991-1",관명:"IN어학원",층들:[{층:"5층",면적:60},{층:"4층",면적:61},{층:"3층",면적:60}],총면적:181,lat:37.4995573,lng:127.0639286},
+  {id:29,sheet:"대치",구분:"단과",건물명:"H&S빌딩",주소:"역삼동 766-11",관명:"블루스톤어학원",층들:[{층:"7층",면적:15},{층:"6층",면적:26},{층:"5층",면적:26},{층:"4층",면적:26},{층:"3층",면적:26},{층:"2층",면적:26},{층:"1층",면적:14},{층:"지하1층",면적:32},{층:"지하2층",면적:32}],총면적:223,lat:37.4963516,lng:127.0508089},
+  {id:30,sheet:"대치",구분:"재종",건물명:"목빌딩",주소:"대치동 941-21",관명:"H관",층들:[{층:"6층",면적:34},{층:"5층",면적:49},{층:"4층",면적:49},{층:"3층",면적:49},{층:"2층",면적:49}],총면적:230,lat:37.4989394,lng:127.0599205},
+  {id:31,sheet:"대치",구분:"재종",건물명:"목빌딩",주소:"대치동 941-21",관명:"교재반납배부처",층들:[{층:"1층",면적:47}],총면적:47,lat:37.4989394,lng:127.0599205},
+  {id:32,sheet:"대치",구분:"재종",건물명:"스카이빌딩",주소:"대치동 986-8",관명:"M3관",층들:[{층:"6층",면적:60},{층:"5층",면적:63},{층:"4층",면적:60},{층:"3층",면적:58},{층:"2층",면적:64},{층:"1층",면적:48}],총면적:353,lat:37.5003121,lng:127.0639729},
+  {id:33,sheet:"대치",구분:"재종",건물명:"아이플러스빌딩",주소:"대치동 988-18",관명:"브릿지관",층들:[{층:"6층",면적:60},{층:"5층",면적:60},{층:"4층",면적:170},{층:"3층",면적:41},{층:"2층",면적:39}],총면적:370,lat:37.4993869,lng:127.061403},
+  {id:34,sheet:"대치",구분:"재종",건물명:"태성빌딩",주소:"대치동 988-15",관명:"N관",층들:[{층:"5층",면적:600},{층:"4층",면적:180},{층:"3층",면적:109},{층:"L층",면적:194}],총면적:1083,lat:37.4995633,lng:127.0616676},
+  {id:35,sheet:"대치",구분:"재종",건물명:"한나빌딩",주소:"대치동 941-22",관명:"3관",층들:[{층:"6층",면적:67},{층:"5층",면적:74},{층:"4층",면적:71},{층:"3층",면적:70},{층:"2층",면적:71}],총면적:353,lat:37.4988842,lng:127.0597528},
+  {id:36,sheet:"대치",구분:"재종",건물명:"소소한빌딩",주소:"대치동 913-22",관명:"W관",층들:[{층:"10층",면적:88},{층:"9층",면적:85},{층:"8층",면적:87},{층:"7층",면적:78},{층:"6층",면적:78},{층:"5층",면적:88},{층:"4층",면적:88},{층:"3층",면적:85},{층:"2층",면적:80},{층:"1층",면적:63}],총면적:820,lat:37.5014529,lng:127.0588226},
+  {id:37,sheet:"대치",구분:"재종",건물명:"더로빌딩",주소:"대치동 1019",관명:"5관",층들:[{층:"6층",면적:25},{층:"5층",면적:29},{층:"4층",면적:32},{층:"3층",면적:32},{층:"2층",면적:32},{층:"1층",면적:26}],총면적:176,lat:37.4979703,lng:127.0604757},
+  {id:38,sheet:"대치",구분:"재종",건물명:"카이로스빌딩",주소:"대치동 611",관명:"신관",층들:[{층:"5층",면적:190},{층:"4층",면적:189},{층:"3층",면적:186},{층:"2층(201,202호)",면적:182}],총면적:747,lat:37.496256,lng:127.060622},
+  {id:39,sheet:"대치",구분:"사무실",건물명:"장안빌딩",주소:"대치동 1021-10",관명:"평가운영,라이브,시설",층들:[{층:"3층",면적:31}],총면적:31,lat:37.4983679,lng:127.060863},
+  {id:40,sheet:"대치",구분:"사무실",건물명:"대치TWENTY",주소:"대치동 932-24",관명:"컨설팅연구소",층들:[{층:"지하1층",면적:30}],총면적:30,lat:37.4994045,lng:127.0595613},
+  {id:41,sheet:"대치",구분:"사무실",건물명:"베스킨라빈스 건물",주소:"대치동 989-1",관명:"재종교무실(베스킨)",층들:[{층:"3층",면적:40}],총면적:40,lat:37.4988116,lng:127.0616425},
+  {id:42,sheet:"대치",구분:"사무실",건물명:"광오빌딩",주소:"대치동 931-22",관명:"재종교무실(광오)",층들:[{층:"지하1층",면적:53}],총면적:53,lat:37.5007467,lng:127.059549},
+  {id:43,sheet:"대치",구분:"새움",건물명:"대진빌딩",주소:"대치동 988-17",관명:"새움3관",층들:[{층:"2층",면적:64},{층:"5층",면적:78}],총면적:142,lat:37.4996664,lng:127.0622284},
+  {id:44,sheet:"대치",구분:"새움",건물명:"하늘도시",주소:"대치동 941-18",관명:"새움6관",층들:[{층:"6층",면적:45}],총면적:45,lat:37.499102,lng:127.0604069},
+  {id:45,sheet:"대치",구분:"새움",건물명:"태륭빌딩",주소:"대치동 1019-11",관명:"새움7관",층들:[{층:"4층",면적:52}],총면적:52,lat:37.4974041,lng:127.0612407},
+  {id:46,sheet:"대치",구분:"새움",건물명:"금강빌딩",주소:"대치동 940-06",관명:"새움9관",층들:[{층:"4층",면적:49}],총면적:49,lat:37.4988033,lng:127.0583171},
+  {id:47,sheet:"대치",구분:"새움",건물명:"고봉빌딩",주소:"대치동 939-25",관명:"새움8관",층들:[{층:"2층",면적:58},{층:"3층",면적:19}],총면적:77,lat:37.4982237,lng:127.0574317},
+  {id:48,sheet:"대치",구분:"새움",건물명:"고봉빌딩",주소:"대치동 939-25",관명:"새움입시연구소",층들:[{층:"4층",면적:29}],총면적:29,lat:37.4982237,lng:127.0574317},
+  {id:49,sheet:"목동",구분:"단과",건물명:"유니아나빌딩",주소:"목동 907-18",관명:"목동 시대인재",층들:[{층:"8층(뉴)",면적:32},{층:"8층",면적:32},{층:"7층",면적:65},{층:"6층",면적:65},{층:"4층",면적:34}],총면적:228,lat:37.5353227,lng:126.8788743},
+  {id:50,sheet:"목동",구분:"단과",건물명:"목동트라팰리스",주소:"목동 962",관명:"목동시대인재 3관",층들:[{층:"601~602호",면적:59}],총면적:59,lat:37.5259926,lng:126.8703832},
+  {id:51,sheet:"목동",구분:"단과",건물명:"하이페리온2차",주소:"목동 961",관명:"목동 하이페리온",층들:[{층:"301호",면적:54}],총면적:54,lat:37.5243479,lng:126.8699169},
+  {id:52,sheet:"목동",구분:"단과",건물명:"목동 현대프라자",주소:"목동 406-4",관명:"목동시대인재 4관",층들:[{층:"306~307호",면적:42},{층:"309호",면적:31}],총면적:73,lat:37.5259443,lng:126.8684411},
+  {id:53,sheet:"목동",구분:"단과",건물명:"ES빌딩",주소:"내발산동 719-2",관명:"목동 ES관",층들:[{층:"3층",면적:75}],총면적:75,lat:37.5504363,lng:126.8359174},
+  {id:54,sheet:"목동",구분:"단과",건물명:"진남빌딩",주소:"내발산동 698-9",관명:"강서관",층들:[{층:"2층(201호)",면적:56},{층:"2층(202호)",면적:17}],총면적:73,lat:37.5526573,lng:126.8341709},
+  {id:55,sheet:"목동",구분:"단과",건물명:"한국방송회관",주소:"목동 923-5",관명:"목동초증등관",층들:[{층:"14,15층",면적:202},{층:"12층",면적:45},{층:"11층",면적:71}],총면적:318,lat:37.5269584,lng:126.8715054},
+  {id:56,sheet:"목동",구분:"재종",건물명:"(목동W빌딩)",주소:"목동 408-116",관명:"목동 W관",층들:[{층:"9층",면적:16},{층:"8층",면적:96},{층:"7층",면적:101},{층:"6층",면적:101},{층:"5층",면적:84},{층:"4층",면적:84},{층:"3층",면적:84},{층:"2층",면적:84}],총면적:650,lat:37.5251528,lng:126.8689362},
+  {id:57,sheet:"목동",구분:"재종",건물명:"예술인센터",주소:"목동 923-6",관명:"목동시대인재 본관",층들:[{층:"11층",면적:16},{층:"8층(일부)",면적:141},{층:"8층(802호)",면적:99},{층:"7층",면적:263},{층:"6층",면적:291},{층:"1층",면적:40}],총면적:850,lat:37.5269584,lng:126.8715054},
+  {id:58,sheet:"대전",구분:"단과",건물명:"동암빌딩",주소:"둔산동 1426",관명:"대전시대인재",층들:[{층:"5층",면적:91},{층:"4층",면적:77},{층:"3층",면적:82},{층:"2층",면적:51}],총면적:301,lat:36.3493053,lng:127.3880974},
+  {id:59,sheet:"대전",구분:"단과",건물명:"지안빌딩",주소:"둔산동 1425",관명:"대전 시대인재 2관",층들:[{층:"6층",면적:91}],총면적:91,lat:36.3493098,lng:127.3878953},
+  {id:60,sheet:"기타",구분:"사무실",건물명:"LK빌딩",주소:"잠실동 196-8",관명:"북스운영팀",층들:[{층:"4층",면적:99}],총면적:99,lat:37.5086197,lng:127.0793954},
+  {id:61,sheet:"기타",구분:"컨텐츠",건물명:"관악위버폴리스",주소:"봉천동 859-17",관명:"국어컨텐츠 연구소",층들:[{층:"413,414호",면적:64},{층:"311호",면적:32}],총면적:96,lat:37.482716,lng:126.9532297},
+  {id:62,sheet:"기타",구분:"컨텐츠",건물명:"타워432",주소:"역삼동 706-9",관명:"베라디",층들:[{층:"6층",면적:47}],총면적:47,lat:37.5020866,lng:127.0433669},
+  {id:63,sheet:"기타",구분:"컨텐츠",건물명:"SK리더스뷰",주소:"도곡동 168",관명:"생명과학1 컨텐츠 연구소",층들:[{층:"404호",면적:35}],총면적:35,lat:37.4884716,lng:127.0487329},
+  {id:64,sheet:"기타",구분:"컨텐츠",건물명:"백조빌딩",주소:"역삼동 738-42",관명:"수학 컨텐츠 연구소(백조)",층들:[{층:"5층",면적:52}],총면적:52,lat:37.4976975,lng:127.0369296},
+  {id:65,sheet:"기타",구분:"단과",건물명:"패스트파이브 강남5호점",주소:"역삼동 826-24",관명:"시대인재 LEET(강남)",층들:[{층:"601호",면적:93},{층:"602호",면적:93},{층:"402호",면적:93}],총면적:279,lat:37.4959528,lng:127.029101},
+  {id:66,sheet:"기타",구분:"단과",건물명:"버티고타워",주소:"창천동 18-29",관명:"시대인재 LEET(신촌)",층들:[{층:"12층",면적:132}],총면적:132,lat:37.5563107,lng:126.9372084},
+  // ===== 추가 누락 건물 =====
+  {id:67,sheet:"대치",구분:"사무실",건물명:"더스톤대치",주소:"대치동 940-8",관명:"교재반납처",층들:[{층:"1층",면적:25}],총면적:25,lat:37.4984471,lng:127.0584639},
+  {id:68,sheet:"대치",구분:"사무실",건물명:"",주소:"대치동 915-12",관명:"출판물류TF 사무실",층들:[{층:"3층",면적:32}],총면적:32,lat:37.5011069,lng:127.0585028},
+  {id:69,sheet:"대치",구분:"사무실",건물명:"우유니관",주소:"대치동 1022-3",관명:"영상기획팀",층들:[{층:"3층",면적:37}],총면적:37,lat:37.4977479,lng:127.0589213},
+  {id:70,sheet:"대치",구분:"사무실",건물명:"SK텔레콤 건물",주소:"대치동 1021-9",관명:"강사육성팀(SK)",층들:[{층:"2층",면적:31}],총면적:31,lat:37.4985281,lng:127.0607685},
+  {id:71,sheet:"대치",구분:"사무실",건물명:"LS2빌딩",주소:"대치동 903-12",관명:"강사육성팀(LS2)",층들:[{층:"4층",면적:54}],총면적:54,lat:37.5028727,lng:127.0573232},
+  {id:72,sheet:"목동",구분:"단과",건물명:"목동 현대프라자",주소:"목동 406-5",관명:"목동시대인재 4관(B)",층들:[{층:"309호",면적:31}],총면적:31,lat:37.5250809,lng:126.8762835},
+  {id:73,sheet:"기타",구분:"컨텐츠",건물명:"삼화빌딩",주소:"역삼동 738-43",관명:"수학 컨텐츠 연구소(삼화)",층들:[{층:"5층",면적:73}],총면적:73,lat:37.497851,lng:127.0368498},
+  {id:74,sheet:"기타",구분:"컨텐츠",건물명:"",주소:"역삼동 745-16",관명:"수학 컨텐츠 연구소(745)",층들:[{층:"1,2층",면적:68}],총면적:68,lat:37.4968305,lng:127.0366403},
+  {id:75,sheet:"기타",구분:"컨텐츠",건물명:"양촌빌딩",주소:"양재동 111-5",관명:"영어 컨텐츠 연구소",층들:[{층:"2층",면적:20}],총면적:20,lat:37.4762165,lng:127.0365488},
+  {id:76,sheet:"기타",구분:"컨텐츠",건물명:"타임힐빌딩",주소:"서초동 1582-12",관명:"생명과학 컨텐츠 연구소",층들:[{층:"3층",면적:34}],총면적:34,lat:37.4867109,lng:127.0105328},
+  {id:77,sheet:"기타",구분:"컨텐츠",건물명:"예영빌딩",주소:"대치동 932-36",관명:"수학 컨텐츠 연구소(예영)",층들:[{층:"지하1층",면적:16}],총면적:16,lat:37.499872,lng:127.059668},
+  {id:78,sheet:"기타",구분:"컨텐츠",건물명:"제일빌딩(버거킹 지하)",주소:"대치동 941-24",관명:"생명과학 컨텐츠 연구실",층들:[{층:"지하1층",면적:52}],총면적:52,lat:37.4987688,lng:127.0593926},
+  {id:79,sheet:"기타",구분:"컨텐츠",건물명:"호산빌딩",주소:"봉천동 853-1",관명:"국어 컨텐츠 연구소(호산)",층들:[{층:"6층",면적:93}],총면적:93,lat:37.4804826,lng:126.9537386},
+  {id:80,sheet:"기타",구분:"컨텐츠",건물명:"영진빌딩",주소:"봉천동 1590-7",관명:"국어 컨텐츠 연구소(영진)",층들:[{층:"4층",면적:20}],총면적:20,lat:37.4776373,lng:126.9519269},
+];
+
+// ===== STATE =====
+// assignments[bldId][floorIdx][sched] = staffId
+// sched: '평일주간' | '평일야간' | '주말주간' | '주말야간'
+let assignments={};
+let staffList=[
+  {id:1,name:'담당자 1',color:COLORS[0]},
+  {id:2,name:'담당자 2',color:COLORS[1]},
+  {id:3,name:'담당자 3',color:COLORS[2]},
+];
+let nextSid=4;
+let currentFilter='전체';
+let currentTab=0;
+let currentSched='전체';   // 현재 선택된 스케줄 뷰
+let areaLimit=400;
+let routeLayers=[];
+let markers={};
+let visibleRoutes={};
+let map;
+
+// ===== ASSIGNMENT HELPERS =====
+function getAss(bldId,fi,sch){
+  return (assignments[bldId]&&assignments[bldId][fi]&&assignments[bldId][fi][sch])||0;
+}
+function setAss(bldId,fi,sch,sid){
+  if(!assignments[bldId]) assignments[bldId]={};
+  if(!assignments[bldId][fi]) assignments[bldId][fi]={};
+  if(sid) assignments[bldId][fi][sch]=parseInt(sid);
+  else delete assignments[bldId][fi][sch];
+}
+
+// 스케줄 필터에서 보여줄 담당자 결정
+// 전체 모드: 스케줄 중 하나라도 배정된 담당자 → 대표색 (첫번째 배정 스케줄 색상 혼합)
+function getMarkerColor(bld){
+  const scheds = currentSched==='전체' ? SCHEDS : [currentSched];
+  const sids=new Set();
+  bld.층들.forEach((f,fi)=>{
+    scheds.forEach(sch=>{ const s=getAss(bld.id,fi,sch); if(s) sids.add(s); });
+  });
+  if(sids.size===0) return '#b0b8cc';
+  if(sids.size===1){const s=staffList.find(x=>x.id==[...sids][0]);return s?s.color:'#b0b8cc';}
+  return '#555';
+}
+
+// 담당자별 스케줄별 면적
+function getStaffSchedArea(sid,sch){
+  let total=0;
+  BDATA.forEach(b=>{
+    b.층들.forEach((f,fi)=>{ if(getAss(b.id,fi,sch)==sid) total+=f.면적; });
+  });
+  return Math.round(total);
+}
+function getStaffTotalArea(sid){
+  // 스케줄별 합산 (중복 층 있을 수 있어서 스케줄별로 별도 집계)
+  return SCHEDS.reduce((s,sch)=>s+getStaffSchedArea(sid,sch),0);
+}
+// 현재 뷰 기준 담당자 면적
+function getStaffViewArea(sid){
+  if(currentSched==='전체') return getStaffTotalArea(sid);
+  return getStaffSchedArea(sid,currentSched);
+}
+
+// 담당자가 배정된 건물 포인트 (현재 스케줄 기준)
+function getStaffPoints(sid){
+  const pts=[];const seen=new Set();
+  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  BDATA.forEach(b=>{
+    const hit=b.층들.some((f,fi)=>scheds.some(sch=>getAss(b.id,fi,sch)==sid));
+    if(hit&&!seen.has(b.id)){seen.add(b.id);pts.push(b);}
+  });
+  return pts;
+}
+
+// 스케줄별 총 배정 수 (count badge)
+function getSchedCount(sch){
+  let n=0;
+  BDATA.forEach(b=>{
+    b.층들.forEach((f,fi)=>{ if(getAss(b.id,fi,sch)) n++; });
+  });
+  return n;
+}
+
+// ===== MAP =====
+function initMap(){
+  map=L.map('map',{center:[37.4950,127.0630],zoom:15,zoomControl:true});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'© OpenStreetMap © CARTO',maxZoom:19
+  }).addTo(map);
+  renderMarkers();
+}
+
+// 같은 좌표(건물) 기준으로 BDATA 그룹핑
+function getBuildingGroups(){
+  const groups={};
+  BDATA.forEach(bld=>{
+    if(!visible(bld)) return;
+    const key=`${bld.lat},${bld.lng}`;
+    if(!groups[key]) groups[key]={lat:bld.lat,lng:bld.lng,items:[],sheet:bld.sheet,건물명:bld.건물명};
+    groups[key].items.push(bld);
+  });
+  return Object.values(groups);
+}
+
+function getGroupColor(items){
+  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  const sids=new Set();
+  items.forEach(bld=>{
+    bld.층들.forEach((f,fi)=>{
+      scheds.forEach(sch=>{ const s=getAss(bld.id,fi,sch); if(s) sids.add(s); });
+    });
+  });
+  if(sids.size===0) return '#b0b8cc';
+  if(sids.size===1){const s=staffList.find(x=>x.id==[...sids][0]);return s?s.color:'#b0b8cc';}
+  return '#555';
+}
+
+function renderMarkers(){
+  Object.values(markers).forEach(m=>m.remove());
+  markers={};
+  const groups=getBuildingGroups();
+  groups.forEach(grp=>{
+    const color=getGroupColor(grp.items);
+    const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+    const sids=new Set(grp.items.flatMap(bld=>bld.층들.flatMap((f,fi)=>scheds.map(sch=>getAss(bld.id,fi,sch)))).filter(Boolean));
+    const isOver=[...sids].some(sid=>getStaffViewArea(sid)>areaLimit);
+    // 건물명 표시: 여러 관명이면 건물명, 하나면 관명
+    const label=grp.items.length>1
+      ? (grp.건물명||grp.items[0].관명).slice(0,3)
+      : grp.items[0].관명.slice(0,3);
+    const badge=grp.items.length>1?`<span style="position:absolute;top:-6px;right:-6px;background:#fff;color:#333;border-radius:50%;width:14px;height:14px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;border:1px solid #ccc">${grp.items.length}</span>`:'';
+    const el=document.createElement('div');
+    el.style.cssText='position:relative;';
+    el.innerHTML=`<div class="cmarker${color==='#b0b8cc'?' unassigned':''}${isOver?' over-limit':''}" style="background:${color};width:30px;height:30px;"><span>${label}</span></div>${badge}`;
+    const icon=L.divIcon({html:el.outerHTML,iconSize:[30,30],iconAnchor:[15,15],className:''});
+    const mk=L.marker([grp.lat,grp.lng],{icon}).addTo(map);
+    mk.on('click',()=>{
+      showGroupPopup(grp,mk);
+      // 사이드바에서 첫번째 관명으로 스크롤
+      scrollToBld(grp.items[0].id);
+    });
+    // 그룹 내 모든 id에 동일 마커 등록
+    grp.items.forEach(bld=>{ markers[bld.id]=mk; });
+  });
+  renderRoutes();
+  updateStats();
+  renderLegend();
+}
+
+function updateMarkerColor(bldId){
+  // 같은 좌표 그룹 전체 색 업데이트
+  const bld=BDATA.find(b=>b.id===bldId);
+  if(!bld||!markers[bldId]) return;
+  const key=`${bld.lat},${bld.lng}`;
+  const grpItems=BDATA.filter(b=>visible(b)&&`${b.lat},${b.lng}`===key);
+  const color=getGroupColor(grpItems);
+  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  const sids=new Set(grpItems.flatMap(b=>b.층들.flatMap((f,fi)=>scheds.map(sch=>getAss(b.id,fi,sch)))).filter(Boolean));
+  const isOver=[...sids].some(sid=>getStaffViewArea(sid)>areaLimit);
+  const label=grpItems.length>1?(bld.건물명||grpItems[0].관명).slice(0,3):grpItems[0].관명.slice(0,3);
+  const badge=grpItems.length>1?`<span style="position:absolute;top:-6px;right:-6px;background:#fff;color:#333;border-radius:50%;width:14px;height:14px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;border:1px solid #ccc">${grpItems.length}</span>`:'';
+  const el=document.createElement('div');
+  el.style.cssText='position:relative;';
+  el.innerHTML=`<div class="cmarker${color==='#b0b8cc'?' unassigned':''}${isOver?' over-limit':''}" style="background:${color};width:30px;height:30px;"><span>${label}</span></div>${badge}`;
+  markers[bldId].setIcon(L.divIcon({html:el.outerHTML,iconSize:[30,30],iconAnchor:[15,15],className:''}));
+}
+
+function showGroupPopup(grp,mk){
+  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  const hdrcols=scheds.map(s=>`<span style="color:${SCHED_COLORS[s]};font-size:9px">${s.replace('평일주간','평주').replace('평일야간','평야').replace('주말주간','주주').replace('주말야간','주야')}</span>`).join('');
+  
+  const sections=grp.items.map(bld=>{
+    const rows=bld.층들.map((f,fi)=>{
+      const cells=scheds.map(sch=>{
+        const sid=getAss(bld.id,fi,sch);
+        const st=sid?staffList.find(x=>x.id==sid):null;
+        return `<span class="pop-fl-staff"${st?` style="color:${st.color}"`:' style="color:#ccc"'}>${st?st.name.replace('담당자','')+'번':'−'}</span>`;
+      }).join('');
+      return `<div class="pop-floor"><span class="pop-fl-name">${f.층}</span><span class="pop-fl-area">${f.면적}평</span>${cells}</div>`;
+    }).join('');
+    return `<div style="margin-bottom:8px">
+      <div style="font-size:11px;font-weight:800;color:#1a1d2e;padding:3px 0;border-bottom:1px solid #e8eaf0;margin-bottom:3px">
+        ${bld.관명} <span style="color:#aaa;font-weight:400;font-size:10px">${bld.총면적}평</span>
+      </div>
+      <div class="pop-floor-header"><span>층/호</span><span>면적</span>${hdrcols}</div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  const totalArea=grp.items.reduce((s,b)=>s+b.총면적,0);
+  mk.bindPopup(`<div class="popup-inner">
+    <div class="pop-title">${grp.건물명||grp.items[0].관명}</div>
+    <div class="pop-addr">${grp.items[0].주소} · ${grp.items.length}개 관명 · 총 ${totalArea}평</div>
+    ${sections}
+  </div>`,{maxWidth:340,maxHeight:400}).openPopup();
+}
+
+function showPopup(bld,mk){
+  // 단일 관명용 (내부 호환)
+  const grp={lat:bld.lat,lng:bld.lng,items:[bld],건물명:bld.건물명};
+  showGroupPopup(grp,mk);
+}
+
+// ===== ROUTES =====
+function renderRoutes(){
+  routeLayers.forEach(l=>l.remove());
+  routeLayers=[];
+  staffList.forEach(s=>{
+    if(!visibleRoutes[s.id]) return;
+    const pts=getStaffPoints(s.id);
+    if(pts.length<2) return;
+    const line=L.polyline(pts.map(p=>[p.lat,p.lng]),{color:s.color,weight:3,opacity:.85,dashArray:'6,4'}).addTo(map);
+    routeLayers.push(line);
+  });
+}
+
+function optimizeRoute(){
+  const s=staffList.find(s=>visibleRoutes[s.id]&&getStaffPoints(s.id).length>1);
+  if(!s){alert('동선을 표시할 담당자를 선택해 주세요.');return;}
+  const pts=getStaffPoints(s.id);
+  const opt=[pts[0]];const rem=pts.slice(1);
+  while(rem.length){
+    const last=opt[opt.length-1];let ni=0,md=Infinity;
+    rem.forEach((p,i)=>{const d=Math.hypot(p.lat-last.lat,p.lng-last.lng);if(d<md){md=d;ni=i;}});
+    opt.push(rem.splice(ni,1)[0]);
+  }
+  routeLayers.forEach(l=>l.remove());routeLayers=[];
+  routeLayers.push(L.polyline(opt.map(p=>[p.lat,p.lng]),{color:s.color,weight:4,opacity:.9}).addTo(map));
+  opt.forEach((p,i)=>{
+    const el=document.createElement('div');
+    el.style.cssText=`background:${s.color};color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid white;box-shadow:0 2px 5px rgba(0,0,0,.3)`;
+    el.textContent=i+1;
+    routeLayers.push(L.marker([p.lat,p.lng],{icon:L.divIcon({html:el.outerHTML,iconSize:[22,22],iconAnchor:[11,11],className:''})}).addTo(map));
+  });
+  map.fitBounds(L.latLngBounds(opt.map(p=>[p.lat,p.lng])),{padding:[40,40]});
+  const schedLabel=currentSched==='전체'?'전체':currentSched;
+  document.getElementById('rinfo').textContent=`${s.name}(${schedLabel}) 최적경로: ${opt.length}개 건물`;
+}
+
+// ===== SIDEBAR =====
+function visible(bld){
+  if(currentFilter==='전체') return true;
+  return bld.sheet===currentFilter;
+}
+
+function renderBuildingList(){
+  const c=document.getElementById('building-list');
+  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  c.innerHTML=BDATA.filter(visible).map(bld=>{
+    const sc=SHEET_COLORS[bld.sheet]||'#888';
+    const areaPct=bld.총면적/areaLimit;
+    const areaColor=areaPct>0.8?'#dc2626':areaPct>0.5?'#ca8a04':'#1a73e8';
+    const areaBg=areaPct>0.8?'#fef2f2':areaPct>0.5?'#fefce8':'#eff6ff';
+    
+    // 스케줄 헤더 컬럼
+    const schedHdr=scheds.map(sch=>`<span class="sh-${sch}">${sch.replace('주간','주').replace('야간','야')}</span>`).join('');
+    
+    const floors=bld.층들.map((f,fi)=>{
+      const cells=scheds.map((sch,si)=>{
+        const sid=getAss(bld.id,fi,sch);
+        const opts=staffList.map(s=>`<option value="${s.id}"${sid==s.id?' selected':''}>${s.name}</option>`).join('');
+        const color=SCHED_COLORS[sch];
+        return `<div class="sched-cell">
+          <select data-bldid="${bld.id}" data-fi="${fi}" data-sch="${sch}"
+            style="${sid?`border-color:${color};color:${color};font-weight:700`:''}"
+            onchange="handleFloorChange(this)" onclick="event.stopPropagation()">
+            <option value="">−</option>${opts}
+          </select>
+        </div>`;
+      }).join('');
+      return `<div class="floor-row">
+        <span class="floor-label">${f.층}</span>
+        <span class="floor-area">${f.면적}평</span>
+        ${cells}
+      </div>`;
+    }).join('');
+    
+    return `<div class="bld-card" id="bld-${bld.id}" onclick="focusBld(${bld.id},event)">
+      <div class="bld-header">
+        <div class="bld-color-bar" style="background:${sc}"></div>
+        <div class="bld-info">
+          <div class="bld-name">${bld.관명} <span style="font-weight:400;color:#aaa;font-size:10px">${bld.건물명}</span></div>
+          <div class="bld-sub">${bld.주소} · ${bld.층들.length}개층</div>
+        </div>
+        <span class="bld-area-badge" style="color:${areaColor};background:${areaBg}">${bld.총면적}평</span>
+      </div>
+      <div class="bld-assign">
+        <div class="floor-header">
+          <span>층/호수</span><span>면적</span>${schedHdr}
+        </div>
+        ${floors}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderStaffPanel(){
+  const p=document.getElementById('staff-panel');
+  p.innerHTML=staffList.map(s=>{
+    const viewArea=getStaffViewArea(s.id);
+    const pct=Math.min(100,Math.round(viewArea/areaLimit*100));
+    const over=viewArea>areaLimit;
+    const gcolor=over?'#dc2626':pct>70?'#ca8a04':'#03c75a';
+    
+    // 스케줄별 breakdown
+    const breakdown=SCHEDS.map(sch=>{
+      const a=getStaffSchedArea(s.id,sch);
+      const c=SCHED_COLORS[sch];
+      const bg=SCHED_BG[sch];
+      return `<div class="sched-box" style="background:${bg}">
+        <div class="sched-box-label" style="color:${c}">${sch}</div>
+        <div class="sched-box-val" style="color:${c}">${a}평</div>
+      </div>`;
+    }).join('');
+    
+    // 배정 목록 (현재 스케줄 뷰 기준)
+    const items=[];
+    BDATA.forEach(b=>{
+      const scheds2=currentSched==='전체'?SCHEDS:[currentSched];
+      const myFloors=b.층들.filter((f,fi)=>scheds2.some(sch=>getAss(b.id,fi,sch)==s.id));
+      if(myFloors.length) items.push({bld:b,floors:myFloors});
+    });
+    const rows=items.slice(0,5).map((it,i)=>`<div class="staff-list-item">
+      <span style="color:#aaa;font-size:10px;width:14px">${i+1}.</span>
+      <span style="font-weight:700">${it.bld.관명}</span>
+      <span style="color:#888;font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">&nbsp;${it.bld.건물명}</span>
+    </div>`).join('');
+    
+    return `<div class="staff-card">
+      <div class="staff-top">
+        <div class="staff-dot" style="background:${s.color}"></div>
+        <input class="staff-name-in" value="${s.name}" onchange="renameStaff(${s.id},this.value)">
+        <span class="staff-meta">${viewArea}평</span>
+        <button class="btn-del" onclick="deleteStaff(${s.id})">×</button>
+      </div>
+      <div class="area-gauge-track"><div class="area-gauge-fill" style="width:${pct}%;background:${gcolor}"></div></div>
+      <div class="area-gauge-labels">
+        <span>${viewArea}평 (${currentSched==='전체'?'전체합산':currentSched})</span>
+        <span class="${over?'over':''}">${over?'⚠️초과':pct+'% / '+areaLimit+'평'}</span>
+      </div>
+      <div class="sched-breakdown">${breakdown}</div>
+      <div class="staff-list-items">${rows||'<span style="color:#bbb">배정 없음</span>'}</div>
+      ${items.length>5?`<div style="font-size:10px;color:#1a73e8;margin-top:3px">+${items.length-5}개 더...</div>`:''}
+    </div>`;
+  }).join('')+`<button class="btn-add-staff" onclick="addStaff()">+ 담당자 추가</button>`;
+}
+
+function renderRouteControls(){
+  const schedLabel=currentSched==='전체'?'전체':currentSched;
+  document.getElementById('route-ctrl-title').textContent=`🗺️ 동선 표시 (${schedLabel})`;
+  document.getElementById('route-staff-list').innerHTML=staffList.map(s=>{
+    const n=getStaffPoints(s.id).length;
+    const area=getStaffViewArea(s.id);
+    return `<div class="rstaff-item">
+      <input type="checkbox" ${visibleRoutes[s.id]?'checked':''} onchange="toggleRoute(${s.id},this.checked)">
+      <div class="rdot" style="background:${s.color}"></div>
+      <span>${s.name}</span>
+      <span class="rcount">${n}곳·${area}평</span>
+    </div>`;
+  }).join('');
+}
+
+function renderLegend(){
+  document.getElementById('legend').innerHTML=staffList.map(s=>{
+    const area=getStaffViewArea(s.id);
+    const over=area>areaLimit;
+    return `<div class="leg-item"><div class="leg-dot" style="background:${s.color}"></div><span>${s.name}</span><span style="color:${over?'#dc2626':'#1a73e8'};font-weight:700;margin-left:4px">${area}평${over?' ⚠️':''}</span></div>`;
+  }).join('')+`<div class="leg-item"><div class="leg-dot" style="background:#b0b8cc"></div><span style="color:#888">미배정</span></div>`;
+}
+
+function updateStats(){
+  const blds=[...new Set(BDATA.map(b=>b.건물명))].length;
+  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  let a=0,u=0,total=0;
+  BDATA.forEach(b=>{
+    b.층들.forEach((f,fi)=>{
+      const assigned=scheds.some(sch=>getAss(b.id,fi,sch));
+      if(assigned) a++; else u++;
+      total+=f.면적;
+    });
+  });
+  document.getElementById('sb').textContent=blds;
+  document.getElementById('ss').textContent=BDATA.length;
+  document.getElementById('sa').textContent=a;
+  document.getElementById('su').textContent=u;
+  document.getElementById('stotal').textContent=total.toLocaleString();
+  const anyOver=staffList.some(s=>getStaffViewArea(s.id)>areaLimit);
+  document.getElementById('hstat').innerHTML=anyOver?'<span style="color:#f87171;font-weight:700">⚠️ 면적 초과</span>':'';
+  // update sched counts
+  SCHEDS.forEach(sch=>{
+    const el=document.getElementById('sc-'+sch);
+    if(el) el.textContent=getSchedCount(sch);
+  });
+  const totCount=SCHEDS.reduce((s,sch)=>s+getSchedCount(sch),0);
+  document.getElementById('sc-전체').textContent=totCount;
+}
+
+// ===== ACTIONS =====
+function handleFloorChange(sel){
+  const bldId=parseInt(sel.dataset.bldid);
+  const fi=parseInt(sel.dataset.fi);
+  const sch=sel.dataset.sch;
+  const sid=sel.value;
+  setAss(bldId,fi,sch,sid);
+  // select 스타일 즉시 반영
+  const s=sid?staffList.find(x=>x.id==parseInt(sid)):null;
+  if(s){sel.style.borderColor=s.color;sel.style.color=s.color;sel.style.fontWeight='700';}
+  else{sel.style.borderColor='';sel.style.color='';sel.style.fontWeight='';}
+  updateMarkerColor(bldId);
+  renderRouteControls();
+  renderLegend();
+  updateStats();
+  if(currentTab===1) renderStaffPanel();
+}
+
+function focusBld(bldId,e){
+  if(e&&(e.target.closest('.bld-assign'))) return;
+  const b=BDATA.find(x=>x.id===bldId);
+  if(!b) return;
+  map.setView([b.lat,b.lng],17);
+  if(markers[bldId]) showPopup(b,markers[bldId]);
+}
+
+function scrollToBld(bldId){
+  const el=document.getElementById('bld-'+bldId);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function switchSched(sch,btn){
+  currentSched=sch;
+  document.querySelectorAll('.sched-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+function filterSheet(sh,btn){
+  currentFilter=sh;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBuildingList();
+  renderMarkers();
+  if(sh!=='전체'){
+    const pts=BDATA.filter(b=>b.sheet===sh);
+    if(pts.length) map.fitBounds(L.latLngBounds(pts.map(p=>[p.lat,p.lng])),{padding:[50,50]});
+  } else map.setView([37.4950,127.0630],12);
+}
+
+function switchTab(idx){
+  currentTab=idx;
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+  document.getElementById('building-list').style.display=idx===0?'block':'none';
+  const sp=document.getElementById('staff-panel');
+  if(idx===1){sp.classList.add('show');renderStaffPanel();}
+  else sp.classList.remove('show');
+}
+
+function toggleRoute(sid,show){visibleRoutes[sid]=show;renderRoutes();}
+
+function addStaff(){
+  staffList.push({id:nextSid++,name:`담당자 ${staffList.length+1}`,color:COLORS[staffList.length%COLORS.length]});
+  renderAll();
+}
+
+function deleteStaff(id){
+  if(staffList.length<=1){alert('최소 1명 필요');return;}
+  if(!confirm('해당 담당자 배정이 모두 초기화됩니다.')) return;
+  staffList=staffList.filter(s=>s.id!==id);
+  Object.values(assignments).forEach(fi=>{Object.values(fi||{}).forEach(schMap=>{
+    Object.keys(schMap||{}).forEach(sch=>{if(schMap[sch]===id) delete schMap[sch];});
+  });});
+  delete visibleRoutes[id];
+  renderAll();
+}
+
+function renameStaff(id,name){
+  const s=staffList.find(x=>x.id===id);
+  if(s) s.name=name;
+  renderBuildingList();renderRouteControls();renderLegend();
+}
+
+function renderAll(){
+  renderBuildingList();renderMarkers();renderRouteControls();renderLegend();updateStats();
+  if(currentTab===1) renderStaffPanel();
+}
+
+// ===== PRINT =====
+function openPrint(){
+  const overlay=document.getElementById('print-overlay');
+  const content=document.getElementById('print-content');
+  const today=new Date().toLocaleDateString('ko-KR');
+  const schedsToPrint=currentSched==='전체'?SCHEDS:[currentSched];
+  
+  const totalArea=BDATA.reduce((s,b)=>s+b.총면적,0);
+  let totalAssigned=0;
+  BDATA.forEach(b=>{b.층들.forEach((f,fi)=>{if(schedsToPrint.some(sch=>getAss(b.id,fi,sch))) totalAssigned++;});});
+  
+  const schedColor=currentSched==='전체'?'#1a1d2e':(SCHED_COLORS[currentSched]||'#1a1d2e');
+  const schedLabel=currentSched==='전체'?'전체 스케줄':currentSched;
+  
+  const sumBoxes=[
+    {l:'총 관명',v:BDATA.length,u:'개'},
+    {l:'총 층',v:BDATA.reduce((s,b)=>s+b.층들.length,0),u:'층'},
+    {l:'배정 완료',v:totalAssigned,u:'층'},
+    {l:'총 면적',v:totalArea.toLocaleString(),u:'평'},
+    {l:'1인당 기준',v:areaLimit,u:'평'},
+  ];
+  
+  // 스케줄별로 섹션 나누거나, 스케줄 선택 시 해당만
+  let staffBlocks='';
+  schedsToPrint.forEach(sch=>{
+    const schColor=SCHED_COLORS[sch];
+    const schBg=SCHED_BG[sch];
+    const blocks=staffList.map(s=>{
+      const pts=[];const seen=new Set();
+      BDATA.forEach(b=>{
+        const myFloors=b.층들.filter((f,fi)=>getAss(b.id,fi,sch)==s.id);
+        if(myFloors.length&&!seen.has(b.id)){seen.add(b.id);pts.push({bld:b,floors:myFloors});}
+      });
+      if(!pts.length) return '';
+      // optimize
+      const sorted=[pts[0]];const rem=pts.slice(1);
+      while(rem.length){
+        const last=sorted[sorted.length-1];let ni=0,md=Infinity;
+        rem.forEach((p,i)=>{const d=Math.hypot(p.bld.lat-last.bld.lat,p.bld.lng-last.bld.lng);if(d<md){md=d;ni=i;}});
+        sorted.push(rem.splice(ni,1)[0]);
+      }
+      const area=getStaffSchedArea(s.id,sch);
+      const pct=Math.min(100,Math.round(area/areaLimit*100));
+      const over=area>areaLimit;
+      const rows=sorted.map((it,i)=>{
+        const myArea=it.floors.reduce((s,f)=>s+f.면적,0);
+        return `<div class="psb-row">
+          <span class="psb-num">${i+1}</span>
+          <span class="psb-guan">${it.bld.관명}</span>
+          <span class="psb-bld">${it.bld.건물명}</span>
+          <span class="psb-floors">${it.floors.map(f=>f.층).join(', ')}</span>
+          <span class="psb-area">${myArea}평</span>
+        </div>`;
+      }).join('');
+      return `<div class="print-staff-block">
+        <div class="psb-header" style="background:${s.color}">
+          <span class="psb-header-name">${s.name}</span>
+          <span style="font-size:10px;background:${schBg};color:${schColor};padding:1px 6px;border-radius:8px;margin-left:4px">${sch}</span>
+          <span class="psb-header-meta">${sorted.length}건물·${area}평${over?' ⚠️':''}</span>
+        </div>
+        <div class="psb-gauge"><div class="psb-gauge-fill" style="width:${pct}%"></div></div>
+        <div class="psb-body">${rows}</div>
+      </div>`;
+    }).filter(Boolean).join('');
+    if(blocks){
+      staffBlocks+=`<div style="margin-bottom:12px">
+        <div style="font-size:12px;font-weight:800;color:${schColor};padding:5px 0;border-bottom:2px solid ${schColor};margin-bottom:8px">
+          ${sch==='평일주간'?'☀️':sch==='평일야간'?'🌙':sch==='주말주간'?'🌤️':'🌃'} ${sch}
+        </div>
+        <div class="print-grid">${blocks}</div>
+      </div>`;
+    }
+  });
+  
+  content.innerHTML=`<div class="print-page">
+    <div class="print-logo-row">
+      <span class="print-logo">둥지</span>
+      <span class="print-title">하이컨시(시대인재) 청소 담당자 배정표</span>
+      <span class="print-sched-label" style="background:${schedColor}">${schedLabel}</span>
+      <span class="print-date">${today} · 1인당 ${areaLimit}평 기준</span>
+    </div>
+    <hr class="print-divider">
+    <div class="print-summary">${sumBoxes.map(b=>`<div class="print-sum-box">
+      <div class="print-sum-label">${b.l}</div>
+      <div><span class="print-sum-val">${b.v}</span><span class="print-sum-unit"> ${b.u}</span></div>
+    </div>`).join('')}</div>
+    ${staffBlocks}
+  </div>`;
+  overlay.classList.add('show');
+}
+
+function closePrint(){document.getElementById('print-overlay').classList.remove('show');}
+
+// ===== INIT =====
+initMap();
+renderAll();
+</script>
+</body>
+</html>
