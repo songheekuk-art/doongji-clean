@@ -229,6 +229,14 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
       <div class="tab active" onclick="switchTab(0)">🏢 건물 배정</div>
       <div class="tab" onclick="switchTab(1)">👥 담당자 관리</div>
     </div>
+    <div id="search-bar" style="padding:8px 10px;border-bottom:1px solid #e2e5ef;">
+      <div style="position:relative;">
+        <input id="bld-search" type="text" placeholder="🔍 건물명 / 관명 검색..."
+          oninput="filterSearch(this.value)"
+          style="width:100%;padding:7px 30px 7px 10px;border:1px solid #d0d5e8;border-radius:7px;font-size:12px;background:#f8f9fc;outline:none;color:#1a1d2e;">
+        <span id="search-clear" onclick="clearSearch()" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:#aaa;font-size:14px;">✕</span>
+      </div>
+    </div>
     <div id="filter-bar">
       <button class="fbtn active" data-s="전체" onclick="filterSheet('전체',this)">전체</button>
       <button class="fbtn" data-s="대치" onclick="filterSheet('대치',this)">대치</button>
@@ -376,6 +384,7 @@ let staffList=[
 ];
 let nextSid=4;
 let currentFilter='전체';
+let searchQuery='';
 let currentTab=0;
 let currentSched='전체';   // 현재 선택된 스케줄 뷰
 let areaLimit=400;
@@ -610,6 +619,12 @@ function optimizeRoute(){
 
 // ===== SIDEBAR =====
 function visible(bld){
+  if(searchQuery) {
+    const q = searchQuery.toLowerCase();
+    return (bld.건물명||'').toLowerCase().includes(q) || 
+           (bld.관명||'').toLowerCase().includes(q) ||
+           (bld.주소||'').toLowerCase().includes(q);
+  }
   if(currentFilter==='전체') return true;
   return bld.sheet===currentFilter;
 }
@@ -802,6 +817,27 @@ function switchSched(sch,btn){
   document.querySelectorAll('.sched-tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
   renderAll();
+}
+
+function filterSearch(q){
+  searchQuery = q.trim();
+  document.getElementById('search-clear').style.display = q ? 'block' : 'none';
+  // 검색 시 지역 필터 해제
+  if(q) {
+    currentFilter='전체';
+    document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.fbtn[data-s="전체"]').classList.add('active');
+  }
+  renderBuildingList();
+  renderMarkers();
+}
+
+function clearSearch(){
+  document.getElementById('bld-search').value='';
+  searchQuery='';
+  document.getElementById('search-clear').style.display='none';
+  renderBuildingList();
+  renderMarkers();
 }
 
 function filterSheet(sh,btn){
