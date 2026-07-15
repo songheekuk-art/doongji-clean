@@ -146,6 +146,24 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 .popup-inner{padding:10px 12px}
 .pop-title{font-size:13px;font-weight:800;margin-bottom:2px}
 .pop-addr{font-size:10px;color:#888;margin-bottom:7px}
+.bld-mgmt-card{background:#fff;border:1px solid #e2e5ef;border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.bld-mgmt-card .bm-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.bld-mgmt-card .bm-name{font-weight:700;font-size:13px;color:#1a1d2e;}
+.bld-mgmt-card .bm-sub{font-size:11px;color:#888;margin-top:1px;}
+.bm-field{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+.bm-field label{font-size:10px;font-weight:700;color:#888;width:32px;flex-shrink:0;}
+.bm-field input{flex:1;padding:4px 7px;border:1px solid #d0d5e8;border-radius:5px;font-size:12px;color:#1a1d2e;background:#f8f9fc;}
+.bm-field input:focus{border-color:#1a73e8;outline:none;background:#fff;}
+.bm-actions{display:flex;gap:6px;margin-top:8px;}
+.bm-btn{padding:4px 10px;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;}
+.bm-btn.save{background:#1a73e8;color:#fff;}
+.bm-btn.save:hover{background:#1557b0;}
+.bm-btn.del{background:#fee2e2;color:#dc2626;}
+.bm-btn.del:hover{background:#fecaca;}
+.bm-btn.cancel{background:#f1f3f9;color:#666;}
+#bld-panel{flex:1;overflow-y:auto;padding:8px;display:none;}
+#bld-panel.show{display:block;}
+#bld-panel .bm-search{width:100%;padding:7px 10px;border:1px solid #d0d5e8;border-radius:7px;font-size:12px;margin-bottom:8px;outline:none;color:#1a1d2e;background:#f8f9fc;}
 .bulk-bar{display:flex;align-items:center;gap:6px;padding:5px 8px;background:#f8f9fc;border-radius:6px;margin-bottom:6px;flex-wrap:wrap}
 .bulk-bar select{padding:3px 6px;border:1px solid #d0d5e8;border-radius:5px;font-size:11px;color:#1a1d2e;background:#fff}
 .bulk-btn{padding:3px 10px;background:#1a73e8;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
@@ -234,6 +252,7 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
     <div id="tabs">
       <div class="tab active" onclick="switchTab(0)">🏢 건물 배정</div>
       <div class="tab" onclick="switchTab(1)">👥 담당자 관리</div>
+      <div class="tab" onclick="switchTab(2)">⚙️ 건물 관리</div>
     </div>
     <div id="search-bar" style="padding:8px 10px;border-bottom:1px solid #e2e5ef;">
       <div style="position:relative;">
@@ -257,6 +276,10 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
     </div>
     <div id="building-list"></div>
     <div id="staff-panel"></div>
+    <div id="bld-panel">
+      <input class="bm-search" type="text" placeholder="🔍 건물명 / 관명 검색..." oninput="renderBldMgmt(this.value)" id="bm-search">
+      <div id="bld-mgmt-list"></div>
+    </div>
   </div>
 
   <!-- MAP -->
@@ -368,7 +391,7 @@ const BDATA=[
   {id:69,sheet:"대치",구분:"사무실",건물명:"우유니관",주소:"대치동 1022-3",관명:"영상기획팀",층들:[{층:"3층",면적:37}],총면적:37,lat:37.4977479,lng:127.0589213},
   {id:70,sheet:"대치",구분:"사무실",건물명:"SK텔레콤 건물",주소:"대치동 1021-9",관명:"강사육성팀(SK)",층들:[{층:"2층",면적:31}],총면적:31,lat:37.4985281,lng:127.0607685},
   {id:71,sheet:"대치",구분:"사무실",건물명:"LS2빌딩",주소:"대치동 903-12",관명:"강사육성팀(LS2)",층들:[{층:"4층",면적:54}],총면적:54,lat:37.5028727,lng:127.0573232},
-  {id:72,sheet:"목동",구분:"단과",건물명:"목동 현대프라자",주소:"목동 406-4",관명:"목동시대인재 4관(B)",층들:[{층:"309호",면적:31}],총면적:31,lat:37.5250809,lng:126.8762835},
+  {id:72,sheet:"목동",구분:"단과",건물명:"목동 현대프라자",주소:"목동 406-5",관명:"목동시대인재 4관(B)",층들:[{층:"309호",면적:31}],총면적:31,lat:37.5250809,lng:126.8762835},
   {id:73,sheet:"기타",구분:"컨텐츠",건물명:"삼화빌딩",주소:"역삼동 738-43",관명:"수학 컨텐츠 연구소(삼화)",층들:[{층:"5층",면적:73}],총면적:73,lat:37.497851,lng:127.0368498},
   {id:74,sheet:"기타",구분:"컨텐츠",건물명:"",주소:"역삼동 745-16",관명:"수학 컨텐츠 연구소(745)",층들:[{층:"1,2층",면적:68}],총면적:68,lat:37.4968305,lng:127.0366403},
   {id:75,sheet:"기타",구분:"컨텐츠",건물명:"양촌빌딩",주소:"양재동 111-5",관명:"영어 컨텐츠 연구소",층들:[{층:"2층",면적:20}],총면적:20,lat:37.4762165,lng:127.0365488},
@@ -625,6 +648,7 @@ function optimizeRoute(){
 
 // ===== SIDEBAR =====
 function visible(bld){
+  if(bdataDeleted && bdataDeleted.has(bld.id)) return false;
   if(searchQuery) {
     const q = searchQuery.toLowerCase();
     return (bld.건물명||'').toLowerCase().includes(q) || 
@@ -908,8 +932,114 @@ function switchTab(idx){
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
   document.getElementById('building-list').style.display=idx===0?'block':'none';
   const sp=document.getElementById('staff-panel');
+  const bp=document.getElementById('bld-panel');
   if(idx===1){sp.classList.add('show');renderStaffPanel();}
   else sp.classList.remove('show');
+  if(idx===2){bp.classList.add('show');renderBldMgmt('');}
+  else bp.classList.remove('show');
+  // 검색/필터바 숨기기
+  document.getElementById('search-bar').style.display=idx===0?'block':'none';
+  document.getElementById('filter-bar').style.display=idx===0?'flex':'none';
+  document.getElementById('limit-bar').style.display=idx===0?'flex':'none';
+}
+
+// ===== 건물 관리 =====
+let bdataOverrides = {}; // 수정된 건물 데이터 (id → 수정내용)
+let bdataDeleted = new Set(); // 삭제된 건물 id
+
+function renderBldMgmt(q=''){
+  const query = (q||'').toLowerCase();
+  const list = document.getElementById('bld-mgmt-list');
+  const items = BDATA.filter(b => {
+    if(bdataDeleted.has(b.id)) return false;
+    if(!query) return true;
+    return (b.관명||'').toLowerCase().includes(query) ||
+           (b.건물명||'').toLowerCase().includes(query) ||
+           (b.주소||'').toLowerCase().includes(query);
+  });
+  if(!items.length){list.innerHTML='<div style="text-align:center;color:#aaa;padding:20px;font-size:12px;">검색 결과 없음</div>';return;}
+  list.innerHTML = items.map(b => {
+    const ov = bdataOverrides[b.id] || {};
+    const 관명 = ov.관명 ?? b.관명;
+    const 건물명 = ov.건물명 ?? b.건물명;
+    const 주소 = ov.주소 ?? b.주소;
+    const lat = ov.lat ?? b.lat;
+    const lng = ov.lng ?? b.lng;
+    return `<div class="bld-mgmt-card" id="bmc-${b.id}">
+      <div class="bm-header">
+        <div>
+          <div class="bm-name">${관명}</div>
+          <div class="bm-sub">${건물명} · ${b.sheet}</div>
+        </div>
+      </div>
+      <div class="bm-field"><label>관명</label><input id="bm-nm-${b.id}" value="${관명}"></div>
+      <div class="bm-field"><label>건물명</label><input id="bm-bn-${b.id}" value="${건물명}"></div>
+      <div class="bm-field"><label>주소</label><input id="bm-addr-${b.id}" value="${주소}"></div>
+      <div class="bm-field"><label>위도</label><input id="bm-lat-${b.id}" value="${lat}" type="number" step="0.0001"></div>
+      <div class="bm-field"><label>경도</label><input id="bm-lng-${b.id}" value="${lng}" type="number" step="0.0001"></div>
+      <div class="bm-actions">
+        <button class="bm-btn save" onclick="saveBldEdit(${b.id})">저장</button>
+        <button class="bm-btn del" onclick="deleteBld(${b.id})">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function saveBldEdit(id){
+  const b = BDATA.find(x=>x.id===id);
+  if(!b) return;
+  const 관명 = document.getElementById(`bm-nm-${id}`).value.trim();
+  const 건물명 = document.getElementById(`bm-bn-${id}`).value.trim();
+  const 주소 = document.getElementById(`bm-addr-${id}`).value.trim();
+  const lat = parseFloat(document.getElementById(`bm-lat-${id}`).value);
+  const lng = parseFloat(document.getElementById(`bm-lng-${id}`).value);
+  // BDATA 직접 수정
+  b.관명=관명; b.건물명=건물명; b.주소=주소; b.lat=lat; b.lng=lng;
+  bdataOverrides[id] = {관명,건물명,주소,lat,lng};
+  // geocode 캐시 초기화
+  if(window.geocodeCache) delete geocodeCache[b.주소];
+  // Supabase 저장
+  sbSaveBldEdit(b);
+  renderBldMgmt(document.getElementById('bm-search')?.value||'');
+  renderMarkers();
+  showToast('✅ 저장됐어요!');
+}
+
+function deleteBld(id){
+  if(!confirm('이 관명을 목록에서 숨길까요? (배정 데이터는 유지됩니다)')) return;
+  bdataDeleted.add(id);
+  sbDeleteBld(id);
+  renderBldMgmt(document.getElementById('bm-search')?.value||'');
+  renderAll();
+  showToast('삭제됐어요');
+}
+
+function showToast(msg){
+  let t=document.getElementById('hc-toast');
+  if(!t){t=document.createElement('div');t.id='hc-toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1d2e;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';
+  setTimeout(()=>t.style.opacity='0',2500);
+}
+
+async function sbSaveBldEdit(b){
+  try {
+    await fetch(`${SB_URL}/rest/v1/hc_buildings?id=eq.${b.id}`, {
+      method: 'DELETE', headers: SB_HEAD()
+    });
+    await fetch(`${SB_URL}/rest/v1/hc_buildings`, {
+      method: 'POST', headers: SB_HEAD(),
+      body: JSON.stringify({id:b.id,관명:b.관명,건물명:b.건물명,주소:b.주소,sheet:b.sheet,lat:b.lat,lng:b.lng,총면적:b.총면적,층들:b.층들,active:true})
+    });
+  } catch(e){}
+}
+
+async function sbDeleteBld(id){
+  try {
+    await fetch(`${SB_URL}/rest/v1/hc_buildings?id=eq.${id}`, {
+      method: 'PATCH', headers: SB_HEAD(),
+      body: JSON.stringify({active:false})
+    });
+  } catch(e){}
 }
 
 function toggleRoute(sid,show){visibleRoutes[sid]=show;renderRoutes();}
@@ -1068,6 +1198,21 @@ async function sbLoad() {
         if (!assignments[a.bld_id][a.floor_idx]) assignments[a.bld_id][a.floor_idx] = {};
         if (a.staff_id) assignments[a.bld_id][a.floor_idx][a.sched] = a.staff_id;
       });
+    }
+
+    // 건물 수정/삭제 내용 로드
+    const bldRes = await fetch(`${SB_URL}/rest/v1/hc_buildings?select=*`, {headers:SB_HEAD()});
+    if(bldRes.ok){
+      const bldData = await bldRes.json();
+      if(Array.isArray(bldData)){
+        bldData.forEach(row=>{
+          const b = BDATA.find(x=>x.id===row.id);
+          if(!b) return;
+          if(row.active===false){ bdataDeleted.add(row.id); return; }
+          b.관명=row.관명; b.건물명=row.건물명; b.주소=row.주소; b.lat=row.lat; b.lng=row.lng;
+          bdataOverrides[row.id]={관명:row.관명,건물명:row.건물명,주소:row.주소,lat:row.lat,lng:row.lng};
+        });
+      }
     }
 
     document.getElementById('sbDot').style.background = '#03c75a';
