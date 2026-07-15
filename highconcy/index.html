@@ -957,16 +957,22 @@ async function sbLoad() {
       fetch(`${SB_URL}/rest/v1/hc_staff?order=id`, {headers:SB_HEAD()}),
       fetch(`${SB_URL}/rest/v1/hc_assignments?select=*`, {headers:SB_HEAD()})
     ]);
+    if (!sRes.ok || !aRes.ok) throw new Error('API error');
     const staffData = await sRes.json();
     const assData = await aRes.json();
 
+    // 담당자: DB에 있으면 덮어쓰기, 없으면 기본값 유지
     if (Array.isArray(staffData) && staffData.length) {
       staffList = staffData.map(s => ({id:s.id, name:s.name, color:s.color}));
       nextSid = Math.max(...staffList.map(s=>s.id)) + 1;
+    } else {
+      // DB 비어있으면 기본 담당자 자동 저장
+      await sbSaveStaff();
     }
 
-    assignments = {};
-    if (Array.isArray(assData)) {
+    // 배정: DB에 있으면 반영, 없으면 기존 유지
+    if (Array.isArray(assData) && assData.length) {
+      assignments = {};
       assData.forEach(a => {
         if (!assignments[a.bld_id]) assignments[a.bld_id] = {};
         if (!assignments[a.bld_id][a.floor_idx]) assignments[a.bld_id][a.floor_idx] = {};
@@ -979,7 +985,8 @@ async function sbLoad() {
     renderAll();
   } catch(e) {
     document.getElementById('sbDot').style.background = '#dc2626';
-    document.getElementById('sbStatus').textContent = '연결 오류';
+    document.getElementById('sbStatus').textContent = '연결 오류 (로컬 데이터 유지)';
+    renderAll(); // 에러나도 기존 데이터로 렌더
   }
 }
 
