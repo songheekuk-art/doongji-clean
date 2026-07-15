@@ -395,6 +395,7 @@ function setAss(bldId,fi,sch,sid){
   if(!assignments[bldId][fi]) assignments[bldId][fi]={};
   if(sid) assignments[bldId][fi][sch]=parseInt(sid);
   else delete assignments[bldId][fi][sch];
+  sbSaveAssignment(bldId, fi, sch, sid ? parseInt(sid) : null);
 }
 
 // 스케줄 필터에서 보여줄 담당자 결정
@@ -826,6 +827,7 @@ function toggleRoute(sid,show){visibleRoutes[sid]=show;renderRoutes();}
 function addStaff(){
   staffList.push({id:nextSid++,name:`담당자 ${staffList.length+1}`,color:COLORS[staffList.length%COLORS.length]});
   renderAll();
+  sbSaveStaff();
 }
 
 function deleteStaff(id){
@@ -837,11 +839,12 @@ function deleteStaff(id){
   });});
   delete visibleRoutes[id];
   renderAll();
+  sbSaveStaff();
 }
 
 function renameStaff(id,name){
   const s=staffList.find(x=>x.id===id);
-  if(s) s.name=name;
+  if(s) { s.name=name; sbSaveStaff(); }
   renderBuildingList();renderRouteControls();renderLegend();
 }
 
@@ -943,9 +946,82 @@ function openPrint(){
 
 function closePrint(){document.getElementById('print-overlay').classList.remove('show');}
 
+// ===== SUPABASE =====
+const SB_URL =  + SB_URL + ;
+const SB_KEY =  + SB_KEY + ;
+const SB_HEAD = () => ({'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'});
+
+async function sbLoad() {
+  try {
+    const [sRes, aRes] = await Promise.all([
+      fetch(`${SB_URL}/rest/v1/hc_staff?order=id`, {headers:SB_HEAD()}),
+      fetch(`${SB_URL}/rest/v1/hc_assignments?select=*`, {headers:SB_HEAD()})
+    ]);
+    const staffData = await sRes.json();
+    const assData = await aRes.json();
+
+    if (Array.isArray(staffData) && staffData.length) {
+      staffList = staffData.map(s => ({id:s.id, name:s.name, color:s.color}));
+      nextSid = Math.max(...staffList.map(s=>s.id)) + 1;
+    }
+
+    assignments = {};
+    if (Array.isArray(assData)) {
+      assData.forEach(a => {
+        if (!assignments[a.bld_id]) assignments[a.bld_id] = {};
+        if (!assignments[a.bld_id][a.floor_idx]) assignments[a.bld_id][a.floor_idx] = {};
+        if (a.staff_id) assignments[a.bld_id][a.floor_idx][a.sched] = a.staff_id;
+      });
+    }
+
+    document.getElementById('sbDot').style.background = '#03c75a';
+    document.getElementById('sbStatus').textContent = '동기화됨 · ' + new Date().toLocaleTimeString('ko-KR');
+    renderAll();
+  } catch(e) {
+    document.getElementById('sbDot').style.background = '#dc2626';
+    document.getElementById('sbStatus').textContent = '연결 오류';
+  }
+}
+
+async function sbSaveAssignment(bldId, fi, sch, sid) {
+  try {
+    if (sid) {
+      await fetch(`${SB_URL}/rest/v1/hc_assignments`, {
+        method: 'POST',
+        headers: {...SB_HEAD(), 'Prefer': 'resolution=merge-duplicates,return=representation'},
+        body: JSON.stringify({bld_id:bldId, floor_idx:fi, sched:sch, staff_id:sid, updated_at:new Date().toISOString()})
+      });
+    } else {
+      await fetch(`${SB_URL}/rest/v1/hc_assignments?bld_id=eq.${bldId}&floor_idx=eq.${fi}&sched=eq.${sch}`, {
+        method: 'DELETE', headers: SB_HEAD()
+      });
+    }
+    document.getElementById('sbStatus').textContent = '저장됨 · ' + new Date().toLocaleTimeString('ko-KR');
+  } catch(e) {
+    document.getElementById('sbStatus').textContent = '저장 오류';
+  }
+}
+
+async function sbSaveStaff() {
+  try {
+    // 전체 staff 동기화: delete all → insert
+    await fetch(`${SB_URL}/rest/v1/hc_staff?id=gte.1`, {method:'DELETE', headers:SB_HEAD()});
+    if (staffList.length) {
+      await fetch(`${SB_URL}/rest/v1/hc_staff`, {
+        method: 'POST', headers: SB_HEAD(),
+        body: JSON.stringify(staffList.map(s=>({id:s.id, name:s.name, color:s.color})))
+      });
+    }
+    document.getElementById('sbStatus').textContent = '저장됨 · ' + new Date().toLocaleTimeString('ko-KR');
+  } catch(e) {}
+}
+
+// 30초 폴링
+setInterval(sbLoad, 30000);
+
 // ===== INIT =====
 initMap();
-renderAll();
+sbLoad();
 </script>
 </body>
 </html>
