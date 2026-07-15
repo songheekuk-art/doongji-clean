@@ -947,8 +947,8 @@ function openPrint(){
 function closePrint(){document.getElementById('print-overlay').classList.remove('show');}
 
 // ===== SUPABASE =====
-const SB_URL =  + SB_URL + ;
-const SB_KEY =  + SB_KEY + ;
+const SB_URL = 'https://ugwzyxsynpvnbbsqlcqq.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnd3p5eHN5bnB2bmJic3FsY3FxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNjA3NDIsImV4cCI6MjA5OTYzNjc0Mn0.DswVM1dtfaEgRujb0mZpDPXTEb7xdeOAnVuRKKdQtlE';
 const SB_HEAD = () => ({'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'});
 
 async function sbLoad() {
