@@ -344,7 +344,8 @@ function shortName(s){return s.name.replace('애슐리퀸즈 ','');}
 function attKey(storeId,posKey,isoStr){return storeId+'#'+posKey+'#'+isoStr;}
 function subKey(storeId,isoStr){return 'SUB#'+storeId+'#'+isoStr;}
 function activeOn(w,ds){if(w.hireDate&&ds<w.hireDate)return false;if(w.resignDate&&ds>w.resignDate)return false;return true;}
-function occupantOf(s,posKey,dt){const ds=iso(dt);let best=null;S.workers.forEach(w=>{if(w.type==='salary')return;if(w.storeId!==s.id||w.posKey!==posKey)return;if(!activeOn(w,ds))return;if(!best||((w.hireDate||'')>(best.hireDate||'')))best=w;});return best;}
+function posKeyMatches(wp,gp){return wp===gp||gp.startsWith(wp);}
+function occupantOf(s,posKey,dt){const ds=iso(dt);let best=null;S.workers.forEach(w=>{if(w.type==='salary')return;if(w.storeId!==s.id)return;if(!w.posKey||(!posKeyMatches(w.posKey,posKey)))return;if(!activeOn(w,ds))return;if(!best||((w.hireDate||'')>(best.hireDate||'')))best=w;});return best;}
 function getAtt(s,posKey,dt){const k=attKey(s.id,posKey,iso(dt));const a=S.attendance[k];if(a)return a;if(isOff(s,dt))return{status:'off'};const occ=occupantOf(s,posKey,dt);if(occ)return{status:'work',workerId:occ.id,reg:defShiftH(),ot:0,auto:true};return{status:'plan',reg:defShiftH(),ot:0};}
 function getSub(s,dt){const a=S.subatt[subKey(s.id,iso(dt))];if(a)return a;if(isOff(s,dt))return{status:'off'};return{status:'plan'};}
 function rateFor(worker,posWage){return (worker&&worker.rate)?worker.rate:posWage;}
@@ -366,7 +367,7 @@ function workerAgg(DTS){DTS=DTS||periodDates();
   const _posWage=r=>r==='샐러드'||r==='샐러드바'?S.settings.wageSalad:S.settings.wageHK;
   S.stores.forEach(s=>{
     const gridKeys=positionsOf(s).map(p=>p.key);
-    S.workers.filter(w=>w.posKey&&w.posKey!=='후보자'&&!gridKeys.includes(w.posKey)&&w.storeId===s.id&&(w.type==='hourly'||w.type==='personal')).forEach(w=>{
+    S.workers.filter(w=>w.posKey&&w.posKey!=='후보자'&&!gridKeys.some(gk=>posKeyMatches(w.posKey,gk))&&w.storeId===s.id&&(w.type==='hourly'||w.type==='personal')).forEach(w=>{
       const m=map[w.id];if(!m)return;
       if(w.type==='personal'){DTS.forEach(dt=>{const ds=iso(dt);if(!activeOn(w,ds))return;if(isOff(s,dt))return;m.days++;(m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0}).d++;});return;}
       const wage=rateFor(w,_posWage(w.posKey));
@@ -400,7 +401,7 @@ function workerAgg(DTS){DTS=DTS||periodDates();
 }
 function storeDirectCost(s,_D){let c=0;const DTS=_D||periodDates();positionsOf(s).forEach(p=>DTS.forEach(dt=>{const a=getAtt(s,p.key,dt);if(a.status==='work'&&a.workerId){const w=workerOf(a.workerId);if(w&&w.type==='hourly')c+=dayPay(rateFor(w,p.wage),a.reg,a.ot,attNight(a)).total;}}));
   const _pw=r=>r==='샐러드'||r==='샐러드바'?S.settings.wageSalad:S.settings.wageHK;const _gk=positionsOf(s).map(p=>p.key);
-  S.workers.filter(w=>w.posKey&&w.posKey!=='후보자'&&!_gk.includes(w.posKey)&&w.storeId===s.id&&w.type==='hourly').forEach(w=>{const wage=rateFor(w,_pw(w.posKey));DTS.forEach(dt=>{if(!activeOn(w,iso(dt)))return;if(isOff(s,dt))return;const reg=defShiftH();c+=dayPay(wage,reg,0,nightHours(S.settings.shiftStart,reg)).total;});});
+  S.workers.filter(w=>w.posKey&&w.posKey!=='후보자'&&!_gk.some(gk=>posKeyMatches(w.posKey,gk))&&w.storeId===s.id&&w.type==='hourly').forEach(w=>{const wage=rateFor(w,_pw(w.posKey));DTS.forEach(dt=>{if(!activeOn(w,iso(dt)))return;if(isOff(s,dt))return;const reg=defShiftH();c+=dayPay(wage,reg,0,nightHours(S.settings.shiftStart,reg)).total;});});
   return c;}
 function storeIndex(s){return S.stores.findIndex(x=>x.id===s.id);}
 function workerIndex(w){return S.workers.findIndex(x=>x.id===w.id);}
