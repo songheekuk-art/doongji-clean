@@ -261,9 +261,14 @@ let S=load();
 /* ---------- positions ---------- */
 function positionsOf(s){
   const HK=S.settings.wageHK, SA=S.settings.wageSalad;
-  if(s.headcount===3) return [{key:'홀',wage:HK},{key:'주방',wage:HK},{key:'샐러드바',wage:SA}];
-  if(s.headcount===1) return [{key:'주방·홀',wage:HK}];
-  return [{key:'홀+샐러드',wage:HK},{key:'주방+샐러드',wage:HK}];
+  let base;
+  if(s.headcount===3) base=[{key:'홀',wage:HK},{key:'주방',wage:HK},{key:'샐러드바',wage:SA}];
+  else if(s.headcount===1) base=[{key:'주방·홀',wage:HK}];
+  else base=[{key:'홀+샐러드',wage:HK},{key:'주방+샐러드',wage:HK}];
+  const gk=base.map(p=>p.key);
+  const extra=[...new Set(S.workers.filter(w=>w.storeId===s.id&&w.posKey&&w.posKey!=='후보자'&&w.type!=='salary'&&!w.resignDate&&!gk.some(g=>posKeyMatches(w.posKey,g))).map(w=>w.posKey))];
+  extra.forEach(k=>base.push({key:k,wage:(k==='샐러드'||k==='샐러드바')?SA:HK}));
+  return base;
 }
 
 /* ---------- pay cycle (25th cutoff) ---------- */
