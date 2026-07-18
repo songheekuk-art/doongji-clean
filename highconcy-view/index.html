@@ -466,7 +466,9 @@ let nextSid=4;
 let currentFilter='전체';
 let searchQuery='';
 let currentTab=0;
-let currentSched='전체';   // 현재 선택된 스케줄 뷰
+let currentSched='전체';
+let currentShift='전체';
+let currentDay='전체';
 let areaLimit=400;
 let routeLayers=[];
 let markers={};
@@ -512,8 +514,9 @@ function getStaffTotalArea(sid){
 }
 // 현재 뷰 기준 담당자 면적
 function getStaffViewArea(sid){
-  if(currentSched==='전체') return getStaffTotalArea(sid);
-  return getStaffSchedArea(sid,currentSched);
+  const actScheds=getActiveScheds();
+  if(actScheds===SCHEDS) return getStaffTotalArea(sid);
+  return actScheds.reduce((s,sch)=>s+getStaffSchedArea(sid,sch),0);
 }
 
 // 담당자가 배정된 건물 포인트 (현재 스케줄 기준)
@@ -936,10 +939,25 @@ function scrollToBld(bldId){
   if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+function getActiveScheds(){
+  if(currentShift==='전체' && currentDay==='전체') return SCHEDS;
+  const days=['월','화','수','목','금','토','일'];
+  const shifts=['주간','야간'];
+  const dayFilter = currentDay==='전체' ? days : [currentDay];
+  const shiftFilter = currentShift==='전체' ? shifts : [currentShift];
+  const result=[];
+  shiftFilter.forEach(sh=>dayFilter.forEach(d=>result.push(sh+'-'+d)));
+  return result;
+}
+
 function switchSched(sch,btn){
-  currentSched=sch;
   document.querySelectorAll('.sched-tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
+  if(sch==='전체'){currentShift='전체';currentDay='전체';}
+  else if(sch==='주간'){currentShift='주간';currentDay='전체';}
+  else if(sch==='야간'){currentShift='야간';currentDay='전체';}
+  else{currentDay=sch;}
+  currentSched = (currentShift==='전체'&&currentDay==='전체') ? '전체' : sch;
   renderAll();
 }
 
