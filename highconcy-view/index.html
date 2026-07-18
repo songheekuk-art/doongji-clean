@@ -47,13 +47,15 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 .sched-tab:hover{color:#1a1d2e;background:#f8f9fc}
 .sched-tab.active{color:#fff;border-bottom-color:transparent}
 .sched-tab[data-sch="전체"].active{background:#1a1d2e;color:#fff}
-.sched-tab[data-sch="월"].active{background:#1a73e8;color:#fff}
-.sched-tab[data-sch="화"].active{background:#7c3aed;color:#fff}
-.sched-tab[data-sch="수"].active{background:#03c75a;color:#fff}
-.sched-tab[data-sch="목"].active{background:#e8710a;color:#fff}
-.sched-tab[data-sch="금"].active{background:#e8375a;color:#fff}
-.sched-tab[data-sch="토"].active{background:#0891b2;color:#fff}
-.sched-tab[data-sch="일"].active{background:#ca8a04;color:#fff}
+.sched-tab[data-sch="주간"].active{background:#1a73e8;color:#fff}
+.sched-tab[data-sch="야간"].active{background:#7c3aed;color:#fff}
+.sched-tab[data-sch="월"].active{background:#555;color:#fff}
+.sched-tab[data-sch="화"].active{background:#555;color:#fff}
+.sched-tab[data-sch="수"].active{background:#555;color:#fff}
+.sched-tab[data-sch="목"].active{background:#555;color:#fff}
+.sched-tab[data-sch="금"].active{background:#555;color:#fff}
+.sched-tab[data-sch="토"].active{background:#555;color:#fff}
+.sched-tab[data-sch="일"].active{background:#555;color:#fff}
 .sched-count{font-size:9px;background:rgba(255,255,255,.25);padding:1px 4px;border-radius:8px;font-weight:600}
 .sched-tab:not(.active) .sched-count{background:#f0f2f8;color:#888}
 
@@ -359,8 +361,8 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 
 <script>
 // ===== CONSTANTS =====
-const SCHEDS=['월','화','수','목','금','토','일'];
-const SCHED_COLORS={'월':'#1a73e8','화':'#7c3aed','수':'#03c75a','목':'#e8710a','금':'#e8375a','토':'#0891b2','일':'#ca8a04'};
+const SCHEDS=['주간-월','주간-화','주간-수','주간-목','주간-금','주간-토','주간-일','야간-월','야간-화','야간-수','야간-목','야간-금','야간-토','야간-일'];
+const SCHED_COLORS={'주간-월':'#1a73e8','주간-화':'#1a73e8','주간-수':'#1a73e8','주간-목':'#1a73e8','주간-금':'#1a73e8','주간-토':'#1a73e8','주간-일':'#1a73e8','야간-월':'#7c3aed','야간-화':'#7c3aed','야간-수':'#7c3aed','야간-목':'#7c3aed','야간-금':'#7c3aed','야간-토':'#7c3aed','야간-일':'#7c3aed'};
 const SCHED_BG={'평일주간':'#eff6ff','평일야간':'#f5f3ff','주말주간':'#f0fdf4','주말야간':'#fff7ed'};
 const COLORS=['#1a73e8','#03c75a','#e8710a','#7c3aed','#dc2626','#ca8a04','#0891b2','#db2777','#65a30d','#b45309'];
 const SHEET_COLORS={대치:'#1a73e8',목동:'#e8710a',대전:'#7c3aed',기타:'#0891b2'};
@@ -517,7 +519,7 @@ function getStaffViewArea(sid){
 // 담당자가 배정된 건물 포인트 (현재 스케줄 기준)
 function getStaffPoints(sid){
   const pts=[];const seen=new Set();
-  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  const scheds=getActiveScheds();
   BDATA.forEach(b=>{
     const hit=b.층들.some((f,fi)=>scheds.some(sch=>getAss(b.id,fi,sch)==sid));
     if(hit&&!seen.has(b.id)){seen.add(b.id);pts.push(b);}
@@ -559,7 +561,7 @@ function getBuildingGroups(){
 const 구분COLOR={'단과':'#1a73e8','재종':'#e8710a','사무실':'#16a34a','컨텐츠':'#7c3aed'};
 
 function getGroupColor(items){
-  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  const scheds=getActiveScheds();
   const sids=new Set();
   items.forEach(bld=>{
     bld.층들.forEach((f,fi)=>{
@@ -577,7 +579,7 @@ function renderMarkers(){
   const groups=getBuildingGroups();
   groups.forEach(grp=>{
     const color=getGroupColor(grp.items);
-    const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+    const scheds=getActiveScheds();
     const sids=new Set(grp.items.flatMap(bld=>bld.층들.flatMap((f,fi)=>scheds.map(sch=>getAss(bld.id,fi,sch)))).filter(Boolean));
     const isOver=[...sids].some(sid=>getStaffViewArea(sid)>areaLimit);
     const label=grp.items.length>1
@@ -620,7 +622,7 @@ function updateMarkerColor(bldId){
 let currentInfoWindow = null;
 function showGroupPopup(grp, pos){
   if(currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow=null; }
-  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  const scheds=getActiveScheds();
   const hdrcols=scheds.map(s=>`<span style="color:${SCHED_COLORS[s]};font-size:9px">${s.replace('평일주간','평주').replace('평일야간','평야').replace('주말주간','주주').replace('주말야간','주야')}</span>`).join('');
   const sections=grp.items.map(bld=>{
     const rows=bld.층들.map((f,fi)=>{
@@ -721,7 +723,7 @@ function visible(bld){
 
 function renderBuildingList(){
   const c=document.getElementById('building-list');
-  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  const scheds=getActiveScheds();
   c.innerHTML=BDATA.filter(visible).map(bld=>{
     const sc=SHEET_COLORS[bld.sheet]||'#888';
     const areaPct=bld.총면적/areaLimit;
@@ -768,16 +770,27 @@ function renderBuildingList(){
             ${staffList.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
           </select>
           <select id="bulk-sched-${bld.id}" onclick="event.stopPropagation()" style="padding:3px 6px;border:1px solid #d0d5e8;border-radius:5px;font-size:11px;color:#1a1d2e;background:#fff">
-            <option value="all">전체 요일</option>
-            <option value="weekday">평일 (월~금)</option>
-            <option value="weekend">주말 (토~일)</option>
-            <option value="월">월요일</option>
-            <option value="화">화요일</option>
-            <option value="수">수요일</option>
-            <option value="목">목요일</option>
-            <option value="금">금요일</option>
-            <option value="토">토요일</option>
-            <option value="일">일요일</option>
+            <option value="all">전체</option>
+            <option value="주간-all">주간 전체</option>
+            <option value="야간-all">야간 전체</option>
+            <option value="주간-weekday">주간 평일(월~금)</option>
+            <option value="주간-weekend">주간 주말(토~일)</option>
+            <option value="야간-weekday">야간 평일(월~금)</option>
+            <option value="야간-weekend">야간 주말(토~일)</option>
+            <option value="주간-월">주간 월</option>
+            <option value="주간-화">주간 화</option>
+            <option value="주간-수">주간 수</option>
+            <option value="주간-목">주간 목</option>
+            <option value="주간-금">주간 금</option>
+            <option value="주간-토">주간 토</option>
+            <option value="주간-일">주간 일</option>
+            <option value="야간-월">야간 월</option>
+            <option value="야간-화">야간 화</option>
+            <option value="야간-수">야간 수</option>
+            <option value="야간-목">야간 목</option>
+            <option value="야간-금">야간 금</option>
+            <option value="야간-토">야간 토</option>
+            <option value="야간-일">야간 일</option>
           </select>
           <button class="bulk-btn" onclick="event.stopPropagation();bulkApply(${bld.id})">적용</button>
           <button class="bulk-btn clear" onclick="event.stopPropagation();bulkClear(${bld.id})">초기화</button>
@@ -867,7 +880,7 @@ function renderLegend(){
 
 function updateStats(){
   const blds=[...new Set(BDATA.map(b=>b.건물명))].length;
-  const scheds=currentSched==='전체'?SCHEDS:[currentSched];
+  const scheds=getActiveScheds();
   let a=0,u=0,total=0;
   BDATA.forEach(b=>{
     b.층들.forEach((f,fi)=>{
@@ -959,11 +972,16 @@ function bulkApply(bldId){
   const sid = parseInt(staffSel.value);
   const sch = schedSel.value;
   if(!sid) { alert('담당자를 선택해주세요'); return; }
+  const days=['월','화','수','목','금','토','일'];
   let scheds;
-  if(sch==='all') scheds = SCHEDS;
-  else if(sch==='weekday') scheds = ['월','화','수','목','금'];
-  else if(sch==='weekend') scheds = ['토','일'];
-  else scheds = [sch];
+  if(sch==='all') scheds=SCHEDS;
+  else if(sch==='주간-all') scheds=days.map(d=>'주간-'+d);
+  else if(sch==='야간-all') scheds=days.map(d=>'야간-'+d);
+  else if(sch==='주간-weekday') scheds=['주간-월','주간-화','주간-수','주간-목','주간-금'];
+  else if(sch==='주간-weekend') scheds=['주간-토','주간-일'];
+  else if(sch==='야간-weekday') scheds=['야간-월','야간-화','야간-수','야간-목','야간-금'];
+  else if(sch==='야간-weekend') scheds=['야간-토','야간-일'];
+  else scheds=[sch];
   bld.층들.forEach((_,fi)=>{
     scheds.forEach(s=> setAss(bldId, fi, s, sid));
   });
@@ -976,11 +994,16 @@ function bulkClear(bldId){
   if(!bld) return;
   const schedSel = document.getElementById(`bulk-sched-${bldId}`);
   const sch = schedSel.value;
+  const days2=['월','화','수','목','금','토','일'];
   let scheds;
-  if(sch==='all') scheds = SCHEDS;
-  else if(sch==='weekday') scheds = ['월','화','수','목','금'];
-  else if(sch==='weekend') scheds = ['토','일'];
-  else scheds = [sch];
+  if(sch==='all') scheds=SCHEDS;
+  else if(sch==='주간-all') scheds=days2.map(d=>'주간-'+d);
+  else if(sch==='야간-all') scheds=days2.map(d=>'야간-'+d);
+  else if(sch==='주간-weekday') scheds=['주간-월','주간-화','주간-수','주간-목','주간-금'];
+  else if(sch==='주간-weekend') scheds=['주간-토','주간-일'];
+  else if(sch==='야간-weekday') scheds=['야간-월','야간-화','야간-수','야간-목','야간-금'];
+  else if(sch==='야간-weekend') scheds=['야간-토','야간-일'];
+  else scheds=[sch];
   bld.층들.forEach((_,fi)=>{
     scheds.forEach(s=> setAss(bldId, fi, s, null));
   });
