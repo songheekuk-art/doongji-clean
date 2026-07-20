@@ -86,12 +86,8 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 .floor-grid-row{display:grid;grid-template-columns:72px 32px repeat(7,1fr) repeat(7,1fr);gap:2px;align-items:center}
 .floor-hdr-row{display:grid;grid-template-columns:60px 28px 14px repeat(7,1fr) 14px repeat(7,1fr);gap:2px;align-items:center;padding:3px 0 2px;border-bottom:1px solid #e8eaf0;margin-bottom:2px}
 /* 탭별 컬럼 숨기기 */
-body.view-주간 .shift-야간{display:none!important}
-body.view-주간 .floor-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
-body.view-주간 .floor-hdr-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
-body.view-야간 .shift-주간{display:none!important}
-body.view-야간 .floor-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
-body.view-야간 .floor-hdr-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
+body.view-주간 .shift-야간{visibility:hidden;width:0!important;min-width:0!important;padding:0!important;margin:0!important;overflow:hidden;font-size:0!important}
+body.view-야간 .shift-주간{visibility:hidden;width:0!important;min-width:0!important;padding:0!important;margin:0!important;overflow:hidden;font-size:0!important}
 .floor-hdr-label{font-size:9px;font-weight:700;color:#888}
 .floor-hdr-area{font-size:9px;font-weight:700;color:#aaa;text-align:center}
 .floor-hdr-shift{font-size:10px;font-weight:800;text-align:center}
