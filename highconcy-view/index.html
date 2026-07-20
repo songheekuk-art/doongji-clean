@@ -283,19 +283,13 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
   <!-- SCHEDULE TAB BAR -->
   <div id="sched-bar">
     <div class="sched-tab active" data-sch="전체" onclick="switchSched('전체',this)">
-      <span>전체</span><span class="sched-count" id="sc-전체">0</span>
+      <span>📋 종합</span><span class="sched-count" id="sc-전체">0</span>
     </div>
-    <div class="sched-tab" data-sch="평일주간" onclick="switchSched('평일주간',this)">
-      <span>☀️ 평일 주간</span><span class="sched-count" id="sc-평일주간">0</span>
+    <div class="sched-tab" data-sch="주간" onclick="switchSched('주간',this)">
+      <span>☀️ 주간</span><span class="sched-count" id="sc-주간">0</span>
     </div>
-    <div class="sched-tab" data-sch="평일야간" onclick="switchSched('평일야간',this)">
-      <span>🌙 평일 야간</span><span class="sched-count" id="sc-평일야간">0</span>
-    </div>
-    <div class="sched-tab" data-sch="주말주간" onclick="switchSched('주말주간',this)">
-      <span>🌤️ 주말 주간</span><span class="sched-count" id="sc-주말주간">0</span>
-    </div>
-    <div class="sched-tab" data-sch="주말야간" onclick="switchSched('주말야간',this)">
-      <span>🌃 주말 야간</span><span class="sched-count" id="sc-주말야간">0</span>
+    <div class="sched-tab" data-sch="야간" onclick="switchSched('야간',this)">
+      <span>🌙 야간</span><span class="sched-count" id="sc-야간">0</span>
     </div>
   </div>
 
@@ -616,17 +610,16 @@ function renderMarkers(){
     const textColor = isAssigned ? '#fff' : borderColor;
     const borderStyle = `3px solid ${borderColor}`;
     const el=document.createElement('div');
-    el.style.cssText='position:relative;';
-    el.innerHTML=`<div class="cmarker${isOver?' over-limit':''}" style="background:${bgColor};border:${borderStyle};color:${textColor};width:30px;height:30px;"><span>${label}</span></div>${badge}`;
+    // grp를 전역 캐시에 저장
+    const grpKey = grp.items.map(b=>b.id).join('-');
+    window._markerGroups = window._markerGroups||{};
+    window._markerGroups[grpKey] = {grp, lat:grp.lat, lng:grp.lng};
+
+    el.style.cssText='position:relative;cursor:pointer;';
+    el.innerHTML=`<div class="cmarker${isOver?' over-limit':''}" style="background:${bgColor};border:${borderStyle};color:${textColor};width:30px;height:30px;" onclick="handleMarkerClick('${grpKey}')"><span>${label}</span></div>${badge}`;
     const pos = new kakao.maps.LatLng(grp.lat, grp.lng);
     const overlay = new kakao.maps.CustomOverlay({position:pos, content:el, yAnchor:0.5});
     overlay.setMap(map);
-    const iwContent = document.createElement('div');
-    el.style.cursor='pointer';
-    el.onclick = () => {
-      showGroupPopup(grp, pos);
-      scrollToBld(grp.items[0].id);
-    };
     grp.items.forEach(bld=>{ markers[bld.id]=overlay; });
   });
   renderRoutes();
@@ -635,8 +628,15 @@ function renderMarkers(){
 }
 
 function updateMarkerColor(bldId){
-  // 배정 변경 후 마커 전체 재렌더 (카카오맵은 CustomOverlay content 교체가 복잡해서 재렌더)
   renderMarkers();
+}
+
+function handleMarkerClick(grpKey){
+  const entry = window._markerGroups && window._markerGroups[grpKey];
+  if(!entry) return;
+  const pos = new kakao.maps.LatLng(entry.lat, entry.lng);
+  showGroupPopup(entry.grp, pos);
+  scrollToBld(entry.grp.items[0].id);
 }
 
 let currentInfoWindow = null;
@@ -952,6 +952,18 @@ function updateStats(){
   });
   const totCount=SCHEDS.reduce((s,sch)=>s+getSchedCount(sch),0);
   document.getElementById('sc-전체').textContent=totCount;
+  // 주간/야간 카운트
+  const 주간Scheds=SCHEDS.filter(s=>s.startsWith('주간-'));
+  const 야간Scheds=SCHEDS.filter(s=>s.startsWith('야간-'));
+  const countScheds=(scheds)=>{
+    const cnt=new Set();
+    BDATA.filter(b=>visible(b)).forEach(b=>b.층들.forEach((_,fi)=>scheds.forEach(sch=>{if(getAss(b.id,fi,sch))cnt.add(b.id+'-'+fi+'-'+sch);})));
+    return cnt.size;
+  };
+  const 주간El=document.getElementById('sc-주간');
+  const 야간El=document.getElementById('sc-야간');
+  if(주간El) 주간El.textContent=countScheds(주간Scheds);
+  if(야간El) 야간El.textContent=countScheds(야간Scheds);
 }
 
 // ===== ACTIONS =====
