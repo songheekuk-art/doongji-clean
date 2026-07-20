@@ -609,6 +609,7 @@ window.handleMarkerClick = function(grpIdx){
 let currentInfoWindow = null;
 function showGroupPopup(grp, pos){
   if(currentInfoWindow && currentInfoWindow.remove) { currentInfoWindow.remove(); currentInfoWindow=null; }
+  const DAYS_KR=['월','화','수','목','금','토','일'];
   const scheds=getActiveScheds();
   const hdrcols=scheds.map(s=>`<span style="color:${SCHED_COLORS[s]};font-size:9px">${s.replace('평일주간','평주').replace('평일야간','평야').replace('주말주간','주주').replace('주말야간','주야')}</span>`).join('');
   const sections=grp.items.map(bld=>{
@@ -965,7 +966,7 @@ function focusBld(bldId,e){
   if(e&&(e.target.closest('.bld-assign'))) return;
   const b=BDATA.find(x=>x.id===bldId);
   if(!b) return;
-  map.setView([b.lat,b.lng],17);
+  map.setCenter(new kakao.maps.LatLng(b.lat,b.lng));
   if(markers[bldId]) showPopup(b,markers[bldId]);
 }
 
@@ -978,7 +979,7 @@ function getActiveScheds(){
   if(currentShift==='전체' && currentDay==='전체') return SCHEDS;
   const DAYS_KR=['월','화','수','목','금','토','일'];
   const shifts=['주간','야간'];
-  const dayFilter = currentDay==='전체' ? days : [currentDay];
+  const dayFilter = currentDay==='전체' ? DAYS_KR : [currentDay];
   const shiftFilter = currentShift==='전체' ? shifts : [currentShift];
   const result=[];
   shiftFilter.forEach(sh=>dayFilter.forEach(d=>result.push(sh+'-'+d)));
