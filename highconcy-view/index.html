@@ -782,11 +782,11 @@ function renderBuildingList(){
     const DAYS_KR=['월','화','수','목','금','토','일'];
     const showDay = currentShift!=='야간';
     const showNight = currentShift!=='주간';
-    const cols = `60px 28px ${showDay?'14px repeat(7,1fr)':''} ${showNight?'14px repeat(7,1fr)':''}`.trim();
-    const schedHdr=`<div class="floor-hdr-row" style="grid-template-columns:${cols}">
+    const gridCols = '60px 28px'+(showDay?' 12px repeat(7,1fr)':'')+(showNight?' 12px repeat(7,1fr)':'');
+    const schedHdr=`<div class="floor-hdr-row" style="grid-template-columns:${gridCols}">
       <span></span><span style="text-align:center;font-size:9px;color:#aaa">면적</span>
-      ${showDay?`<span style="color:#1a73e8;font-weight:800;font-size:10px">주</span>${DAYS_KR.map(d=>`<span style="color:#1a73e8;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}`:''}
-      ${showNight?`<span style="color:#7c3aed;font-weight:800;font-size:10px">야</span>${DAYS_KR.map(d=>`<span style="color:#7c3aed;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}`:''}
+      ${showDay?`<span style="color:#1a73e8;font-weight:800;font-size:10px;text-align:center">주</span>${DAYS_KR.map(d=>`<span style="color:#1a73e8;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}`:''}
+      ${showNight?`<span style="color:#7c3aed;font-weight:800;font-size:10px;text-align:center">야</span>${DAYS_KR.map(d=>`<span style="color:#7c3aed;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}`:''}
     </div>`;
     
     const floors=bld.층들.map((f,fi)=>{
@@ -806,11 +806,11 @@ function renderBuildingList(){
           onchange="handleFloorChange(this)" onclick="event.stopPropagation()">
           <option value="">−</option>${opts}</select>`;
       }).join('');
-      return `<div class="floor-row" style="grid-template-columns:${cols}">
+      return `<div class="floor-row" style="grid-template-columns:${gridCols}">
         <span class="floor-label">${f.층}</span>
         <span class="floor-area">${f.면적}평</span>
-        ${showDay?`<span></span>${daySelects}`:''}
-        ${showNight?`<span></span>${nightSelects}`:''}
+        ${showDay?'<span></span>'+daySelects:''}
+        ${showNight?'<span></span>'+nightSelects:''}
       </div>`;
     }).join('');
     
