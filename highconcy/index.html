@@ -558,6 +558,7 @@ function getGroupColor(items){
 function renderMarkers(){
   Object.values(markers).forEach(m=>m.setMap(null));
   markers={};
+  window._markerGroups={};
   const groups=getBuildingGroups();
   groups.forEach(grp=>{
     const color=getGroupColor(grp.items);
@@ -597,7 +598,13 @@ function updateMarkerColor(bldId){
   renderMarkers();
 }
 
-
+window.handleMarkerClick = function(grpIdx){
+  const entry = window._markerGroups && window._markerGroups[grpIdx];
+  if(!entry) return;
+  const pos = new kakao.maps.LatLng(entry.lat, entry.lng);
+  showGroupPopup(entry.grp, pos);
+  scrollToBld(entry.grp.items[0].id);
+};
 
 let currentInfoWindow = null;
 function showGroupPopup(grp, pos){
@@ -739,13 +746,13 @@ function renderBuildingList(){
     
     // 스케줄 헤더 - 주/야 두 줄 고정
     const DAYS_KR=['월','화','수','목','금','토','일'];
-    const showDay = currentShift!=='야간';
-    const showNight = currentShift!=='주간';
-    const gridCols = '60px 28px'+(showDay?' 12px repeat(7,1fr)':'')+(showNight?' 12px repeat(7,1fr)':'');
-    const schedHdr=`<div class="floor-hdr-row" style="grid-template-columns:${gridCols}">
-      <span></span><span style="text-align:center;font-size:9px;color:#aaa">면적</span>
-      ${showDay?`<span style="color:#1a73e8;font-weight:800;font-size:10px;text-align:center">주</span>${DAYS_KR.map(d=>`<span style="color:#1a73e8;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}`:''}
-      ${showNight?`<span style="color:#7c3aed;font-weight:800;font-size:10px;text-align:center">야</span>${DAYS_KR.map(d=>`<span style="color:#7c3aed;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}`:''}
+    const schedHdr=`<div class="floor-hdr-row">
+      <span class="floor-hdr-label"></span>
+      <span class="floor-hdr-area"></span>
+      <span class="shift-day-col shift-주간 floor-hdr-shift" style="color:#1a73e8">주</span>
+      ${DAYS_KR.map(d=>`<span class="shift-day-col shift-주간" style="color:#1a73e8;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}
+      <span class="shift-day-col shift-야간 floor-hdr-shift" style="color:#7c3aed">야</span>
+      ${DAYS_KR.map(d=>`<span class="shift-day-col shift-야간" style="color:#7c3aed;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}
     </div>`;
     
     const floors=bld.층들.map((f,fi)=>{
@@ -765,11 +772,13 @@ function renderBuildingList(){
           onchange="handleFloorChange(this)" onclick="event.stopPropagation()">
           <option value="">−</option>${opts}</select>`;
       }).join('');
-      return `<div class="floor-row" style="grid-template-columns:${gridCols}">
+      return `<div class="floor-row">
         <span class="floor-label">${f.층}</span>
         <span class="floor-area">${f.면적}평</span>
-        ${showDay?'<span></span>'+daySelects:''}
-        ${showNight?'<span></span>'+nightSelects:''}
+        <span class="shift-day-col shift-주간"></span>
+        ${daySelects}
+        <span class="shift-day-col shift-야간"></span>
+        ${nightSelects}
       </div>`;
     }).join('');
     
