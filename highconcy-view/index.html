@@ -94,7 +94,7 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 .bld-assign{padding:5px 10px 8px 23px;border-top:1px solid #f0f2f8;background:#fafbfe}
 
 /* floor rows — grid layout */
-.floor-row{display:grid;grid-template-columns:72px 32px 1fr 1fr 1fr 1fr 1fr 1fr 1fr;align-items:center;gap:2px;font-size:9px;padding:2px 0;border-bottom:1px dotted #eee}
+.floor-row{display:grid;grid-template-columns:72px 32px repeat(7,1fr) repeat(7,1fr);align-items:center;gap:2px;font-size:9px;padding:2px 0;border-bottom:1px dotted #eee}
 .floor-row:last-child{border:none}
 .floor-label{color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
 .floor-area{color:#1a73e8;font-weight:700;font-size:10px}
@@ -103,10 +103,9 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 .sched-cell select.assigned{font-weight:700}
 
 /* 스케줄 컬럼 헤더 */
-.floor-header{display:grid;grid-template-columns:72px 32px 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:2px;font-size:9px;font-weight:700;color:#aaa;padding:3px 0 2px;border-bottom:1px solid #e8eaf0;margin-bottom:2px}
-.floor-header span{text-align:center}
-.floor-header span:nth-child(1){text-align:left;color:#888}
-.floor-header span:nth-child(2){text-align:center}
+.floor-header{font-size:9px;font-weight:700;color:#aaa;margin-bottom:2px;border-bottom:1px solid #e8eaf0}
+.floor-grid-row{display:grid;grid-template-columns:72px 32px repeat(7,1fr) repeat(7,1fr);gap:2px;align-items:center}
+.pop-grid-row{display:grid;grid-template-columns:55px 28px repeat(7,1fr) repeat(7,1fr);gap:2px;align-items:center}
 .sh-월{color:#1a73e8}
 .sh-화{color:#7c3aed}
 .sh-수{color:#03c75a}
@@ -199,8 +198,8 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 .bulk-btn:hover{background:#1557b0}
 .bulk-btn.clear{background:#f1f3f9;color:#666}
 .bulk-btn.clear:hover{background:#e2e5ef}
-.pop-floor-header{display:grid;grid-template-columns:55px 28px 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:2px;font-size:9px;font-weight:700;color:#aaa;padding-bottom:3px;border-bottom:1px solid #eee;margin-bottom:3px}
-.pop-floor{display:grid;grid-template-columns:55px 28px 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:2px;font-size:9px;padding:2px 0;border-bottom:1px dotted #eee;align-items:center}
+.pop-floor-header{font-size:9px;font-weight:700;color:#aaa;margin-bottom:3px;border-bottom:1px solid #eee;padding-bottom:3px}
+.pop-floor{display:grid;grid-template-columns:55px 28px repeat(7,1fr) repeat(7,1fr);gap:2px;font-size:9px;padding:2px 0;border-bottom:1px dotted #eee;align-items:center}
 .pop-floor:last-child{border:none}
 .pop-fl-name{color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pop-fl-area{color:#1a73e8;font-weight:700}
@@ -365,6 +364,18 @@ const SCHEDS=['주간-월','주간-화','주간-수','주간-목','주간-금','
 const SCHED_COLORS={'주간-월':'#1a73e8','주간-화':'#1a73e8','주간-수':'#1a73e8','주간-목':'#1a73e8','주간-금':'#1a73e8','주간-토':'#1a73e8','주간-일':'#1a73e8','야간-월':'#7c3aed','야간-화':'#7c3aed','야간-수':'#7c3aed','야간-목':'#7c3aed','야간-금':'#7c3aed','야간-토':'#7c3aed','야간-일':'#7c3aed'};
 const SCHED_BG={'평일주간':'#eff6ff','평일야간':'#f5f3ff','주말주간':'#f0fdf4','주말야간':'#fff7ed'};
 const COLORS=['#1a73e8','#03c75a','#e8710a','#7c3aed','#dc2626','#ca8a04','#0891b2','#db2777','#65a30d','#b45309'];
+const COLOR_PALETTE=[
+  '#e53935','#d81b60','#8e24aa','#5e35b1','#3949ab','#1e88e5','#039be5','#00acc1','#00897b','#43a047',
+  '#7cb342','#c0ca33','#fdd835','#ffb300','#fb8c00','#f4511e','#6d4c41','#757575','#546e7a','#e91e63',
+  '#9c27b0','#673ab7','#3f51b5','#2196f3','#03a9f4','#00bcd4','#009688','#4caf50','#8bc34a','#cddc39',
+  '#ffeb3b','#ffc107','#ff9800','#ff5722','#795548','#9e9e9e','#607d8b','#f44336','#ff4081','#e040fb',
+  '#7c4dff','#536dfe','#448aff','#40c4ff','#18ffff','#64ffda','#69f0ae','#b2ff59','#eeff41','#ffff00',
+  '#ffd740','#ffab40','#ff6d00','#dd2c00','#bf360c','#e65100','#f57f17','#f9a825','#827717','#558b2f',
+  '#1b5e20','#004d40','#006064','#01579b','#0d47a1','#1a237e','#311b92','#4a148c','#880e4f','#b71c1c',
+  '#ff1744','#f50057','#d500f9','#651fff','#3d5afe','#2979ff','#00b0ff','#00e5ff','#1de9b6','#00e676',
+  '#76ff03','#c6ff00','#ffea00','#ffc400','#ff9100','#ff3d00','#0a0a0a','#1a1a2e','#16213e','#0f3460',
+  '#533483','#e94560','#2b9348','#007f5f','#2d6a4f','#40916c','#52b788','#74c69d','#95d5b2','#b7e4c7',
+];
 const SHEET_COLORS={대치:'#1a73e8',목동:'#e8710a',대전:'#7c3aed',기타:'#0891b2'};
 
 const BDATA=[
@@ -634,13 +645,25 @@ function showGroupPopup(grp, pos){
         const st=sid?staffList.find(x=>x.id==sid):null;
         return `<span class="pop-fl-staff"${st?` style="color:${st.color}"`:' style="color:#ccc"'}>${st?st.name.replace('담당자','')+'번':'−'}</span>`;
       }).join('');
-      return `<div class="pop-floor"><span class="pop-fl-name">${f.층}</span><span class="pop-fl-area">${f.면적}평</span>${cells}</div>`;
+      const dayCells=DAYS.map(d=>{
+        const sch='주간-'+d;const sid=getAss(bld.id,fi,sch);const st=sid?staffList.find(x=>x.id==sid):null;
+        return `<span class="pop-fl-staff"${st?` style="color:${st.color};font-size:8px"`:' style="color:#ccc;font-size:8px"'}>${st?st.name.slice(0,2):'−'}</span>`;
+      }).join('');
+      const nightCells=DAYS.map(d=>{
+        const sch='야간-'+d;const sid=getAss(bld.id,fi,sch);const st=sid?staffList.find(x=>x.id==sid):null;
+        return `<span class="pop-fl-staff"${st?` style="color:${st.color};font-size:8px"`:' style="color:#ccc;font-size:8px"'}>${st?st.name.slice(0,2):'−'}</span>`;
+      }).join('');
+      return `<div class="pop-floor"><span class="pop-fl-name">${f.층}</span><span class="pop-fl-area">${f.면적}평</span>${dayCells}${nightCells}</div>`;
     }).join('');
     return `<div style="margin-bottom:8px">
       <div style="font-size:11px;font-weight:800;color:#1a1d2e;padding:3px 0;border-bottom:1px solid #e8eaf0;margin-bottom:3px">
         ${bld.관명} <span style="color:#aaa;font-weight:400;font-size:10px">${bld.총면적}평</span>
       </div>
-      <div class="pop-floor-header"><span>층/호</span><span>면적</span>${hdrcols}</div>
+      <div class="pop-floor-header">
+        <div class="pop-grid-row">
+          <span>층/호</span><span style="text-align:center">면적</span>${hdrcols}
+        </div>
+      </div>
       ${rows}
     </div>`;
   }).join('');
@@ -798,9 +821,7 @@ function renderBuildingList(){
           <button class="bulk-btn" onclick="event.stopPropagation();bulkApply(${bld.id})">적용</button>
           <button class="bulk-btn clear" onclick="event.stopPropagation();bulkClear(${bld.id})">초기화</button>
         </div>
-        <div class="floor-header">
-          <span>층/호수</span><span>면적</span>${schedHdr}
-        </div>
+        ${schedHdr}
         ${floors}
       </div>
     </div>`;
@@ -841,7 +862,7 @@ function renderStaffPanel(){
     
     return `<div class="staff-card">
       <div class="staff-top">
-        <div class="staff-dot" style="background:${s.color}"></div>
+        <div class="staff-dot" style="background:${s.color};cursor:pointer;position:relative;" onclick="openColorPicker(${s.id},this)" title="색상 변경"></div>
         <input class="staff-name-in" value="${s.name}" onchange="renameStaff(${s.id},this.value)">
         <span class="staff-meta">${viewArea}평</span>
         <button class="btn-del" onclick="deleteStaff(${s.id})">×</button>
@@ -1195,6 +1216,58 @@ async function sbDeleteBld(id){
 }
 
 function toggleRoute(sid,show){visibleRoutes[sid]=show;renderRoutes();}
+
+// ===== 색상 피커 =====
+function openColorPicker(staffId, dotEl){
+  // 기존 피커 닫기
+  const existing = document.getElementById('color-picker-popup');
+  if(existing) { existing.remove(); if(existing.dataset.sid==staffId) return; }
+
+  const popup = document.createElement('div');
+  popup.id = 'color-picker-popup';
+  popup.dataset.sid = staffId;
+  popup.style.cssText = 'position:fixed;z-index:9999;background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px;box-shadow:0 4px 20px rgba(0,0,0,0.2);width:220px;';
+
+  // 위치 계산
+  const rect = dotEl.getBoundingClientRect();
+  popup.style.left = Math.min(rect.left, window.innerWidth-230) + 'px';
+  popup.style.top = (rect.bottom + 6) + 'px';
+
+  popup.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:#555;margin-bottom:8px;">색상 선택</div>
+    <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:8px;">
+      ${COLOR_PALETTE.map(c=>`
+        <div onclick="applyColor(${staffId},'${c}')" style="width:18px;height:18px;border-radius:50%;background:${c};cursor:pointer;border:2px solid transparent;transition:transform 0.1s;" onmouseover="this.style.transform='scale(1.3)'" onmouseout="this.style.transform='scale(1)'"></div>
+      `).join('')}
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:11px;color:#888;">직접 입력:</span>
+      <input type="color" id="custom-color-input" value="#1a73e8" style="width:36px;height:24px;border:none;cursor:pointer;border-radius:4px;">
+      <button onclick="applyColor(${staffId},document.getElementById('custom-color-input').value)" style="padding:3px 8px;background:#1a73e8;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;">적용</button>
+    </div>
+  `;
+
+  document.body.appendChild(popup);
+
+  // 바깥 클릭 닫기
+  setTimeout(()=>{
+    const close = (e)=>{ if(!popup.contains(e.target)&&e.target!==dotEl){popup.remove();document.removeEventListener('click',close);} };
+    document.addEventListener('click', close);
+  }, 100);
+}
+
+function applyColor(staffId, color){
+  const s = staffList.find(x=>x.id===staffId);
+  if(!s) return;
+  s.color = color;
+  sbSaveStaff();
+  renderStaffPanel();
+  renderMarkers();
+  renderLegend();
+  renderRouteControls();
+  const p = document.getElementById('color-picker-popup');
+  if(p) p.remove();
+}
 
 function addStaff(){
   staffList.push({id:nextSid++,name:`담당자 ${staffList.length+1}`,color:COLORS[staffList.length%COLORS.length]});
