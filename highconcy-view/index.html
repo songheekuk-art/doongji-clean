@@ -106,6 +106,13 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 .floor-header{font-size:9px;font-weight:700;color:#aaa;margin-bottom:2px;border-bottom:1px solid #e8eaf0}
 .floor-grid-row{display:grid;grid-template-columns:72px 32px repeat(7,1fr) repeat(7,1fr);gap:2px;align-items:center}
 .floor-hdr-row{display:grid;grid-template-columns:60px 28px 14px repeat(7,1fr) 14px repeat(7,1fr);gap:2px;align-items:center;padding:3px 0 2px;border-bottom:1px solid #e8eaf0;margin-bottom:2px}
+/* 탭별 컬럼 숨기기 */
+body.view-주간 .shift-야간{display:none!important}
+body.view-주간 .floor-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
+body.view-주간 .floor-hdr-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
+body.view-야간 .shift-주간{display:none!important}
+body.view-야간 .floor-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
+body.view-야간 .floor-hdr-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
 .floor-hdr-label{font-size:9px;font-weight:700;color:#888}
 .floor-hdr-area{font-size:9px;font-weight:700;color:#aaa;text-align:center}
 .floor-hdr-shift{font-size:10px;font-weight:800;text-align:center}
@@ -631,13 +638,13 @@ function updateMarkerColor(bldId){
   renderMarkers();
 }
 
-function handleMarkerClick(grpKey){
+window.handleMarkerClick = function(grpKey){
   const entry = window._markerGroups && window._markerGroups[grpKey];
   if(!entry) return;
   const pos = new kakao.maps.LatLng(entry.lat, entry.lng);
   showGroupPopup(entry.grp, pos);
   scrollToBld(entry.grp.items[0].id);
-}
+};
 
 let currentInfoWindow = null;
 function showGroupPopup(grp, pos){
@@ -771,17 +778,17 @@ function renderBuildingList(){
     const schedHdr=`<div class="floor-hdr-row">
       <span class="floor-hdr-label"></span>
       <span class="floor-hdr-area"></span>
-      <span class="floor-hdr-shift" style="color:#1a73e8">주</span>
-      ${DAYS_KR.map(d=>`<span style="color:#1a73e8;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}
-      <span class="floor-hdr-shift" style="color:#7c3aed">야</span>
-      ${DAYS_KR.map(d=>`<span style="color:#7c3aed;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}
+      <span class="shift-day-col shift-주간 floor-hdr-shift" style="color:#1a73e8">주</span>
+      ${DAYS_KR.map(d=>`<span class="shift-day-col shift-주간" style="color:#1a73e8;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}
+      <span class="shift-day-col shift-야간 floor-hdr-shift" style="color:#7c3aed">야</span>
+      ${DAYS_KR.map(d=>`<span class="shift-day-col shift-야간" style="color:#7c3aed;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}
     </div>`;
     
     const floors=bld.층들.map((f,fi)=>{
       const daySelects = DAYS_KR.map(d=>{
         const sch='주간-'+d; const sid=getAss(bld.id,fi,sch);
         const opts=staffList.map(s=>`<option value="${s.id}"${sid==s.id?' selected':''}>${s.name}</option>`).join('');
-        return `<select data-bldid="${bld.id}" data-fi="${fi}" data-sch="${sch}"
+        return `<select class="shift-day-col shift-주간" data-bldid="${bld.id}" data-fi="${fi}" data-sch="${sch}"
           style="font-size:9px;padding:1px;border:1px solid #ddd;border-radius:3px;width:100%;${sid?'border-color:#1a73e8;color:#1a73e8;font-weight:700':''}"
           onchange="handleFloorChange(this)" onclick="event.stopPropagation()">
           <option value="">−</option>${opts}</select>`;
@@ -789,7 +796,7 @@ function renderBuildingList(){
       const nightSelects = DAYS_KR.map(d=>{
         const sch='야간-'+d; const sid=getAss(bld.id,fi,sch);
         const opts=staffList.map(s=>`<option value="${s.id}"${sid==s.id?' selected':''}>${s.name}</option>`).join('');
-        return `<select data-bldid="${bld.id}" data-fi="${fi}" data-sch="${sch}"
+        return `<select class="shift-day-col shift-야간" data-bldid="${bld.id}" data-fi="${fi}" data-sch="${sch}"
           style="font-size:9px;padding:1px;border:1px solid #ddd;border-radius:3px;width:100%;${sid?'border-color:#7c3aed;color:#7c3aed;font-weight:700':''}"
           onchange="handleFloorChange(this)" onclick="event.stopPropagation()">
           <option value="">−</option>${opts}</select>`;
@@ -797,9 +804,9 @@ function renderBuildingList(){
       return `<div class="floor-row">
         <span class="floor-label">${f.층}</span>
         <span class="floor-area">${f.면적}평</span>
-        <span></span>
+        <span class="shift-day-col shift-주간"></span>
         ${daySelects}
-        <span></span>
+        <span class="shift-day-col shift-야간"></span>
         ${nightSelects}
       </div>`;
     }).join('');
@@ -1011,9 +1018,11 @@ function getActiveScheds(){
 function switchSched(sch,btn){
   document.querySelectorAll('.sched-tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
+  // body 클래스로 뷰 모드 설정
+  document.body.classList.remove('view-주간','view-야간');
   if(sch==='전체'){currentShift='전체';currentDay='전체';}
-  else if(sch==='주간'){currentShift='주간';currentDay='전체';}
-  else if(sch==='야간'){currentShift='야간';currentDay='전체';}
+  else if(sch==='주간'){currentShift='주간';currentDay='전체';document.body.classList.add('view-주간');}
+  else if(sch==='야간'){currentShift='야간';currentDay='전체';document.body.classList.add('view-야간');}
   else{currentDay=sch;}
   currentSched = (currentShift==='전체'&&currentDay==='전체') ? '전체' : sch;
   renderAll();
