@@ -107,8 +107,7 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 .floor-grid-row{display:grid;grid-template-columns:72px 32px repeat(7,1fr) repeat(7,1fr);gap:2px;align-items:center}
 .floor-hdr-row{display:grid;grid-template-columns:60px 28px 14px repeat(7,1fr) 14px repeat(7,1fr);gap:2px;align-items:center;padding:3px 0 2px;border-bottom:1px solid #e8eaf0;margin-bottom:2px}
 /* 탭별 컬럼 숨기기 */
-body.view-주간 .shift-야간{visibility:hidden;width:0!important;min-width:0!important;padding:0!important;margin:0!important;overflow:hidden;font-size:0!important}
-body.view-야간 .shift-주간{visibility:hidden;width:0!important;min-width:0!important;padding:0!important;margin:0!important;overflow:hidden;font-size:0!important}
+
 .floor-hdr-label{font-size:9px;font-weight:700;color:#888}
 .floor-hdr-area{font-size:9px;font-weight:700;color:#aaa;text-align:center}
 .floor-hdr-shift{font-size:10px;font-weight:800;text-align:center}
@@ -781,14 +780,114 @@ function renderBuildingList(){
     
     // 스케줄 헤더 - 주/야 두 줄 고정
     const DAYS_KR=['월','화','수','목','금','토','일'];
-    const schedHdr=`<div class="floor-hdr-row">
-      <span class="floor-hdr-label"></span>
-      <span class="floor-hdr-area"></span>
-      <span class="shift-day-col shift-주간 floor-hdr-shift" style="color:#1a73e8">주</span>
-      ${DAYS_KR.map(d=>`<span class="shift-day-col shift-주간" style="color:#1a73e8;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}
-      <span class="shift-day-col shift-야간 floor-hdr-shift" style="color:#7c3aed">야</span>
-      ${DAYS_KR.map(d=>`<span class="shift-day-col shift-야간" style="color:#7c3aed;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}
+    const showDay = currentShift!=='야간';
+    const showNight = currentShift!=='주간';
+    const cols = `60px 28px ${showDay?'14px repeat(7,1fr)':''} ${showNight?'14px repeat(7,1fr)':''}`.trim();
+    const schedHdr=`<div class="floor-hdr-row" style="grid-template-columns:${cols}">
+      <span></span><span style="text-align:center;font-size:9px;color:#aaa">면적</span>
+      ${showDay?`<span style="color:#1a73e8;font-weight:800;font-size:10px">주</span>${DAYS_KR.map(d=>`<span style="color:#1a73e8;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}`:''}
+      ${showNight?`<span style="color:#7c3aed;font-weight:800;font-size:10px">야</span>${DAYS_KR.map(d=>`<span style="color:#7c3aed;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}`:''}
     </div>`;
+    
+    const floors=bld.층들.map((f,fi)=>{
+      const daySelects = DAYS_KR.map(d=>{
+        const sch='주간-'+d; const sid=getAss(bld.id,fi,sch);
+        const opts=staffList.map(s=>`<option value="${s.id}"${sid==s.id?' selected':''}>${s.name}</option>`).join('');
+        return `<select class="shift-day-col shift-주간" data-bldid="${bld.id}" data-fi="${fi}" data-sch="${sch}"
+          style="font-size:9px;padding:1px;border:1px solid #ddd;border-radius:3px;width:100%;${sid?'border-color:#1a73e8;color:#1a73e8;font-weight:700':''}"
+          onchange="handleFloorChange(this)" onclick="event.stopPropagation()">
+          <option value="">−</option>${opts}</select>`;
+      }).join('');
+      const nightSelects = DAYS_KR.map(d=>{
+        const sch='야간-'+d; const sid=getAss(bld.id,fi,sch);
+        const opts=staffList.map(s=>`<option value="${s.id}"${sid==s.id?' selected':''}>${s.name}</option>`).join('');
+        return `<select class="shift-day-col shift-야간" data-bldid="${bld.id}" data-fi="${fi}" data-sch="${sch}"
+          style="font-size:9px;padding:1px;border:1px solid #ddd;border-radius:3px;width:100%;${sid?'border-color:#7c3aed;color:#7c3aed;font-weight:700':''}"
+          onchange="handleFloorChange(this)" onclick="event.stopPropagation()">
+          <option value="">−</option>${opts}</select>`;
+      }).join('');
+      return `<div class="floor-row" style="grid-template-columns:${cols}">
+        <span class="floor-label">${f.층}</span>
+        <span class="floor-area">${f.면적}평</span>
+        ${showDay?`<span></span>${daySelects}`:''}
+        ${showNight?`<span></span>${nightSelects}`:''}
+      </div>`;
+    }).join('');
+    
+    return `<div class="bld-card" id="bld-${bld.id}" onclick="focusBld(${bld.id},event)">
+      <div class="bld-header">
+        <div class="bld-color-bar" style="background:${sc}"></div>
+        <div class="bld-info">
+          <div class="bld-name">${bld.관명} <span style="font-weight:400;color:#aaa;font-size:10px">${bld.건물명}</span></div>
+          <div class="bld-sub">${bld.주소} · ${bld.층들.length}개층</div>
+        </div>
+        <span class="bld-area-badge" style="color:${areaColor};background:${areaBg}">${bld.총면적}평</span>
+      </div>
+      <div class="bld-assign">
+        <div class="bulk-bar">
+          <span style="font-size:11px;font-weight:700;color:#555;white-space:nowrap;">일괄적용:</span>
+          <select id="bulk-staff-${bld.id}" onclick="event.stopPropagation()" style="padding:3px 6px;border:1px solid #d0d5e8;border-radius:5px;font-size:11px;color:#1a1d2e;background:#fff">
+            <option value="">담당자 선택</option>
+            ${staffList.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+          </select>
+          <select id="bulk-sched-${bld.id}" onclick="event.stopPropagation()" style="padding:3px 6px;border:1px solid #d0d5e8;border-radius:5px;font-size:11px;color:#1a1d2e;background:#fff">
+            <option value="all">전체</option>
+            <option value="주간-all">주간 전체</option>
+            <option value="야간-all">야간 전체</option>
+            <option value="주간-weekday">주간 평일(월~금)</option>
+            <option value="주간-weekend">주간 주말(토~일)</option>
+            <option value="야간-weekday">야간 평일(월~금)</option>
+            <option value="야간-weekend">야간 주말(토~일)</option>
+            <option value="주간-월">주간 월</option>
+            <option value="주간-화">주간 화</option>
+            <option value="주간-수">주간 수</option>
+            <option value="주간-목">주간 목</option>
+            <option value="주간-금">주간 금</option>
+            <option value="주간-토">주간 토</option>
+            <option value="주간-일">주간 일</option>
+            <option value="야간-월">야간 월</option>
+            <option value="야간-화">야간 화</option>
+            <option value="야간-수">야간 수</option>
+            <option value="야간-목">야간 목</option>
+            <option value="야간-금">야간 금</option>
+            <option value="야간-토">야간 토</option>
+            <option value="야간-일">야간 일</option>
+          </select>
+          <button class="bulk-btn" onclick="event.stopPropagation();bulkApply(${bld.id})">적용</button>
+          <button class="bulk-btn clear" onclick="event.stopPropagation();bulkClear(${bld.id})">초기화</button>
+        </div>
+        ${schedHdr}
+        ${floors}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderStaffPanel(){
+  const p=document.getElementById('staff-panel');
+  p.innerHTML=staffList.map(s=>{
+    const viewArea=getStaffViewArea(s.id);
+    const pct=Math.min(100,Math.round(viewArea/areaLimit*100));
+    const over=viewArea>areaLimit;
+    const gcolor=over?'#dc2626':pct>70?'#ca8a04':'#03c75a';
+    
+    // 스케줄별 breakdown
+    const breakdown=SCHEDS.map(sch=>{
+      const a=getStaffSchedArea(s.id,sch);
+      const c=SCHED_COLORS[sch];
+      const bg=SCHED_BG[sch];
+      return `<div class="sched-box" style="background:${bg}">
+        <div class="sched-box-label" style="color:${c}">${sch}</div>
+        <div class="sched-box-val" style="color:${c}">${a}평</div>
+      </div>`;
+    }).join('');
+    
+    // 배정 목록 (현재 스케줄 뷰 기준)
+    const items=[];
+    BDATA.forEach(b=>{
+      const scheds2=currentSched==='전체'?SCHEDS:[currentSched];
+      const myFloors=b.층들.filter((f,fi)=>scheds2.some(sch=>getAss(b.id,fi,sch)==s.id));
+      if(myFloors.length) items.push({bld:b,floors:myFloors});
     
     const floors=bld.층들.map((f,fi)=>{
       const daySelects = DAYS_KR.map(d=>{
