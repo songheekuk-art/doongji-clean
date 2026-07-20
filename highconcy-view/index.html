@@ -272,6 +272,7 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
     <div class="hspace"></div>
     <span id="hstat"></span><span style="display:flex;align-items:center;gap:5px;margin-left:12px;"><span id="sbDot" style="width:7px;height:7px;border-radius:50%;background:#666;flex-shrink:0;"></span><span id="sbStatus" style="font-size:11px;color:#aaa;">연결 중...</span></span>
     <button id="btn-print" onclick="openPrint()">🖨️ A4 출력</button>
+    <button id="btn-excel" onclick="downloadExcel()" style="background:#1d6f42;border:none;color:#fff;padding:6px 14px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;margin-left:6px;">📊 엑셀 다운로드</button>
   </header>
 
   <!-- SCHEDULE TAB BAR -->
@@ -1218,6 +1219,76 @@ async function sbDeleteBld(id){
 function toggleRoute(sid,show){visibleRoutes[sid]=show;renderRoutes();}
 
 // ===== 색상 피커 =====
+// ===== 엑셀 다운로드 =====
+function downloadExcel(){
+  const wb = {SheetNames:[], Sheets:{}};
+
+  // ── 시트1: 배정 현황 (건물별 담당자 주간/야간 요일) ──
+  const DAYS = ['월','화','수','목','금','토','일'];
+  const s1rows = [
+    ['건물명','관명','주소','구분','지역','층/호','면적(평)',
+     '주간-월','주간-화','주간-수','주간-목','주간-금','주간-토','주간-일',
+     '야간-월','야간-화','야간-수','야간-목','야간-금','야간-토','야간-일']
+  ];
+  BDATA.filter(b=>!bdataDeleted.has(b.id)).forEach(b=>{
+    b.층들.forEach((f,fi)=>{
+      const row = [b.건물명, b.관명, b.주소, b.구분, b.sheet, f.층, f.면적];
+      DAYS.forEach(d=>{
+        const sid=getAss(b.id,fi,'주간-'+d);
+        const st=sid?staffList.find(x=>x.id==sid):null;
+        row.push(st?st.name:'');
+      });
+      DAYS.forEach(d=>{
+        const sid=getAss(b.id,fi,'야간-'+d);
+        const st=sid?staffList.find(x=>x.id==sid):null;
+        row.push(st?st.name:'');
+      });
+      s1rows.push(row);
+    });
+  });
+
+  // ── 시트2: 담당자별 담당 건물 ──
+  const s2rows = [['담당자','건물명','관명','주소','구분','지역','스케줄']];
+  staffList.forEach(s=>{
+    BDATA.filter(b=>!bdataDeleted.has(b.id)).forEach(b=>{
+      b.층들.forEach((f,fi)=>{
+        const scheds=[];
+        SCHEDS.forEach(sch=>{ if(getAss(b.id,fi,sch)==s.id) scheds.push(sch); });
+        if(scheds.length) s2rows.push([s.name,b.건물명,b.관명,b.주소,b.구분,b.sheet,scheds.join(', ')]);
+      });
+    });
+  });
+
+  // ── 시트3: 전체 건물 목록 ──
+  const s3rows = [['건물명','관명','주소','구분','지역','층/호','면적(평)','총면적(평)']];
+  BDATA.filter(b=>!bdataDeleted.has(b.id)).forEach(b=>{
+    b.층들.forEach((f,fi)=>{
+      s3rows.push([b.건물명, b.관명, b.주소, b.구분, b.sheet, f.층, f.면적, fi===0?b.총면적:'']);
+    });
+  });
+
+  // SheetJS로 변환
+  if(typeof XLSX === 'undefined'){
+    // SheetJS 동적 로드
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script.onload = ()=> buildAndDownload(s1rows, s2rows, s3rows);
+    document.head.appendChild(script);
+  } else {
+    buildAndDownload(s1rows, s2rows, s3rows);
+  }
+}
+
+function buildAndDownload(s1rows, s2rows, s3rows){
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s1rows), '배정현황');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s2rows), '담당자별배정');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s3rows), '전체건물목록');
+  const now = new Date();
+  const fname = `하이컨시_배정현황_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, fname);
+}
+
 function openColorPicker(staffId, dotEl){
   // 기존 피커 닫기
   const existing = document.getElementById('color-picker-popup');
