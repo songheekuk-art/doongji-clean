@@ -8,19 +8,6 @@
 
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-/* LOGIN */
-#login-overlay{position:fixed;inset:0;background:#1a1d2e;z-index:9999;display:flex;align-items:center;justify-content:center;}
-#login-box{background:#fff;border-radius:16px;padding:40px 36px;width:340px;box-shadow:0 8px 40px rgba(0,0,0,0.3);}
-#login-box h2{font-size:18px;font-weight:800;color:#1a1d2e;margin-bottom:4px;}
-#login-box p{font-size:13px;color:#888;margin-bottom:24px;}
-.login-field{margin-bottom:14px;}
-.login-field label{display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;}
-.login-field input{width:100%;padding:10px 12px;border:1px solid #d0d5e8;border-radius:8px;font-size:14px;outline:none;color:#1a1d2e;}
-.login-field input:focus{border-color:#1a73e8;}
-#login-btn{width:100%;padding:11px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;}
-#login-btn:hover{background:#1557b0;}
-#login-err{color:#dc2626;font-size:12px;text-align:center;margin-top:8px;display:none;}
-
 body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;height:100vh;overflow:hidden}
 #app{display:grid;grid-template-columns:380px 1fr;grid-template-rows:54px 40px 1fr;height:100vh}
 
@@ -29,14 +16,6 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 #header h1{font-size:14px;font-weight:700;color:#fff}
 .hbadge{background:#03c75a;color:#fff;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:700}
 .hspace{flex:1}
-/* 읽기 전용 */
-.readonly-mode select{pointer-events:none;opacity:0.6;cursor:default;}
-.readonly-mode .bulk-btn{pointer-events:none;opacity:0.4;cursor:default;}
-.readonly-mode .bm-btn{pointer-events:none;opacity:0.4;cursor:default;}
-.readonly-mode #bld-panel button{pointer-events:none;opacity:0.4;cursor:default;}
-.readonly-mode .bm-field input{pointer-events:none;background:#f1f3f9;}
-.readonly-mode #tabs .tab:last-child{pointer-events:none;opacity:0.3;}
-.readonly-mode #tabs .tab:nth-last-child(2){pointer-events:none;opacity:0.3;}
 #hstat{font-size:11px;color:#aaa}
 #btn-print{background:#1a73e8;border:none;color:#fff;padding:6px 14px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer}
 #btn-print:hover{background:#1557b0}
@@ -107,7 +86,12 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 .floor-grid-row{display:grid;grid-template-columns:72px 32px repeat(7,1fr) repeat(7,1fr);gap:2px;align-items:center}
 .floor-hdr-row{display:grid;grid-template-columns:60px 28px 14px repeat(7,1fr) 14px repeat(7,1fr);gap:2px;align-items:center;padding:3px 0 2px;border-bottom:1px solid #e8eaf0;margin-bottom:2px}
 /* 탭별 컬럼 숨기기 */
-
+body.view-주간 .shift-야간{display:none!important}
+body.view-주간 .floor-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
+body.view-주간 .floor-hdr-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
+body.view-야간 .shift-주간{display:none!important}
+body.view-야간 .floor-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
+body.view-야간 .floor-hdr-row{grid-template-columns:60px 28px 14px repeat(7,1fr)!important}
 .floor-hdr-label{font-size:9px;font-weight:700;color:#888}
 .floor-hdr-area{font-size:9px;font-weight:700;color:#aaa;text-align:center}
 .floor-hdr-shift{font-size:10px;font-weight:800;text-align:center}
@@ -252,24 +236,18 @@ body{background:#f0f2f5;color:#1a1d2e;font-family:'Apple SD Gothic Neo','Malgun 
 </style>
 </head>
 <body>
-<!-- LOGIN OVERLAY -->
-<div id="login-overlay">
-  <div id="login-box">
-    <h2>🧹 하이컨시 청소 배정</h2>
-    <p>외부 열람용 로그인이 필요합니다</p>
-    <div class="login-field">
-      <label>아이디</label>
-      <input type="text" id="login-id" placeholder="ID 입력" onkeydown="if(event.key==='Enter')doLogin()">
-    </div>
-    <div class="login-field">
-      <label>비밀번호</label>
-      <input type="password" id="login-pw" placeholder="PW 입력" onkeydown="if(event.key==='Enter')doLogin()">
-    </div>
-    <button id="login-btn" onclick="doLogin()">로그인</button>
-    <div id="login-err">아이디 또는 비밀번호가 올바르지 않습니다</div>
+<div id="login-overlay" style="position:fixed;inset:0;background:#1a1d2e;z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:40px 36px;width:340px;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+    <h2 style="font-size:18px;font-weight:800;color:#1a1d2e;margin-bottom:4px;">🧹 하이컨시 청소 배정</h2>
+    <p style="font-size:13px;color:#888;margin-bottom:24px;">외부 열람용 로그인</p>
+    <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;">아이디</label>
+      <input id="login-id" type="text" placeholder="ID 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding:10px 12px;border:1px solid #d0d5e8;border-radius:8px;font-size:14px;outline:none;"></div>
+    <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;">비밀번호</label>
+      <input id="login-pw" type="password" placeholder="PW 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding:10px 12px;border:1px solid #d0d5e8;border-radius:8px;font-size:14px;outline:none;"></div>
+    <button onclick="doLogin()" style="width:100%;padding:11px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">로그인</button>
+    <div id="login-err" style="color:#dc2626;font-size:12px;text-align:center;margin-top:8px;display:none;">아이디 또는 비밀번호가 올바르지 않습니다</div>
   </div>
 </div>
-
 <div id="app">
   <!-- HEADER -->
   <header id="header">
@@ -618,9 +596,10 @@ function renderMarkers(){
 
     const pos = new kakao.maps.LatLng(grp.lat, grp.lng);
     el.style.cssText='position:relative;cursor:pointer;';
-    el.innerHTML=`<div class="cmarker${isOver?' over-limit':''}" style="background:${bgColor};border:${borderStyle};color:${textColor};width:30px;height:30px;" onclick="window.handleMarkerClick(${grpIdx})"><span>${label}</span></div>${badge}`;
+    el.innerHTML=`<div class="cmarker${isOver?' over-limit':''}" style="background:${bgColor};border:${borderStyle};color:${textColor};width:30px;height:30px;"><span>${label}</span></div>${badge}`;
     const overlay = new kakao.maps.CustomOverlay({position:pos, content:el, yAnchor:0.5});
     overlay.setMap(map);
+    (function(g,p){ el.addEventListener('click', function(){ showGroupPopup(g,p); scrollToBld(g.items[0].id); }); })(grp,pos);
     grp.items.forEach(bld=>{ markers[bld.id]=overlay; });
   });
   renderRoutes();
@@ -780,114 +759,14 @@ function renderBuildingList(){
     
     // 스케줄 헤더 - 주/야 두 줄 고정
     const DAYS_KR=['월','화','수','목','금','토','일'];
-    const showDay = currentShift!=='야간';
-    const showNight = currentShift!=='주간';
-    const gridCols = '60px 28px'+(showDay?' 12px repeat(7,1fr)':'')+(showNight?' 12px repeat(7,1fr)':'');
-    const schedHdr=`<div class="floor-hdr-row" style="grid-template-columns:${gridCols}">
-      <span></span><span style="text-align:center;font-size:9px;color:#aaa">면적</span>
-      ${showDay?`<span style="color:#1a73e8;font-weight:800;font-size:10px;text-align:center">주</span>${DAYS_KR.map(d=>`<span style="color:#1a73e8;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}`:''}
-      ${showNight?`<span style="color:#7c3aed;font-weight:800;font-size:10px;text-align:center">야</span>${DAYS_KR.map(d=>`<span style="color:#7c3aed;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}`:''}
+    const schedHdr=`<div class="floor-hdr-row">
+      <span class="floor-hdr-label"></span>
+      <span class="floor-hdr-area"></span>
+      <span class="shift-day-col shift-주간 floor-hdr-shift" style="color:#1a73e8">주</span>
+      ${DAYS_KR.map(d=>`<span class="shift-day-col shift-주간" style="color:#1a73e8;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}
+      <span class="shift-day-col shift-야간 floor-hdr-shift" style="color:#7c3aed">야</span>
+      ${DAYS_KR.map(d=>`<span class="shift-day-col shift-야간" style="color:#7c3aed;text-align:center;font-size:9px;font-weight:700">${d}</span>`).join('')}
     </div>`;
-    
-    const floors=bld.층들.map((f,fi)=>{
-      const daySelects = DAYS_KR.map(d=>{
-        const sch='주간-'+d; const sid=getAss(bld.id,fi,sch);
-        const opts=staffList.map(s=>`<option value="${s.id}"${sid==s.id?' selected':''}>${s.name}</option>`).join('');
-        return `<select class="shift-day-col shift-주간" data-bldid="${bld.id}" data-fi="${fi}" data-sch="${sch}"
-          style="font-size:9px;padding:1px;border:1px solid #ddd;border-radius:3px;width:100%;${sid?'border-color:#1a73e8;color:#1a73e8;font-weight:700':''}"
-          onchange="handleFloorChange(this)" onclick="event.stopPropagation()">
-          <option value="">−</option>${opts}</select>`;
-      }).join('');
-      const nightSelects = DAYS_KR.map(d=>{
-        const sch='야간-'+d; const sid=getAss(bld.id,fi,sch);
-        const opts=staffList.map(s=>`<option value="${s.id}"${sid==s.id?' selected':''}>${s.name}</option>`).join('');
-        return `<select class="shift-day-col shift-야간" data-bldid="${bld.id}" data-fi="${fi}" data-sch="${sch}"
-          style="font-size:9px;padding:1px;border:1px solid #ddd;border-radius:3px;width:100%;${sid?'border-color:#7c3aed;color:#7c3aed;font-weight:700':''}"
-          onchange="handleFloorChange(this)" onclick="event.stopPropagation()">
-          <option value="">−</option>${opts}</select>`;
-      }).join('');
-      return `<div class="floor-row" style="grid-template-columns:${gridCols}">
-        <span class="floor-label">${f.층}</span>
-        <span class="floor-area">${f.면적}평</span>
-        ${showDay?'<span></span>'+daySelects:''}
-        ${showNight?'<span></span>'+nightSelects:''}
-      </div>`;
-    }).join('');
-    
-    return `<div class="bld-card" id="bld-${bld.id}" onclick="focusBld(${bld.id},event)">
-      <div class="bld-header">
-        <div class="bld-color-bar" style="background:${sc}"></div>
-        <div class="bld-info">
-          <div class="bld-name">${bld.관명} <span style="font-weight:400;color:#aaa;font-size:10px">${bld.건물명}</span></div>
-          <div class="bld-sub">${bld.주소} · ${bld.층들.length}개층</div>
-        </div>
-        <span class="bld-area-badge" style="color:${areaColor};background:${areaBg}">${bld.총면적}평</span>
-      </div>
-      <div class="bld-assign">
-        <div class="bulk-bar">
-          <span style="font-size:11px;font-weight:700;color:#555;white-space:nowrap;">일괄적용:</span>
-          <select id="bulk-staff-${bld.id}" onclick="event.stopPropagation()" style="padding:3px 6px;border:1px solid #d0d5e8;border-radius:5px;font-size:11px;color:#1a1d2e;background:#fff">
-            <option value="">담당자 선택</option>
-            ${staffList.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
-          </select>
-          <select id="bulk-sched-${bld.id}" onclick="event.stopPropagation()" style="padding:3px 6px;border:1px solid #d0d5e8;border-radius:5px;font-size:11px;color:#1a1d2e;background:#fff">
-            <option value="all">전체</option>
-            <option value="주간-all">주간 전체</option>
-            <option value="야간-all">야간 전체</option>
-            <option value="주간-weekday">주간 평일(월~금)</option>
-            <option value="주간-weekend">주간 주말(토~일)</option>
-            <option value="야간-weekday">야간 평일(월~금)</option>
-            <option value="야간-weekend">야간 주말(토~일)</option>
-            <option value="주간-월">주간 월</option>
-            <option value="주간-화">주간 화</option>
-            <option value="주간-수">주간 수</option>
-            <option value="주간-목">주간 목</option>
-            <option value="주간-금">주간 금</option>
-            <option value="주간-토">주간 토</option>
-            <option value="주간-일">주간 일</option>
-            <option value="야간-월">야간 월</option>
-            <option value="야간-화">야간 화</option>
-            <option value="야간-수">야간 수</option>
-            <option value="야간-목">야간 목</option>
-            <option value="야간-금">야간 금</option>
-            <option value="야간-토">야간 토</option>
-            <option value="야간-일">야간 일</option>
-          </select>
-          <button class="bulk-btn" onclick="event.stopPropagation();bulkApply(${bld.id})">적용</button>
-          <button class="bulk-btn clear" onclick="event.stopPropagation();bulkClear(${bld.id})">초기화</button>
-        </div>
-        ${schedHdr}
-        ${floors}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderStaffPanel(){
-  const p=document.getElementById('staff-panel');
-  p.innerHTML=staffList.map(s=>{
-    const viewArea=getStaffViewArea(s.id);
-    const pct=Math.min(100,Math.round(viewArea/areaLimit*100));
-    const over=viewArea>areaLimit;
-    const gcolor=over?'#dc2626':pct>70?'#ca8a04':'#03c75a';
-    
-    // 스케줄별 breakdown
-    const breakdown=SCHEDS.map(sch=>{
-      const a=getStaffSchedArea(s.id,sch);
-      const c=SCHED_COLORS[sch];
-      const bg=SCHED_BG[sch];
-      return `<div class="sched-box" style="background:${bg}">
-        <div class="sched-box-label" style="color:${c}">${sch}</div>
-        <div class="sched-box-val" style="color:${c}">${a}평</div>
-      </div>`;
-    }).join('');
-    
-    // 배정 목록 (현재 스케줄 뷰 기준)
-    const items=[];
-    BDATA.forEach(b=>{
-      const scheds2=currentSched==='전체'?SCHEDS:[currentSched];
-      const myFloors=b.층들.filter((f,fi)=>scheds2.some(sch=>getAss(b.id,fi,sch)==s.id));
-      if(myFloors.length) items.push({bld:b,floors:myFloors});
     
     const floors=bld.층들.map((f,fi)=>{
       const daySelects = DAYS_KR.map(d=>{
@@ -1223,6 +1102,7 @@ function switchTab(idx){
   else sp.classList.remove('show');
   if(idx===2){bp.classList.add('show');renderBldMgmt('');}
   else bp.classList.remove('show');
+  // 검색/필터바 숨기기
   document.getElementById('search-bar').style.display=idx===0?'block':'none';
   document.getElementById('filter-bar').style.display=idx===0?'flex':'none';
   document.getElementById('limit-bar').style.display=idx===0?'flex':'none';
@@ -1299,6 +1179,7 @@ function deleteBld(id){
   showToast('삭제됐어요');
 }
 
+// ===== 건물 추가 =====
 function openAddBldModal(){
   document.getElementById('ab-nm').value='';
   document.getElementById('ab-bn').value='';
@@ -1307,7 +1188,9 @@ function openAddBldModal(){
   addFloorRow();
   document.getElementById('add-bld-modal').style.display='flex';
 }
-function closeAddBldModal(){document.getElementById('add-bld-modal').style.display='none';}
+function closeAddBldModal(){
+  document.getElementById('add-bld-modal').style.display='none';
+}
 function addFloorRow(){
   const div=document.createElement('div');
   div.style.cssText='display:flex;gap:6px;margin-bottom:5px;align-items:center;';
@@ -1318,20 +1201,35 @@ function addFloorRow(){
 }
 async function submitAddBld(){
   const 관명=document.getElementById('ab-nm').value.trim();
-  const 주소=document.getElementById('ab-addr').value.trim();
   const 건물명=document.getElementById('ab-bn').value.trim();
+  const 주소=document.getElementById('ab-addr').value.trim();
   const sheet=document.getElementById('ab-sheet').value;
   const 구분=document.getElementById('ab-type').value;
   if(!관명||!주소){alert('관명과 주소는 필수입니다');return;}
+
+  // 층 정보 수집
   const rows=[...document.getElementById('ab-floors').children];
-  const 층들=rows.map(r=>{const inputs=r.querySelectorAll('input');return {층:inputs[0].value.trim(),면적:parseFloat(inputs[1].value)||0};}).filter(f=>f.층);
+  const 층들=rows.map(r=>{
+    const inputs=r.querySelectorAll('input');
+    return {층:inputs[0].value.trim(),면적:parseFloat(inputs[1].value)||0};
+  }).filter(f=>f.층);
   const 총면적=층들.reduce((s,f)=>s+f.면적,0);
-  let lat=37.498,lng=127.060;
-  try{const res=await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(주소)}`,{headers:{Authorization:`KakaoAK ${KAKAO_API_KEY}`}});const data=await res.json();if(data.documents?.length){lat=parseFloat(data.documents[0].y);lng=parseFloat(data.documents[0].x);}}catch(e){}
+
+  // 좌표 검색
+  let lat=37.498, lng=127.060;
+  try {
+    const res=await fetch(`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(주소)}`,{headers:{Authorization:`KakaoAK ${KAKAO_API_KEY}`}});
+    const data=await res.json();
+    if(data.documents?.length){lat=parseFloat(data.documents[0].y);lng=parseFloat(data.documents[0].x);}
+  } catch(e){}
+
   const newId=Math.max(...BDATA.map(b=>b.id))+1;
   const newBld={id:newId,sheet,구분,건물명,주소,관명,층들,총면적,lat,lng};
   BDATA.push(newBld);
+
+  // Supabase 저장
   await sbSaveBldEdit(newBld);
+
   closeAddBldModal();
   renderAll();
   if(currentTab===2) renderBldMgmt('');
@@ -1612,32 +1510,6 @@ function openPrint(){
 
 function closePrint(){document.getElementById('print-overlay').classList.remove('show');}
 
-// ===== LOGIN =====
-const ACCOUNTS = {
-  'highconcy': 'highconcy1234'
-};
-
-function doLogin() {
-  const id = document.getElementById('login-id').value.trim();
-  const pw = document.getElementById('login-pw').value;
-  const err = document.getElementById('login-err');
-  if (ACCOUNTS[id] && ACCOUNTS[id] === pw) {
-    sessionStorage.setItem('hc_logged_in', '1');
-    enterApp();
-  } else {
-    err.style.display = 'block';
-    document.getElementById('login-pw').value = '';
-  }
-}
-
-function enterApp() {
-  document.getElementById('login-overlay').style.display = 'none';
-  document.getElementById('app').classList.add('readonly-mode');
-  initMap();
-  renderAll();
-  sbLoad();
-}
-
 // ===== SUPABASE =====
 const SB_URL = 'https://ugwzyxsynpvnbbsqlcqq.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnd3p5eHN5bnB2bmJic3FsY3FxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNjA3NDIsImV4cCI6MjA5OTYzNjc0Mn0.DswVM1dtfaEgRujb0mZpDPXTEb7xdeOAnVuRKKdQtlE';
@@ -1733,11 +1605,28 @@ async function sbSaveStaff() {
 // 30초 폴링
 setInterval(sbLoad, 30000);
 
-// ===== INIT =====
-// 새로고침 시 로그인 상태 복원 (모든 함수 정의 후 실행)
-if (sessionStorage.getItem('hc_logged_in') === '1') {
-  enterApp();
+// ===== LOGIN =====
+const ACCOUNTS={'highconcy':'highconcy1234'};
+function doLogin(){
+  const id=document.getElementById('login-id').value.trim();
+  const pw=document.getElementById('login-pw').value;
+  if(ACCOUNTS[id]&&ACCOUNTS[id]===pw){
+    sessionStorage.setItem('hc_logged_in','1');
+    document.getElementById('login-overlay').style.display='none';
+    initMap(); renderAll(); sbLoad();
+  } else {
+    document.getElementById('login-err').style.display='block';
+    document.getElementById('login-pw').value='';
+  }
 }
+if(sessionStorage.getItem('hc_logged_in')==='1'){
+  document.addEventListener('DOMContentLoaded',()=>{
+    document.getElementById('login-overlay').style.display='none';
+    initMap(); renderAll(); sbLoad();
+  });
+}
+
+// (로그인 후 실행)
 </script>
 <!-- 건물 추가 모달 -->
 <div id="add-bld-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:center;justify-content:center;">
@@ -1746,14 +1635,21 @@ if (sessionStorage.getItem('hc_logged_in') === '1') {
     <div class="bm-field" style="margin-bottom:10px;"><label style="width:40px;">관명</label><input id="ab-nm" placeholder="예: 메이저관" style="flex:1;padding:7px 10px;border:1px solid #d0d5e8;border-radius:6px;font-size:13px;"></div>
     <div class="bm-field" style="margin-bottom:10px;"><label style="width:40px;">건물명</label><input id="ab-bn" placeholder="예: 메이저빌딩" style="flex:1;padding:7px 10px;border:1px solid #d0d5e8;border-radius:6px;font-size:13px;"></div>
     <div class="bm-field" style="margin-bottom:10px;"><label style="width:40px;">주소</label><input id="ab-addr" placeholder="예: 대치동 1021-4" style="flex:1;padding:7px 10px;border:1px solid #d0d5e8;border-radius:6px;font-size:13px;"></div>
-    <div class="bm-field" style="margin-bottom:10px;"><label style="width:40px;">지역</label>
+    <div class="bm-field" style="margin-bottom:10px;">
+      <label style="width:40px;">지역</label>
       <select id="ab-sheet" style="flex:1;padding:7px 10px;border:1px solid #d0d5e8;border-radius:6px;font-size:13px;">
-        <option value="대치">대치</option><option value="목동">목동</option><option value="대전">대전</option><option value="기타">기타</option>
+        <option value="대치">대치</option>
+        <option value="목동">목동</option>
+        <option value="대전">대전</option>
+        <option value="기타">기타</option>
       </select>
     </div>
     <div class="bm-field" style="margin-bottom:10px;"><label style="width:40px;">구분</label>
       <select id="ab-type" style="flex:1;padding:7px 10px;border:1px solid #d0d5e8;border-radius:6px;font-size:13px;">
-        <option value="단과">단과</option><option value="재종">재종</option><option value="사무실">사무실</option><option value="컨텐츠">컨텐츠</option>
+        <option value="단과">단과</option>
+        <option value="재종">재종</option>
+        <option value="사무실">사무실</option>
+        <option value="컨텐츠">컨텐츠</option>
       </select>
     </div>
     <div style="margin-bottom:10px;">
