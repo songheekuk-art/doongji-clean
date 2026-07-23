@@ -586,9 +586,9 @@ function renderMarkers(){
     const pos = new kakao.maps.LatLng(grp.lat, grp.lng);
     el.style.cssText='position:relative;cursor:pointer;';
     el.innerHTML=`<div class="cmarker${isOver?' over-limit':''}" style="background:${bgColor};border:${borderStyle};color:${textColor};width:30px;height:30px;"><span>${label}</span></div>${badge}`;
+    (function(g,p){ el.addEventListener('click', function(){ showGroupPopup(g,p); scrollToBld(g.items[0].id); }); })(grp,pos);
     const overlay = new kakao.maps.CustomOverlay({position:pos, content:el, yAnchor:0.5});
     overlay.setMap(map);
-    (function(g,p){ el.addEventListener('click', function(){ showGroupPopup(g,p); scrollToBld(g.items[0].id); }); })(grp,pos);
     grp.items.forEach(bld=>{ markers[bld.id]=overlay; });
   });
   renderRoutes();
@@ -611,7 +611,7 @@ window.handleMarkerClick = function(grpIdx){
 let currentInfoWindow = null;
 function showGroupPopup(grp, pos){
   if(currentInfoWindow && currentInfoWindow.remove) { currentInfoWindow.remove(); currentInfoWindow=null; }
-  const scheds=getActiveScheds();
+    const scheds=getActiveScheds();
   const hdrcols=scheds.map(s=>`<span style="color:${SCHED_COLORS[s]};font-size:9px">${s.replace('평일주간','평주').replace('평일야간','평야').replace('주말주간','주주').replace('주말야간','주야')}</span>`).join('');
   const sections=grp.items.map(bld=>{
     const rows=bld.층들.map((f,fi)=>{
@@ -746,7 +746,7 @@ function renderBuildingList(){
     const areaBg=areaPct>0.8?'#fef2f2':areaPct>0.5?'#fefce8':'#eff6ff';
     
     // 스케줄 헤더 - 주/야 두 줄 고정
-    const schedHdr=`<div class="floor-hdr-row">
+        const schedHdr=`<div class="floor-hdr-row">
       <span class="floor-hdr-label"></span>
       <span class="floor-hdr-area"></span>
       <span class="shift-day-col shift-주간 floor-hdr-shift" style="color:#1a73e8">주</span>
@@ -977,7 +977,7 @@ function scrollToBld(bldId){
 
 function getActiveScheds(){
   if(currentShift==='전체' && currentDay==='전체') return SCHEDS;
-  const shifts=['주간','야간'];
+    const shifts=['주간','야간'];
   const dayFilter = currentDay==='전체' ? DAYS_KR : [currentDay];
   const shiftFilter = currentShift==='전체' ? shifts : [currentShift];
   const result=[];
@@ -1027,7 +1027,7 @@ function bulkApply(bldId){
   const sid = parseInt(staffSel.value);
   const sch = schedSel.value;
   if(!sid) { alert('담당자를 선택해주세요'); return; }
-  let scheds;
+    let scheds;
   if(sch==='all') scheds=SCHEDS;
   else if(sch==='주간-all') scheds=days.map(d=>'주간-'+d);
   else if(sch==='야간-all') scheds=days.map(d=>'야간-'+d);
