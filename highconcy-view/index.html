@@ -238,12 +238,10 @@ body.view-야간 .floor-hdr-row{grid-template-columns:60px 28px 14px repeat(7,1f
 <body>
 <div id="login-overlay" style="position:fixed;inset:0;background:#1a1d2e;z-index:9999;display:flex;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:16px;padding:40px 36px;width:340px;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
-    <h2 style="font-size:18px;font-weight:800;color:#1a1d2e;margin-bottom:4px;">🧹 하이컨시 청소 배정</h2>
+    <h2 style="font-size:18px;font-weight:800;color:#1a1d2e;margin-bottom:4px;">🧹 하이컨시</h2>
     <p style="font-size:13px;color:#888;margin-bottom:24px;">외부 열람용 로그인</p>
-    <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;">아이디</label>
-      <input id="login-id" type="text" placeholder="ID 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding:10px 12px;border:1px solid #d0d5e8;border-radius:8px;font-size:14px;outline:none;"></div>
-    <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;">비밀번호</label>
-      <input id="login-pw" type="password" placeholder="PW 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding:10px 12px;border:1px solid #d0d5e8;border-radius:8px;font-size:14px;outline:none;"></div>
+    <div style="margin-bottom:12px;"><input id="login-id" type="text" placeholder="아이디" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding:10px 12px;border:1px solid #d0d5e8;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;"></div>
+    <div style="margin-bottom:16px;"><input id="login-pw" type="password" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding:10px 12px;border:1px solid #d0d5e8;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;"></div>
     <button onclick="doLogin()" style="width:100%;padding:11px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">로그인</button>
     <div id="login-err" style="color:#dc2626;font-size:12px;text-align:center;margin-top:8px;display:none;">아이디 또는 비밀번호가 올바르지 않습니다</div>
   </div>
@@ -253,7 +251,7 @@ body.view-야간 .floor-hdr-row{grid-template-columns:60px 28px 14px repeat(7,1f
   <header id="header">
     <span style="font-size:20px">🧹</span>
     <h1>하이컨시 청소 담당자 배정 시스템</h1>
-    <span class="hbadge">시대인재</span><span style="background:#f59e0b;color:#fff;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:700;margin-left:6px;">👁️ 열람 전용</span>
+    <span class="hbadge">시대인재</span><span style="background:#f59e0b;color:#fff;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:700;margin-left:6px;">👁️ 열람전용</span>
     <div class="hspace"></div>
     <span id="hstat"></span><span style="display:flex;align-items:center;gap:5px;margin-left:12px;"><span id="sbDot" style="width:7px;height:7px;border-radius:50%;background:#666;flex-shrink:0;"></span><span id="sbStatus" style="font-size:11px;color:#aaa;">연결 중...</span></span>
     <button id="btn-print" onclick="openPrint()">🖨️ A4 출력</button>
@@ -598,9 +596,9 @@ function renderMarkers(){
     const pos = new kakao.maps.LatLng(grp.lat, grp.lng);
     el.style.cssText='position:relative;cursor:pointer;';
     el.innerHTML=`<div class="cmarker${isOver?' over-limit':''}" style="background:${bgColor};border:${borderStyle};color:${textColor};width:30px;height:30px;"><span>${label}</span></div>${badge}`;
+    (function(g,p){ el.addEventListener('click', function(){ showGroupPopup(g,p); scrollToBld(g.items[0].id); }); })(grp,pos);
     const overlay = new kakao.maps.CustomOverlay({position:pos, content:el, yAnchor:0.5});
     overlay.setMap(map);
-    (function(g,p){ el.addEventListener('click', function(){ showGroupPopup(g,p); scrollToBld(g.items[0].id); }); })(grp,pos);
     grp.items.forEach(bld=>{ markers[bld.id]=overlay; });
   });
   renderRoutes();
@@ -623,7 +621,7 @@ window.handleMarkerClick = function(grpIdx){
 let currentInfoWindow = null;
 function showGroupPopup(grp, pos){
   if(currentInfoWindow && currentInfoWindow.remove) { currentInfoWindow.remove(); currentInfoWindow=null; }
-  const scheds=getActiveScheds();
+    const scheds=getActiveScheds();
   const hdrcols=scheds.map(s=>`<span style="color:${SCHED_COLORS[s]};font-size:9px">${s.replace('평일주간','평주').replace('평일야간','평야').replace('주말주간','주주').replace('주말야간','주야')}</span>`).join('');
   const sections=grp.items.map(bld=>{
     const rows=bld.층들.map((f,fi)=>{
@@ -758,7 +756,7 @@ function renderBuildingList(){
     const areaBg=areaPct>0.8?'#fef2f2':areaPct>0.5?'#fefce8':'#eff6ff';
     
     // 스케줄 헤더 - 주/야 두 줄 고정
-    const schedHdr=`<div class="floor-hdr-row">
+        const schedHdr=`<div class="floor-hdr-row">
       <span class="floor-hdr-label"></span>
       <span class="floor-hdr-area"></span>
       <span class="shift-day-col shift-주간 floor-hdr-shift" style="color:#1a73e8">주</span>
@@ -989,7 +987,7 @@ function scrollToBld(bldId){
 
 function getActiveScheds(){
   if(currentShift==='전체' && currentDay==='전체') return SCHEDS;
-  const shifts=['주간','야간'];
+    const shifts=['주간','야간'];
   const dayFilter = currentDay==='전체' ? DAYS_KR : [currentDay];
   const shiftFilter = currentShift==='전체' ? shifts : [currentShift];
   const result=[];
@@ -1039,7 +1037,7 @@ function bulkApply(bldId){
   const sid = parseInt(staffSel.value);
   const sch = schedSel.value;
   if(!sid) { alert('담당자를 선택해주세요'); return; }
-  let scheds;
+    let scheds;
   if(sch==='all') scheds=SCHEDS;
   else if(sch==='주간-all') scheds=days.map(d=>'주간-'+d);
   else if(sch==='야간-all') scheds=days.map(d=>'야간-'+d);
@@ -1602,28 +1600,26 @@ async function sbSaveStaff() {
 // 30초 폴링
 setInterval(sbLoad, 30000);
 
-// ===== LOGIN =====
+// ===== INIT =====
+// LOGIN
 const ACCOUNTS={'highconcy':'highconcy1234'};
 function doLogin(){
   const id=document.getElementById('login-id').value.trim();
   const pw=document.getElementById('login-pw').value;
-  if(ACCOUNTS[id]&&ACCOUNTS[id]===pw){
-    sessionStorage.setItem('hc_logged_in','1');
+  if(ACCOUNTS[id]===pw){
+    sessionStorage.setItem('hc_ok','1');
     document.getElementById('login-overlay').style.display='none';
-    initMap(); renderAll(); sbLoad();
   } else {
     document.getElementById('login-err').style.display='block';
     document.getElementById('login-pw').value='';
   }
 }
-if(sessionStorage.getItem('hc_logged_in')==='1'){
-  document.addEventListener('DOMContentLoaded',()=>{
-    document.getElementById('login-overlay').style.display='none';
-    initMap(); renderAll(); sbLoad();
-  });
+if(sessionStorage.getItem('hc_ok')==='1'){
+  document.getElementById('login-overlay').style.display='none';
 }
-
-// (로그인 후 실행)
+initMap();
+renderAll(); // 먼저 기본 데이터로 렌더
+sbLoad();    // 이후 Supabase 데이터로 업데이트
 </script>
 <!-- 건물 추가 모달 -->
 <div id="add-bld-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:center;justify-content:center;">
