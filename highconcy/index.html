@@ -329,6 +329,7 @@ body.view-야간 .floor-hdr-row{grid-template-columns:60px 28px 14px repeat(7,1f
 <script>
 // ===== CONSTANTS =====
 const SCHEDS=['주간-월','주간-화','주간-수','주간-목','주간-금','주간-토','주간-일','야간-월','야간-화','야간-수','야간-목','야간-금','야간-토','야간-일'];
+const DAYS_KR=['월','화','수','목','금','토','일'];
 const SCHED_COLORS={'주간-월':'#1a73e8','주간-화':'#1a73e8','주간-수':'#1a73e8','주간-목':'#1a73e8','주간-금':'#1a73e8','주간-토':'#1a73e8','주간-일':'#1a73e8','야간-월':'#7c3aed','야간-화':'#7c3aed','야간-수':'#7c3aed','야간-목':'#7c3aed','야간-금':'#7c3aed','야간-토':'#7c3aed','야간-일':'#7c3aed'};
 const SCHED_BG={'평일주간':'#eff6ff','평일야간':'#f5f3ff','주말주간':'#f0fdf4','주말야간':'#fff7ed'};
 const COLORS=['#1a73e8','#03c75a','#e8710a','#7c3aed','#dc2626','#ca8a04','#0891b2','#db2777','#65a30d','#b45309'];
@@ -610,7 +611,6 @@ window.handleMarkerClick = function(grpIdx){
 let currentInfoWindow = null;
 function showGroupPopup(grp, pos){
   if(currentInfoWindow && currentInfoWindow.remove) { currentInfoWindow.remove(); currentInfoWindow=null; }
-  const DAYS_KR=['월','화','수','목','금','토','일'];
   const scheds=getActiveScheds();
   const hdrcols=scheds.map(s=>`<span style="color:${SCHED_COLORS[s]};font-size:9px">${s.replace('평일주간','평주').replace('평일야간','평야').replace('주말주간','주주').replace('주말야간','주야')}</span>`).join('');
   const sections=grp.items.map(bld=>{
@@ -746,7 +746,6 @@ function renderBuildingList(){
     const areaBg=areaPct>0.8?'#fef2f2':areaPct>0.5?'#fefce8':'#eff6ff';
     
     // 스케줄 헤더 - 주/야 두 줄 고정
-    const DAYS_KR=['월','화','수','목','금','토','일'];
     const schedHdr=`<div class="floor-hdr-row">
       <span class="floor-hdr-label"></span>
       <span class="floor-hdr-area"></span>
@@ -978,7 +977,6 @@ function scrollToBld(bldId){
 
 function getActiveScheds(){
   if(currentShift==='전체' && currentDay==='전체') return SCHEDS;
-  const DAYS_KR=['월','화','수','목','금','토','일'];
   const shifts=['주간','야간'];
   const dayFilter = currentDay==='전체' ? DAYS_KR : [currentDay];
   const shiftFilter = currentShift==='전체' ? shifts : [currentShift];
@@ -1029,7 +1027,6 @@ function bulkApply(bldId){
   const sid = parseInt(staffSel.value);
   const sch = schedSel.value;
   if(!sid) { alert('담당자를 선택해주세요'); return; }
-  const DAYS_KR=['월','화','수','목','금','토','일'];
   let scheds;
   if(sch==='all') scheds=SCHEDS;
   else if(sch==='주간-all') scheds=days.map(d=>'주간-'+d);
