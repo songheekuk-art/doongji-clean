@@ -584,9 +584,10 @@ function renderMarkers(){
 
     const pos = new kakao.maps.LatLng(grp.lat, grp.lng);
     el.style.cssText='position:relative;cursor:pointer;';
-    el.innerHTML=`<div class="cmarker${isOver?' over-limit':''}" style="background:${bgColor};border:${borderStyle};color:${textColor};width:30px;height:30px;" onclick="window.handleMarkerClick(${grpIdx})"><span>${label}</span></div>${badge}`;
+    el.innerHTML=`<div class="cmarker${isOver?' over-limit':''}" style="background:${bgColor};border:${borderStyle};color:${textColor};width:30px;height:30px;"><span>${label}</span></div>${badge}`;
     const overlay = new kakao.maps.CustomOverlay({position:pos, content:el, yAnchor:0.5});
     overlay.setMap(map);
+    (function(g,p){ el.addEventListener('click', function(){ showGroupPopup(g,p); scrollToBld(g.items[0].id); }); })(grp,pos);
     grp.items.forEach(bld=>{ markers[bld.id]=overlay; });
   });
   renderRoutes();
