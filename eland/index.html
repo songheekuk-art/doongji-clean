@@ -288,7 +288,8 @@ function rangeLabel(){const a=rangeDates();if(!a.length)return '\u2014';return i
 
 /* ---------- calc ---------- */
 function nightHours(startStr,totalH){let[hh,mm]=startStr.split(':').map(Number);let start=hh*60+mm;if(start<720)start+=1440;const end=start+totalH*60;const ov=Math.max(0,Math.min(end,1800)-Math.max(start,1320));return ov/60;}
-function dayPay(wage,reg,ot,nightH){const tot=(reg||0)+(ot||0);const base=tot*wage;const nh=Math.max(0,Math.min(nightH||0,tot));const night=nh*wage*S.settings.nightRate;const otp=(ot||0)*wage*S.settings.otRate;return{base,night,ot:otp,hours:tot,nighthours:nh,total:base+night+otp};}
+function t10(n){return Math.floor(n/10)*10;}
+function dayPay(wage,reg,ot,nightH){const tot=(reg||0)+(ot||0);const base=t10(tot*wage);const nh=Math.max(0,Math.min(nightH||0,tot));const night=t10(nh*wage*S.settings.nightRate);const otp=t10((ot||0)*wage*S.settings.otRate);return{base,night,ot:otp,hours:tot,nighthours:nh,total:base+night+otp};}
 function attNight(a){if(!a||a.status!=='work')return 0;const reg=a.reg||0,ot=a.ot||0;if(a.nReg!=null||a.nOt!=null)return (a.nReg||0)+(a.nOt||0);if(a.noNight)return 0;return nightHours(S.settings.shiftStart,reg+ot);}
 function hmLabel(dec){const t=Math.round((dec||0)*60);const h=Math.floor(t/60),m=t%60;if(!t)return '0';return (h?h+'h':'')+(m?(h?' ':'')+m+'m':'');}
 function hmParts(dec){const t=Math.round((dec||0)*60);return{h:Math.floor(t/60),m:t%60};}
@@ -328,15 +329,14 @@ function subProration(s,dates){
 }
 function salaryProration(w,dates){
   const all=(dates&&dates.length)?dates:rangeDates();
-  const totalDays=all.length||1;
+  const [_y,_m]=S.month.split('-').map(Number);
+  const monthDays=new Date(_y,_m,0).getDate();
   const active=all.filter(dt=>activeOn(w,iso(dt)));
-  const gross=Math.round((w.salary||0)*(active.length/totalDays));
+  const gross=t10(Math.round((w.salary||0)*(active.length/monthDays)));
   const rate=(w.withhold!=null?w.withhold:3.3);
-  const tax=Math.round(gross*rate/100);
+  const tax=t10(Math.round(gross*rate/100));
   const net=gross-tax;
-  const first=active.length?iso(active[0]):'';
-  const last=active.length?iso(active[active.length-1]):'';
-  return{days:active.length,totalDays,gross,tax,net,rate,first,last,label:active.length+'/'+totalDays+'일'};
+  return{days:active.length,totalDays:monthDays,gross,tax,net,rate,label:active.length+'/'+monthDays+'일'};
 }
 function activeSubStoresForDates(dates){return allSubContracts().filter(s=>rangeOverlapsDates(s.contractStart,s.contractEnd,dates));}
 function isOff(s,dt){return s.off && WDFULL[dt.getDay()]===s.off;}
@@ -639,7 +639,7 @@ function handleSearchInput(k,el){
 }
 function clearSearch(k){S[k]='';save();render();}
 function searchBox(key,placeholder){const v=safeVal(S[key]||'');return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><input value="${v}" oncompositionstart="this.dataset.composing='1'" oncompositionend="this.dataset.composing='0';setSearch('${key}',this.value,true)" oninput="handleSearchInput('${key}',this)" onkeydown="if(event.key==='Enter'){event.preventDefault();setSearch('${key}',this.value,true);}" placeholder="${placeholder}" style="max-width:320px;min-width:210px"><button class="btn ghost sm" onclick="clearSearch('${key}')">초기화</button></div>`;}
-function sortAlbaPayWorkers(list,agg){const k=S.albaPaySort||'default';const a=list.slice();const taxOf=w=>{const m=agg[w.id]||{total:0};return m.total*((w.withhold!=null?w.withhold:3.3)/100);};
+function sortAlbaPayWorkers(list,agg){const k=S.albaPaySort||'default';const a=list.slice();const taxOf=w=>{const m=agg[w.id]||{total:0};return t10(m.total*((w.withhold!=null?w.withhold:3.3)/100));};
   if(k==='nameAsc')a.sort((x,y)=>x.name.localeCompare(y.name,'ko'));
   else if(k==='nameDesc')a.sort((x,y)=>y.name.localeCompare(x.name,'ko'));
   else if(k==='amountDesc')a.sort((x,y)=>((agg[y.id]||{}).total||0)-((agg[x.id]||{}).total||0)||x.name.localeCompare(y.name,'ko'));
@@ -828,7 +828,7 @@ function renderPay(){
   const DTS=rangeDates(); const agg=workerAgg(DTS);
   const r=S.payRange||{preset:'cycle'};
   const presets=[['cycle','마감사이클(25~24)'],['m1to25','1~25일'],['mfull','이번달 전체'],['custom','사용자지정']];
-  let tot={days:0,total:0,night:0,otpay:0,tax:0,net:0};S.workers.filter(w=>w.type==='hourly').forEach(w=>{const m=agg[w.id];const tax=m.total*((w.withhold!=null?w.withhold:3.3)/100);tot.days+=m.days;tot.total+=m.total;tot.night+=m.night;tot.otpay+=m.otpay;tot.tax+=tax;tot.net+=m.total-tax;});
+  let tot={days:0,total:0,night:0,otpay:0,tax:0,net:0};S.workers.filter(w=>w.type==='hourly').forEach(w=>{const m=agg[w.id];const tax=t10(m.total*((w.withhold!=null?w.withhold:3.3)/100));tot.days+=m.days;tot.total+=m.total;tot.night+=m.night;tot.otpay+=m.otpay;tot.tax+=tax;tot.net+=m.total-tax;});
   const monthLabel=S.month.split('-')[1].replace(/^0/,'')+'월';
   const payWorkers=S.workers.filter(w=>w.type==='hourly'&&agg[w.id]&&agg[w.id].days>0).length;
   const paidWorkers=S.workers.filter(w=>w.type==='hourly'&&agg[w.id]&&agg[w.id].days>0&&getPay(w.id)&&getPay(w.id).paid).length;
@@ -866,7 +866,7 @@ function renderPay(){
     const stores=Object.keys(m.byStore).map(id=>shortName(storeOf(id))+`(${m.byStore[id].d})`).join(', ');
     if(albaQ&&!normSearch([w.name,stores,Object.keys(m.byStore).map(id=>storeOf(id)?storeOf(id).name:'').join(' ')].join(' ')).includes(albaQ))return;
     albaShown++;
-    const tax=m.total*((w.withhold!=null?w.withhold:3.3)/100);const net=m.total-tax;
+    const tax=t10(m.total*((w.withhold!=null?w.withhold:3.3)/100));const net=m.total-tax;
     gT.days+=m.days;gT.reg+=m.reg;gT.ot+=m.ot;gT.base+=m.base;gT.night+=m.night;gT.otpay+=m.otpay;gT.total+=m.total;gT.tax=(gT.tax||0)+tax;gT.net=(gT.net||0)+net;
     h+=`<tr><td><b>${w.name}</b>${(w.bankName||w.bankAccount)?`<div style="font-size:10px;color:var(--mut)">${w.bankName||'-'} ${w.bankAccount||''}${w.bankHolder?' ('+w.bankHolder+')':''}</div>`:''}</td><td class="r" style="font-size:12px">${w.rate?`<b style="color:var(--blue-d)">${won(w.rate)}</b><div style="font-size:9px;color:var(--blue-d)">개별시급</div>`:`<span style="color:var(--mut)">자리시급</span>`}${(m.reg+m.ot)>0?`<div style="font-size:9px;color:#999">실적용 ${won(Math.round(m.base/(m.reg+m.ot)))}</div>`:''}</td><td style="font-size:12px;color:var(--mut);white-space:normal;max-width:200px">${stores||'-'}</td>
       <td class="c">${m.days}</td><td class="r num">${m.reg.toFixed(1)}</td><td class="r num" style="color:${m.ot?'var(--amber)':'inherit'}">${m.ot.toFixed(1)}</td>
@@ -1225,7 +1225,7 @@ function importJSON(ev){const f=ev.target.files[0];if(!f)return;const r=new File
 function setPreset(p){S.payRange={...(S.payRange||{}),preset:p};if(p==='custom'&&!(S.payRange.start&&S.payRange.end)){const d=rangeDates();S.payRange.start=iso(d[0]);S.payRange.end=iso(d[d.length-1]);}save();render();}
 function applyCustom(pfx){pfx=pfx||'pr';const s=document.getElementById(pfx+'_s').value,e=document.getElementById(pfx+'_e').value;if(!s||!e){alert('시작일과 종료일을 선택하세요.');return;}if(e<s){alert('종료일이 시작일보다 빠릅니다.');return;}S.payRange={preset:'custom',start:s,end:e};save();render();}
 function exportCSV(){const DTS=rangeDates();const agg=workerAgg(DTS);let rows=[['정산기간',rangeLabel()],['구분','이름','은행','계좌번호','예금주','근무일','정규h','초과h','기본급','심야','초과','지급액','3.3%공제','실지급액']];
-  sortAlbaPayWorkers(S.workers.filter(w=>w.type==='hourly'),agg).forEach(w=>{const m=agg[w.id];if(m.days===0)return;const tax=m.total*((w.withhold!=null?w.withhold:3.3)/100);rows.push(['알바',w.name,w.bankName||'',w.bankAccount||'',w.bankHolder||'',m.days,m.reg.toFixed(1),m.ot.toFixed(1),Math.round(m.base),Math.round(m.night),Math.round(m.otpay),Math.round(m.total),Math.round(tax),Math.round(m.total-tax)]);});
+  sortAlbaPayWorkers(S.workers.filter(w=>w.type==='hourly'),agg).forEach(w=>{const m=agg[w.id];if(m.days===0)return;const tax=t10(m.total*((w.withhold!=null?w.withhold:3.3)/100));rows.push(['알바',w.name,w.bankName||'',w.bankAccount||'',w.bankHolder||'',m.days,m.reg.toFixed(1),m.ot.toFixed(1),Math.round(m.base),Math.round(m.night),Math.round(m.otpay),Math.round(m.total),Math.round(tax),Math.round(m.total-tax)]);});
   dl('애슐리_정산_'+periodLabel()+'.csv','\uFEFF'+rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'),'text/csv');}
 function exportWorkersCSV(){let rows=[['이름','구분','소속지점','시급/월급','입사일','퇴사일','상태','연락처','은행','계좌번호','예금주','메모']];
   S.workers.forEach(w=>rows.push([w.name,w.type==='salary'?'팀장(월급)':(w.type==='personal'?'개인(월급)':'알바(시급)'),(w.storeId&&storeOf(w.storeId))?shortName(storeOf(w.storeId)):'',w.type==='salary'||w.type==='personal'?(w.salary||0):(w.rate||'자리시급'),w.hireDate||'',w.resignDate||'',w.resignDate?'퇴사':'재직',w.phone||'',w.bankName||'',w.bankAccount||'',w.bankHolder||'',w.memo||'']));
