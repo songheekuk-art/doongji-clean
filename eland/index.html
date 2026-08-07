@@ -288,8 +288,7 @@ function rangeLabel(){const a=rangeDates();if(!a.length)return '\u2014';return i
 
 /* ---------- calc ---------- */
 function nightHours(startStr,totalH){let[hh,mm]=startStr.split(':').map(Number);let start=hh*60+mm;if(start<720)start+=1440;const end=start+totalH*60;const ov=Math.max(0,Math.min(end,1800)-Math.max(start,1320));return ov/60;}
-function t10(n){return Math.floor(n/10)*10;}
-function dayPay(wage,reg,ot,nightH){const tot=(reg||0)+(ot||0);const base=t10(tot*wage);const nh=Math.max(0,Math.min(nightH||0,tot));const night=t10(nh*wage*S.settings.nightRate);const otp=t10((ot||0)*wage*S.settings.otRate);return{base,night,ot:otp,hours:tot,nighthours:nh,total:base+night+otp};}
+function dayPay(wage,reg,ot,nightH){const tot=(reg||0)+(ot||0);const base=tot*wage;const nh=Math.max(0,Math.min(nightH||0,tot));const night=nh*wage*S.settings.nightRate;const otp=(ot||0)*wage*S.settings.otRate;return{base,night,ot:otp,hours:tot,nighthours:nh,total:base+night+otp};}
 function attNight(a){if(!a||a.status!=='work')return 0;const reg=a.reg||0,ot=a.ot||0;if(a.nReg!=null||a.nOt!=null)return (a.nReg||0)+(a.nOt||0);if(a.noNight)return 0;return nightHours(S.settings.shiftStart,reg+ot);}
 function hmLabel(dec){const t=Math.round((dec||0)*60);const h=Math.floor(t/60),m=t%60;if(!t)return '0';return (h?h+'h':'')+(m?(h?' ':'')+m+'m':'');}
 function hmParts(dec){const t=Math.round((dec||0)*60);return{h:Math.floor(t/60),m:t%60};}
@@ -329,14 +328,15 @@ function subProration(s,dates){
 }
 function salaryProration(w,dates){
   const all=(dates&&dates.length)?dates:rangeDates();
-  const [_y,_m]=S.month.split('-').map(Number);
-  const monthDays=new Date(_y,_m,0).getDate();
+  const totalDays=all.length||1;
   const active=all.filter(dt=>activeOn(w,iso(dt)));
-  const gross=t10(Math.round((w.salary||0)*(active.length/monthDays)));
+  const gross=Math.round((w.salary||0)*(active.length/totalDays));
   const rate=(w.withhold!=null?w.withhold:3.3);
-  const tax=t10(Math.round(gross*rate/100));
+  const tax=Math.round(gross*rate/100);
   const net=gross-tax;
-  return{days:active.length,totalDays:monthDays,gross,tax,net,rate,label:active.length+'/'+monthDays+'일'};
+  const first=active.length?iso(active[0]):'';
+  const last=active.length?iso(active[active.length-1]):'';
+  return{days:active.length,totalDays,gross,tax,net,rate,first,last,label:active.length+'/'+totalDays+'일'};
 }
 function activeSubStoresForDates(dates){return allSubContracts().filter(s=>rangeOverlapsDates(s.contractStart,s.contractEnd,dates));}
 function isOff(s,dt){return s.off && WDFULL[dt.getDay()]===s.off;}
@@ -357,7 +357,7 @@ function workerAgg(DTS){DTS=DTS||periodDates();
       const a=getAtt(s,p.key,dt);
       if(a.status!=='work'||!a.workerId)return; const m=map[a.workerId]; if(!m)return;
       if(m.w.type==='salary'||m.w.type==='personal'){ if(m.w.type==='salary')m.leaddays++; m.days++; (m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0}).d++; return; }
-      const pay=dayPay(rateFor(m.w,p.wage),a.reg,a.ot,m.w.noNight?0:attNight(a));
+      const pay=dayPay(rateFor(m.w,p.wage),a.reg,a.ot,attNight(a));
       m.days++; m.reg+=(a.reg||0); m.ot+=(a.ot||0); m.base+=pay.base; m.night+=pay.night; m.otpay+=pay.ot; m.total+=pay.total;
       const bs=(m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0}); bs.d++; bs.t+=pay.total;
     });});
@@ -371,7 +371,7 @@ function workerAgg(DTS){DTS=DTS||periodDates();
       if(w.type==='personal'){DTS.forEach(dt=>{const ds=iso(dt);if(!activeOn(w,ds))return;if(isOff(s,dt))return;m.days++;(m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0}).d++;});return;}
       const wage=rateFor(w,_posWage(w.posKey));
       DTS.forEach(dt=>{const ds=iso(dt);if(!activeOn(w,ds))return;if(isOff(s,dt))return;
-        const reg=defShiftH();const nightH=w.noNight?0:nightHours(S.settings.shiftStart,reg);
+        const reg=defShiftH();const nightH=nightHours(S.settings.shiftStart,reg);
         const pay=dayPay(wage,reg,0,nightH);
         m.days++;m.reg+=reg;m.base+=pay.base;m.night+=pay.night;m.total+=pay.total;
         const bs=(m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0});bs.d++;bs.t+=pay.total;
@@ -388,7 +388,7 @@ function workerAgg(DTS){DTS=DTS||periodDates();
           rStores.forEach(s=>{(m.byStore[s.id]=m.byStore[s.id]||{d:0,t:0}).d++;});});return;}
       const wage=rateFor(w,S.settings.wageHK);
       DTS.forEach(dt=>{if(!activeOn(w,iso(dt)))return;if(rStores.every(s=>isOff(s,dt)))return;
-        const reg=defShiftH();const nightH=w.noNight?0:nightHours(S.settings.shiftStart,reg);
+        const reg=defShiftH();const nightH=nightHours(S.settings.shiftStart,reg);
         const pay=dayPay(wage,reg,0,nightH);
         m.days++;m.reg+=reg;m.base+=pay.base;m.night+=pay.night;m.otpay+=pay.ot;m.total+=pay.total;
         const perStore=pay.total/rStores.length;
@@ -398,9 +398,9 @@ function workerAgg(DTS){DTS=DTS||periodDates();
   }
   return map;
 }
-function storeDirectCost(s,_D){let c=0;const DTS=_D||periodDates();positionsOf(s).forEach(p=>DTS.forEach(dt=>{const a=getAtt(s,p.key,dt);if(a.status==='work'&&a.workerId){const w=workerOf(a.workerId);if(w&&w.type==='hourly')c+=dayPay(rateFor(w,p.wage),a.reg,a.ot,w.noNight?0:attNight(a)).total;}}));
+function storeDirectCost(s,_D){let c=0;const DTS=_D||periodDates();positionsOf(s).forEach(p=>DTS.forEach(dt=>{const a=getAtt(s,p.key,dt);if(a.status==='work'&&a.workerId){const w=workerOf(a.workerId);if(w&&w.type==='hourly')c+=dayPay(rateFor(w,p.wage),a.reg,a.ot,attNight(a)).total;}}));
   const _pw=r=>r==='샐러드'||r==='샐러드바'?S.settings.wageSalad:S.settings.wageHK;const _gk=positionsOf(s).map(p=>p.key);
-  S.workers.filter(w=>w.posKey&&w.posKey!=='후보자'&&!_gk.includes(w.posKey)&&w.storeId===s.id&&w.type==='hourly').forEach(w=>{const wage=rateFor(w,_pw(w.posKey));DTS.forEach(dt=>{if(!activeOn(w,iso(dt)))return;if(isOff(s,dt))return;const reg=defShiftH();c+=dayPay(wage,reg,0,w.noNight?0:nightHours(S.settings.shiftStart,reg)).total;});});
+  S.workers.filter(w=>w.posKey&&w.posKey!=='후보자'&&!_gk.includes(w.posKey)&&w.storeId===s.id&&w.type==='hourly').forEach(w=>{const wage=rateFor(w,_pw(w.posKey));DTS.forEach(dt=>{if(!activeOn(w,iso(dt)))return;if(isOff(s,dt))return;const reg=defShiftH();c+=dayPay(wage,reg,0,nightHours(S.settings.shiftStart,reg)).total;});});
   return c;}
 function storeIndex(s){return S.stores.findIndex(x=>x.id===s.id);}
 function workerIndex(w){return S.workers.findIndex(x=>x.id===w.id);}
@@ -639,7 +639,7 @@ function handleSearchInput(k,el){
 }
 function clearSearch(k){S[k]='';save();render();}
 function searchBox(key,placeholder){const v=safeVal(S[key]||'');return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><input value="${v}" oncompositionstart="this.dataset.composing='1'" oncompositionend="this.dataset.composing='0';setSearch('${key}',this.value,true)" oninput="handleSearchInput('${key}',this)" onkeydown="if(event.key==='Enter'){event.preventDefault();setSearch('${key}',this.value,true);}" placeholder="${placeholder}" style="max-width:320px;min-width:210px"><button class="btn ghost sm" onclick="clearSearch('${key}')">초기화</button></div>`;}
-function sortAlbaPayWorkers(list,agg){const k=S.albaPaySort||'default';const a=list.slice();const taxOf=w=>{const m=agg[w.id]||{total:0};return t10(m.total*((w.withhold!=null?w.withhold:3.3)/100));};
+function sortAlbaPayWorkers(list,agg){const k=S.albaPaySort||'default';const a=list.slice();const taxOf=w=>{const m=agg[w.id]||{total:0};return m.total*((w.withhold!=null?w.withhold:3.3)/100);};
   if(k==='nameAsc')a.sort((x,y)=>x.name.localeCompare(y.name,'ko'));
   else if(k==='nameDesc')a.sort((x,y)=>y.name.localeCompare(x.name,'ko'));
   else if(k==='amountDesc')a.sort((x,y)=>((agg[y.id]||{}).total||0)-((agg[x.id]||{}).total||0)||x.name.localeCompare(y.name,'ko'));
@@ -828,7 +828,7 @@ function renderPay(){
   const DTS=rangeDates(); const agg=workerAgg(DTS);
   const r=S.payRange||{preset:'cycle'};
   const presets=[['cycle','마감사이클(25~24)'],['m1to25','1~25일'],['mfull','이번달 전체'],['custom','사용자지정']];
-  let tot={days:0,total:0,night:0,otpay:0,tax:0,net:0};S.workers.filter(w=>w.type==='hourly').forEach(w=>{const m=agg[w.id];const tax=t10(m.total*((w.withhold!=null?w.withhold:3.3)/100));tot.days+=m.days;tot.total+=m.total;tot.night+=m.night;tot.otpay+=m.otpay;tot.tax+=tax;tot.net+=m.total-tax;});
+  let tot={days:0,total:0,night:0,otpay:0,tax:0,net:0};S.workers.filter(w=>w.type==='hourly').forEach(w=>{const m=agg[w.id];const tax=m.total*((w.withhold!=null?w.withhold:3.3)/100);tot.days+=m.days;tot.total+=m.total;tot.night+=m.night;tot.otpay+=m.otpay;tot.tax+=tax;tot.net+=m.total-tax;});
   const monthLabel=S.month.split('-')[1].replace(/^0/,'')+'월';
   const payWorkers=S.workers.filter(w=>w.type==='hourly'&&agg[w.id]&&agg[w.id].days>0).length;
   const paidWorkers=S.workers.filter(w=>w.type==='hourly'&&agg[w.id]&&agg[w.id].days>0&&getPay(w.id)&&getPay(w.id).paid).length;
@@ -841,9 +841,9 @@ function renderPay(){
     </div>
     <label class="fld">정산 기간 선택</label>
     <div class="seg" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">${presets.map(p=>`<button class="${r.preset===p[0]?'on':''}" style="flex:0 0 auto;min-width:104px" onclick="setPreset('${p[0]}')">${p[1]}</button>`).join('')}</div>
-    <div class="row" style="${r.preset==='custom'?'':'display:none'}"><div style="flex:1"><label class="fld">시작일</label><input type="date" id="pay_s" value="${r.start||iso(DTS[0]||new Date())}"></div>
-      <div style="flex:1"><label class="fld">종료일</label><input type="date" id="pay_e" value="${r.end||iso((DTS[DTS.length-1])||new Date())}"></div>
-      <button class="btn pri" onclick="applyCustom('pay')">적용</button></div>
+    <div class="row" style="${r.preset==='custom'?'':'display:none'}"><div style="flex:1"><label class="fld">시작일</label><input type="date" id="pr_s" value="${r.start||iso(DTS[0]||new Date())}"></div>
+      <div style="flex:1"><label class="fld">종료일</label><input type="date" id="pr_e" value="${r.end||iso((DTS[DTS.length-1])||new Date())}"></div>
+      <button class="btn pri" onclick="applyCustom()">적용</button></div>
     <div style="margin-top:8px;font-size:12.5px;color:var(--purple);font-weight:700">\uD83D\uDCC5 ${rangeLabel()} · ${DTS.length}일</div></div></div>
     <div class="cards"><div class="kpi accent"><div class="lab">${monthLabel} 알바 지급 합계</div><div class="val num">${won(tot.total)}</div><div class="sub">세전 ${won(tot.total)} · 실지급 ${won(tot.net)}</div></div>
       <div class="kpi"><div class="lab">알바 근무 연인원</div><div class="val num">${tot.days}건</div><div class="sub">심야 ${won(tot.night)} · 초과 ${won(tot.otpay)} · 3.3%공제 ${won(tot.tax)}</div></div>
@@ -866,7 +866,7 @@ function renderPay(){
     const stores=Object.keys(m.byStore).map(id=>shortName(storeOf(id))+`(${m.byStore[id].d})`).join(', ');
     if(albaQ&&!normSearch([w.name,stores,Object.keys(m.byStore).map(id=>storeOf(id)?storeOf(id).name:'').join(' ')].join(' ')).includes(albaQ))return;
     albaShown++;
-    const tax=t10(m.total*((w.withhold!=null?w.withhold:3.3)/100));const net=m.total-tax;
+    const tax=m.total*((w.withhold!=null?w.withhold:3.3)/100);const net=m.total-tax;
     gT.days+=m.days;gT.reg+=m.reg;gT.ot+=m.ot;gT.base+=m.base;gT.night+=m.night;gT.otpay+=m.otpay;gT.total+=m.total;gT.tax=(gT.tax||0)+tax;gT.net=(gT.net||0)+net;
     h+=`<tr><td><b>${w.name}</b>${(w.bankName||w.bankAccount)?`<div style="font-size:10px;color:var(--mut)">${w.bankName||'-'} ${w.bankAccount||''}${w.bankHolder?' ('+w.bankHolder+')':''}</div>`:''}</td><td class="r" style="font-size:12px">${w.rate?`<b style="color:var(--blue-d)">${won(w.rate)}</b><div style="font-size:9px;color:var(--blue-d)">개별시급</div>`:`<span style="color:var(--mut)">자리시급</span>`}${(m.reg+m.ot)>0?`<div style="font-size:9px;color:#999">실적용 ${won(Math.round(m.base/(m.reg+m.ot)))}</div>`:''}</td><td style="font-size:12px;color:var(--mut);white-space:normal;max-width:200px">${stores||'-'}</td>
       <td class="c">${m.days}</td><td class="r num">${m.reg.toFixed(1)}</td><td class="r num" style="color:${m.ot?'var(--amber)':'inherit'}">${m.ot.toFixed(1)}</td>
@@ -882,7 +882,7 @@ function renderPay(){
   h+=`<div class="panel"><div class="phead"><h2>월급제 정산 (개인)</h2><span class="hint">본사 팀장은 정산에서 제외 · 입사일/퇴사일 기준 일할계산</span></div><div class="pbody" style="overflow-x:auto">
     <table><thead><tr><th>이름</th><th class="c">재직기간</th><th class="c">정산일수</th><th class="r">월 급여</th><th class="r">일할 지급액</th><th class="r">3.3% 원천징수</th><th class="r">실지급액</th><th>계산방식</th></tr></thead><tbody>`;
   let salGross=0,salTax=0,salNet=0;
-  sal.forEach(w=>{const sp=salaryProration(w,DTS);salGross+=sp.gross;salTax+=sp.tax;salNet+=sp.net;
+  sal.forEach(w=>{const sp=salaryProration(w,DTS);if(sp.days===0)return;salGross+=sp.gross;salTax+=sp.tax;salNet+=sp.net;
     const period=(w.hireDate||'입사일 없음')+' ~ '+(w.resignDate||'재직중');
     h+=`<tr><td><b>${w.name}</b>${(w.bankName||w.bankAccount)?`<div style="font-size:10px;color:var(--mut)">${w.bankName||'-'} ${w.bankAccount||''}${w.bankHolder?' ('+w.bankHolder+')':''}</div>`:''}</td><td class="c" style="font-size:12px;color:var(--mut)">${period}</td><td class="c"><span class="tag ${sp.days===sp.totalDays?'g':'a'}">${sp.label}</span></td><td class="r num">${won(w.salary)}</td><td class="r num"><b>${won(sp.gross)}</b></td><td class="r num" style="color:var(--red)">−${won(sp.tax)} <span style="font-size:10px;color:var(--mut)">(${sp.rate}%)</span></td><td class="r num"><b>${won(sp.net)}</b></td><td style="font-size:12px;color:var(--mut)">정산기간 ${rangeLabel()} 중 재직일수 기준 · 휴무와 무관</td></tr>`;});
   if(!sal.length)h+=`<tr><td colspan="8" class="c" style="color:var(--mut);padding:18px">등록된 개인 월급제가 없습니다.</td></tr>`;
@@ -1181,10 +1181,7 @@ function workerModal(w,isNew){const sal=w.type==='salary';const isM=(sal||w.type
       <div><label class="fld">계좌번호</label><input id="w_acct" value="${(w.bankAccount||'').replace(/"/g,'&quot;')}" placeholder="숫자/하이픈 가능"></div>
       <div><label class="fld">예금주</label><input id="w_holder" value="${(w.bankHolder||'').replace(/"/g,'&quot;')}" placeholder="예금주명"></div></div>
     <label class="fld" style="margin-top:10px">퇴사일 <span style="font-weight:400;color:var(--mut)">(입력 시 배정 목록에서 자동 제외)</span></label><input type="date" id="w_resign" value="${w.resignDate||''}">
-    <div id="wHourly" style="${isM?'display:none':''}"><label class="fld" style="margin-top:10px">개별 시급 (비우면 자리 시급 적용)</label><input type="number" id="w_rate" value="${w.rate||''}" placeholder="자리 시급 따름">
-      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;padding:10px 14px;border-radius:10px;background:${w.noNight?'#fceaed':'#f7f9fc'};border:1px solid ${w.noNight?'var(--red)':'#e3e8ef'}">
-        <input type="checkbox" id="w_nonight" ${w.noNight?'checked':''} style="width:18px;height:18px;accent-color:var(--red)">
-        <span style="font-size:13px;font-weight:600;color:${w.noNight?'var(--red)':'var(--mut)'}">심야수당 미적용 <span style="font-weight:400;font-size:11px">(체크 시 심야 50% 가산 제외)</span></span></label></div>
+    <div id="wHourly" style="${isM?'display:none':''}"><label class="fld" style="margin-top:10px">개별 시급 (비우면 자리 시급 적용)</label><input type="number" id="w_rate" value="${w.rate||''}" placeholder="자리 시급 따름"></div>
     <div id="wSalary" style="${isM?'':'display:none'}"><div class="grid2" style="margin-top:10px"><div><label class="fld">월 급여</label><input type="number" id="w_salary" value="${w.salary||3500000}"></div>
       <div><label class="fld">원천징수율 (%)</label><input type="number" step="0.1" id="w_with" value="${w.withhold!=null?w.withhold:3.3}"></div></div></div>
     <label class="fld" style="margin-top:10px">메모</label><input id="w_memo" value="${(w.memo||'').replace(/"/g,'&quot;')}">
@@ -1202,7 +1199,7 @@ function saveWorker(id){const t=document.getElementById('w_type').value;
   if(isPatrol()){const rSel=document.getElementById('w_region');d.patrolRegion=rSel?rSel.value:'';const rr=regionStores(d.patrolRegion);if(rr.length)d.storeId=rr[0].id;d.posKey='';}else{d.patrolRegion='';}
   if(t==='salary'){d.salary=parseInt(document.getElementById('w_salary').value)||0;d.withhold=parseFloat(document.getElementById('w_with').value)||0;d.rate=null;d.posKey='';}
   else if(t==='personal'){d.salary=parseInt(document.getElementById('w_salary').value)||0;d.withhold=parseFloat(document.getElementById('w_with').value)||0;d.rate=null;d.posKey=document.getElementById('w_pos').value||'';}
-  else{const r=parseInt(document.getElementById('w_rate').value);d.rate=r||null;d.salary=0;d.withhold=3.3;d.posKey=document.getElementById('w_pos').value||'';d.noNight=!!document.getElementById('w_nonight').checked;}
+  else{const r=parseInt(document.getElementById('w_rate').value);d.rate=r||null;d.salary=0;d.withhold=3.3;d.posKey=document.getElementById('w_pos').value||'';}
   if(id==='NEW')S.workers.push({id:'W'+Date.now(),...d});else Object.assign(workerOf(id),d);
   save();closeModal();render();}
 function delWorker(id){if(id==='W-lead'){alert('기본 팀장은 삭제할 수 없습니다. 이름을 바꿔 사용하세요.');return;}
@@ -1223,9 +1220,9 @@ function saveSet(){const hk=parseInt(document.getElementById('set_hk').value)||1
 function exportJSON(){dl('애슐리_플랫폼_'+S.month+'.json',JSON.stringify(S,null,2),'application/json');}
 function importJSON(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{S=migrate(JSON.parse(r.result));save();document.getElementById('monthPick').value=S.month;render();alert('가져왔습니다.');}catch(e){alert('파일을 읽을 수 없습니다.');}};r.readAsText(f);}
 function setPreset(p){S.payRange={...(S.payRange||{}),preset:p};if(p==='custom'&&!(S.payRange.start&&S.payRange.end)){const d=rangeDates();S.payRange.start=iso(d[0]);S.payRange.end=iso(d[d.length-1]);}save();render();}
-function applyCustom(pfx){pfx=pfx||'pr';const s=document.getElementById(pfx+'_s').value,e=document.getElementById(pfx+'_e').value;if(!s||!e){alert('시작일과 종료일을 선택하세요.');return;}if(e<s){alert('종료일이 시작일보다 빠릅니다.');return;}S.payRange={preset:'custom',start:s,end:e};save();render();}
+function applyCustom(){const s=document.getElementById('pr_s').value,e=document.getElementById('pr_e').value;if(!s||!e){alert('시작일과 종료일을 선택하세요.');return;}if(e<s){alert('종료일이 시작일보다 빠릅니다.');return;}S.payRange={preset:'custom',start:s,end:e};save();render();}
 function exportCSV(){const DTS=rangeDates();const agg=workerAgg(DTS);let rows=[['정산기간',rangeLabel()],['구분','이름','은행','계좌번호','예금주','근무일','정규h','초과h','기본급','심야','초과','지급액','3.3%공제','실지급액']];
-  sortAlbaPayWorkers(S.workers.filter(w=>w.type==='hourly'),agg).forEach(w=>{const m=agg[w.id];if(m.days===0)return;const tax=t10(m.total*((w.withhold!=null?w.withhold:3.3)/100));rows.push(['알바',w.name,w.bankName||'',w.bankAccount||'',w.bankHolder||'',m.days,m.reg.toFixed(1),m.ot.toFixed(1),Math.round(m.base),Math.round(m.night),Math.round(m.otpay),Math.round(m.total),Math.round(tax),Math.round(m.total-tax)]);});
+  sortAlbaPayWorkers(S.workers.filter(w=>w.type==='hourly'),agg).forEach(w=>{const m=agg[w.id];if(m.days===0)return;const tax=m.total*((w.withhold!=null?w.withhold:3.3)/100);rows.push(['알바',w.name,w.bankName||'',w.bankAccount||'',w.bankHolder||'',m.days,m.reg.toFixed(1),m.ot.toFixed(1),Math.round(m.base),Math.round(m.night),Math.round(m.otpay),Math.round(m.total),Math.round(tax),Math.round(m.total-tax)]);});
   dl('애슐리_정산_'+periodLabel()+'.csv','\uFEFF'+rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'),'text/csv');}
 function exportWorkersCSV(){let rows=[['이름','구분','소속지점','시급/월급','입사일','퇴사일','상태','연락처','은행','계좌번호','예금주','메모']];
   S.workers.forEach(w=>rows.push([w.name,w.type==='salary'?'팀장(월급)':(w.type==='personal'?'개인(월급)':'알바(시급)'),(w.storeId&&storeOf(w.storeId))?shortName(storeOf(w.storeId)):'',w.type==='salary'||w.type==='personal'?(w.salary||0):(w.rate||'자리시급'),w.hireDate||'',w.resignDate||'',w.resignDate?'퇴사':'재직',w.phone||'',w.bankName||'',w.bankAccount||'',w.bankHolder||'',w.memo||'']));
