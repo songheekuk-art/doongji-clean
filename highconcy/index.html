@@ -166,7 +166,10 @@ table.sched tr:hover td.sticky{background:#FAFAF6}
 .picker .pi.sel .h{color:#C9C8C0}
 .picker .pempty{padding:16px;text-align:center;color:var(--muted);font-size:12px}
 .syncbar{max-width:1600px;margin:0 auto;padding:7px 18px 0;display:flex;align-items:center;gap:7px;
-  font-size:11.5px;color:var(--muted);cursor:pointer;flex-wrap:wrap}
+  font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.syncbar .sbtn{border:1px solid var(--line);background:#fff;border-radius:5px;padding:2px 8px;
+  font-size:11px;font-weight:600;cursor:pointer;color:#4A4A44}
+.syncbar .sbtn:hover{border-color:#B9B8B0;background:#FCFCFA}
 .syncbar b{color:var(--ink);font-size:12px}
 .syncbar .sep{color:#C9C8C0}
 .syncbar .sdot{width:9px;height:9px;border-radius:50%;display:inline-block;background:#B8B5A8;flex:none}
@@ -204,7 +207,7 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0}
   </div>
 </header>
 
-<div class="syncbar" id="syncbar" onclick="setTab('set')"></div>
+<div class="syncbar" id="syncbar"></div>
 <main>
   <section class="view" id="v-home"></section>
   <section class="view" id="v-sched"></section>
@@ -266,7 +269,7 @@ async function load(){
   });
   render();
 }
-let saveTimer=null;
+let saveTimer=null, pushTimer=null;
 function saveLocal(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
@@ -279,6 +282,8 @@ function save(){
   CS.dirty=true; CS.lastEdit=Date.now();
   saveLocal();
   paintSync();
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(()=>{ if(cloudReady()) cloudPush(true); }, 700);
 }
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1700);}
 
@@ -1455,7 +1460,7 @@ function exportVendorCSV(){
 
 /* ============ 클라우드 동기화 ============ */
 const CLOUD_DEFAULT={url:'https://ugwzyxsynpvnbbsqlcqq.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnd3p5eHN5bnB2bmJic3FsY3FxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNjA3NDIsImV4cCI6MjA5OTYzNjc0Mn0.DswVM1dtfaEgRujb0mZpDPXTEb7xdeOAnVuRKKdQtlE',doc:'sidae-cleaning',on:true};
-const CS={state:'off', dirty:false, lastEdit:0, rev:0, at:null, msg:'', me:Math.random().toString(36).slice(2,9), busy:false};
+const CS={state:'off', dirty:false, lastEdit:0, rev:0, at:null, msg:'', me:Math.random().toString(36).slice(2,9), busy:false, busySince:0, queued:false};
 const SQL_SETUP=`create table if not exists fm_sync (
   key         text primary key,
   data        jsonb not null,
@@ -1482,13 +1487,15 @@ function paintSync(){
   const label={off:'로컬 저장만', busy:'동기화 중', ok:'동기화됨', err:'동기화 오류'}[CS.state]||'';
   const cnt=`${S.buildings.length}개 층 · ${S.staff.length}명 · ${(S.vendors||[]).length}개 업체`;
   bar.innerHTML=`<b>시대인재 미화 운영</b><span class="sep">·</span><span>${cnt}</span>
-    <span class="sep">·</span><span>${S.payMonth} 1일~말일 · 익월 청구</span>
     <span class="sep">·</span>
     <span class="sname">${cloudReady()?'공유 클라우드 저장(Supabase)':'이 브라우저에만 저장'}</span>
     <span class="sep">·</span><span class="sdot ${cls}"></span>
-    <span>${label}${CS.dirty&&CS.state!=='err'?' · 저장 대기':''}</span>
-    ${CS.at?`<span class="sep">·</span><span>최신 동기화 ${CS.at}</span>`:''}
-    ${CS.msg?`<span class="sep">·</span><span style="color:#C0392B">${esc(CS.msg)}</span>`:''}`;
+    <span>${CS.dirty&&CS.state!=='err'?'저장 중…':label}</span>
+    ${CS.at?`<span class="sep">·</span><span>최신 ${CS.at}${CS.rev?' · v'+CS.rev:''}</span>`:''}
+    ${CS.msg?`<span class="sep">·</span><span style="color:#C0392B">${esc(CS.msg)}</span>`:''}
+    ${cloudReady()?`<button class="sbtn" onclick="cloudPush()">지금 저장</button>
+      <button class="sbtn" onclick="cloudPull(true)">새로고침</button>`:''}
+    <button class="sbtn" onclick="setTab('set')">설정</button>`;
 }
 function stamp(){ CS.at=new Date().toLocaleTimeString('ko-KR',{hour12:false}); }
 
@@ -1502,6 +1509,7 @@ function adopt(data){
 async function cloudPull(force){
   if(!cloudReady()||CS.busy) return;
   if(CS.state==='off') CS.state='busy';
+  CS.busySince=Date.now();
   CS.busy=true;
   try{
     const r=await api(`${encodeURIComponent('fm_sync')}?key=eq.${encodeURIComponent(S.cloud.doc)}&select=rev,data,updated_by,updated_at`);
@@ -1522,8 +1530,10 @@ async function cloudPull(force){
   CS.busy=false; paintSync();
 }
 async function cloudPush(silent){
-  if(!cloudReady()||CS.busy) return;
-  CS.busy=true; CS.state='busy'; paintSync();
+  if(!cloudReady()) return;
+  if(CS.busy){ CS.queued=true; return; }
+  const token=CS.lastEdit;
+  CS.busy=true; CS.busySince=Date.now(); CS.state='busy'; paintSync();
   try{
     const body=[{key:S.cloud.doc, data:pack(), rev:CS.rev+1, updated_by:CS.me, updated_at:new Date().toISOString()}];
     const r=await api('fm_sync?on_conflict=key',{method:'POST',
@@ -1533,17 +1543,27 @@ async function cloudPush(silent){
     if(!r.ok) throw new Error('HTTP '+r.status+' '+(await r.text()).slice(0,50));
     const out=await r.json();
     CS.rev=(out[0]&&out[0].rev)||CS.rev+1;
-    CS.dirty=false; CS.state='ok'; CS.msg=''; stamp();
+    if(CS.lastEdit===token) CS.dirty=false;
+    CS.state='ok'; CS.msg=''; stamp();
     if(!silent) toast('클라우드에 저장했습니다');
   }catch(e){ CS.state='err'; CS.msg=String(e.message||e).slice(0,60); }
   CS.busy=false; paintSync();
+  if(CS.queued){ CS.queued=false; setTimeout(()=>cloudPush(true),100); }
 }
 setInterval(()=>{
   if(!cloudReady()) return;
+  if(CS.busy){
+    if(Date.now()-(CS.busySince||0)>10000){ CS.busy=false; CS.state='err'; CS.msg='응답 지연 — 재시도'; paintSync(); }
+    return;
+  }
   if(CS.dirty && Date.now()-CS.lastEdit>1200) cloudPush(true);
   else if(!CS.dirty) cloudPull(false);
-}, 4000);
+}, 2500);
 window.addEventListener('online',()=>{ if(cloudReady()) cloudPull(false); });
+window.addEventListener('focus',()=>{ if(cloudReady()&&!CS.dirty) cloudPull(false); });
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden && cloudReady() && !CS.dirty) cloudPull(false);
+});
 
 async function cloudConnect(){
   const g=k=>document.getElementById('c_'+k).value.trim();
