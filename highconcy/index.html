@@ -532,7 +532,7 @@ function cellAt(b,shift,ym,date,dow){
 let _idx={ym:null,map:null,listed:null};
 function monthIndex(ym){
   if(_idx.ym===ym && _idx.map) return _idx.map;
-  const map={}, listed=new Set();
+  const map={}, listed=new Set(), detail={};
   const dates=monthDates(ym);
   S.buildings.forEach(b=>['주간','야간'].forEach(sh=>{
     Object.values(assignOf(b,sh,ym)).forEach(v=>{
@@ -543,11 +543,32 @@ function monthIndex(ym){
       if(!v||SPECIALS.includes(v)||vendorByName(v)) return;
       listed.add(v);
       (map[v]=map[v]||new Set()).add(d.date);
+      const key=bldgLabel(b);
+      const dd=(detail[v]=detail[v]||{});
+      (dd[d.date]=dd[d.date]||new Set()).add(key);
     });
   }));
-  _idx={ym,map,listed}; return map;
+  _idx={ym,map,listed,detail}; return map;
 }
 function inSchedule(name,ym){ monthIndex(ym); return _idx.listed && _idx.listed.has(name); }
+function dutyDetail(name,ym){
+  monthIndex(ym);
+  const dd=(_idx.detail||{})[name]||{};
+  const byG={}, dates=Object.keys(dd).sort();
+  let multi=0;
+  dates.forEach(dt=>{ const set=dd[dt]; if(set.size>1) multi++;
+    set.forEach(g=>{ byG[g]=(byG[g]||0)+1; }); });
+  return {byG, dates, dd, multi, days:dates.length};
+}
+/* 요일 패턴 기준 담당 관 목록 (이름 -> [{label, dows}]) */
+function patternDuty(name){
+  const out={};
+  S.buildings.forEach(b=>['주간','야간'].forEach(sh=>{
+    const a=(b.assign&&b.assign[sh])||{};
+    DAYS.forEach(d=>{ if(a[d]===name){ const k=bldgLabel(b); (out[k]=out[k]||new Set()).add(d); } });
+  }));
+  return Object.entries(out).map(([label,set])=>({label, dows:DAYS.filter(d=>set.has(d))}));
+}
 function schedSearch(v){ F.q=v; clearTimeout(schedTimer); schedTimer=setTimeout(renderSchedTable,140); }
 
 function renderSched(){
@@ -954,7 +975,8 @@ function renderStaffTable(){
       const mark=(s.join&&s.join.slice(0,7)===ym)||(s.leave&&s.leave.slice(0,7)===ym);
       const oneDay=s.join&&s.leave&&s.join===s.leave;
       return `<tr class="${p.work===0?'dim':''}">
-        <td><b>${esc(s.name)}</b>${s.payee?`<span class="tiny muted"> ▸ ${esc(s.payee)}</span>`:''}
+        <td><b style="cursor:pointer;text-decoration:underline;text-decoration-color:#C9C8C0;text-underline-offset:3px"
+        onclick="payDetail('${s.id}')">${esc(s.name)}</b>${s.payee?`<span class="tiny muted"> ▸ ${esc(s.payee)}</span>`:''}
           ${s.listed===false?' <span class="pill warn tiny">명단없음</span>':''}</td>
         <td class="tiny">${esc(s.phone||'—')}</td>
         <td>${esc(s.region)}${s.vendorId?` <span class="pill vend">${esc((S.vendors.find(v=>v.id===s.vendorId)||{}).name||'업체')}</span>`:''}</td>
@@ -968,7 +990,9 @@ function renderStaffTable(){
              : `<span class="tiny muted">—</span>`}</td>
         <td class="tiny">${(s.workDays||[]).join('')||'—'}</td>
         <td class="num">${wh}h${wh<15?' <span class="pill off tiny">15h미만</span>':''}</td>
-        <td class="num">${p.work}<span class="muted tiny">/${p.totalInMonth}</span></td>
+        <td class="num">${p.work}<span class="muted tiny">/${p.totalInMonth}</span>${(()=>{
+        const d=dutyDetail(s.name,ym); const n=Object.keys(d.byG).length;
+        return n>1? ` <span class="pill b4 tiny">${n}개 관</span>`:''; })()}</td>
         <td class="num">${won(s.wage)}</td>
         <td><button class="btn sm" onclick="editStaff('${s.id}')">수정</button></td></tr>`;
     }).join('')}
@@ -1017,6 +1041,16 @@ function editStaff(id){
       ${fld('입사일',`<input id="s_join" type="date" value="${s.join||''}">`)}
       ${fld('퇴사일 (비우면 재직)',`<input id="s_leave" type="date" value="${s.leave||''}">`)}
     </div>
+    ${(()=>{ const pd=patternDuty(s.name); if(!pd.length) return '';
+      const uni=DAYS.filter(d=>pd.some(x=>x.dows.includes(d)));
+      return `<div style="margin-top:12px;padding:11px 13px;background:#EEF1F8;border:1px solid #D6DCEC;border-radius:8px">
+        <div class="tiny" style="font-weight:700;color:#2F3F86;margin-bottom:6px">배치표 기준 담당 관 (${pd.length}곳)</div>
+        ${pd.map(x=>`<div class="tiny" style="margin:2px 0"><b>${esc(x.label)}</b>
+          <span style="color:#4A4A44"> · ${x.dows.join(', ')}</span></div>`).join('')}
+        <div class="row" style="margin-top:8px;align-items:center">
+          <button class="btn sm" onclick="applyPatternDays('${s.id}')">근무요일을 ${uni.join('')}로 맞추기</button>
+          <span class="tiny muted">여러 관을 맡아도 급여는 한 사람 기준으로 한 번만 계산됩니다.</span>
+        </div></div>`; })()}
     <div style="margin-top:12px">
       <div class="tiny" style="font-weight:700;color:var(--muted);margin-bottom:5px">근무요일</div>
       <div class="dayck" id="s_days">${DAYS.map(d=>{
@@ -1043,6 +1077,15 @@ function editStaff(id){
   `,`<button class="btn danger" onclick="delStaff('${id}')">삭제</button>
      <button class="btn" onclick="closeModal()">취소</button>
      <button class="btn pri" onclick="saveStaff('${id}')">저장</button>`);
+}
+function applyPatternDays(id){
+  const s=S.staff.find(x=>x.id===id);
+  const pd=patternDuty(s.name);
+  const uni=DAYS.filter(d=>pd.some(x=>x.dows.includes(d)));
+  document.querySelectorAll('#s_days input').forEach(i=>{
+    i.checked=uni.includes(i.value); i.parentNode.classList.toggle('on',i.checked);
+  });
+  toast('배치표 기준 '+uni.join('')+'로 맞췄습니다. 저장을 눌러 반영하세요');
 }
 function saveStaff(id){
   const s=S.staff.find(x=>x.id===id), g=k=>document.getElementById('s_'+k).value;
@@ -1072,6 +1115,39 @@ function delStaff(id){
 
 /* ============ 4. 급여정산 ============ */
 let PF={region:'',emp:'',scope:'직영만'};
+function payDetail(id){
+  const s=S.staff.find(x=>x.id===id), ym=S.payMonth;
+  const d=dutyDetail(s.name,ym), p=calcPay(s,ym);
+  const gs=Object.entries(d.byG).sort((a,b)=>b[1]-a[1]);
+  openModal(`${esc(s.name)} · ${ym} 근무 내역`,`
+    <div class="kpis" style="margin-bottom:12px">
+      ${kpi('실근무일',p.work+'일',p.basis==='배치표'?'배치표 기준':'근무요일 기준')}
+      ${kpi('담당 관',gs.length+'곳','')}
+      ${kpi('지급 총액',won(p.gross)+'원',`실지급 ${won(p.net)}원`)}
+    </div>
+    ${gs.length? `<div class="tw" style="max-height:none;margin-bottom:12px"><table><thead><tr>
+      <th>담당 관</th><th class="num">투입 일수</th><th>요일</th></tr></thead><tbody>
+      ${gs.map(([g,n])=>{
+        const dows=[...new Set(d.dates.filter(dt=>d.dd[dt].has(g)).map(dt=>DAYS[(new Date(dt).getDay()+6)%7]))];
+        return `<tr><td><b>${esc(g)}</b></td><td class="num">${n}일</td>
+          <td class="tiny muted">${DAYS.filter(x=>dows.includes(x)).join(', ')}</td></tr>`;
+      }).join('')}
+      <tr class="grp"><td>합계 (중복 제거)</td><td class="num">${d.days}일</td>
+        <td class="tiny">${d.multi?`하루 2개소 이상 근무 ${d.multi}일`:'중복 없음'}</td></tr>
+    </tbody></table></div>` : `<div class="empty" style="margin-bottom:12px">이 달 배치표에 배정된 내역이 없습니다.</div>`}
+    <div class="tiny muted">
+      여러 관을 맡아도 같은 날은 1일로 집계되어 급여가 중복 지급되지 않습니다.
+      관별로 근무 요일이 다르면 근무배치 탭에서 관마다 따로 지정하세요.
+    </div>
+    <div class="tw" style="max-height:220px;margin-top:12px"><table><thead><tr>
+      <th>날짜</th><th>요일</th><th>투입 관</th></tr></thead><tbody>
+      ${d.dates.map(dt=>`<tr><td class="tiny">${dt}</td>
+        <td class="tiny">${DAYS[(new Date(dt).getDay()+6)%7]}</td>
+        <td class="tiny">${[...d.dd[dt]].map(g=>esc(g)).join(', ')}</td></tr>`).join('')}
+    </tbody></table></div>
+  `,`<button class="btn" onclick="closeModal()">닫기</button>
+     <button class="btn pri" onclick="closeModal();editStaff('${id}')">인원 정보 수정</button>`);
+}
 function billMonth(ym){
   const [y,m]=ym.split('-').map(Number);
   const d=new Date(y,m,1);
@@ -1132,12 +1208,15 @@ function renderPay(){
     ${rows.map(({s,p})=>{
       const st=statusOf(s), part=(s.join&&s.join.slice(0,7)===ym)||(s.leave&&s.leave.slice(0,7)===ym);
       return `<tr class="${p.work===0?'dim':''}">
-      <td><b>${esc(s.name)}</b>${s.payee?`<span class="tiny muted"> ▸ ${esc(s.payee)}</span>`:''}
+      <td><b style="cursor:pointer;text-decoration:underline;text-decoration-color:#C9C8C0;text-underline-offset:3px"
+        onclick="payDetail('${s.id}')">${esc(s.name)}</b>${s.payee?`<span class="tiny muted"> ▸ ${esc(s.payee)}</span>`:''}
         ${s.empType==='당일'?` <span class="pill temp tiny">당일</span>`:''}${part?` <span class="pill warn tiny">일할</span>`:''}</td>
       <td class="tiny">${esc(s.region)} <span class="muted">${s.shift}</span></td>
       <td><span class="pill ${s.emp==='4대보험'?'b4':'b33'}">${s.emp}</span></td>
       <td>${badgeStatus(s)}</td>
-      <td class="num">${p.work}<span class="muted tiny">/${p.totalInMonth}</span>
+      <td class="num">${p.work}<span class="muted tiny">/${p.totalInMonth}</span>${(()=>{
+        const d=dutyDetail(s.name,ym); const n=Object.keys(d.byG).length;
+        return n>1? ` <span class="pill b4 tiny">${n}개 관</span>`:''; })()}
         <span class="pill ${p.basis==='배치표'?'vend':'off'} tiny">${p.basis}</span></td>
       <td class="num tiny muted">${p.assignedDays}</td>
       <td class="num">${won(p.base)}</td><td class="num">${p.night?won(p.night):'—'}</td>
