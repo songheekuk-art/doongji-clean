@@ -1667,7 +1667,13 @@ function paintSync(){
 function stamp(){ CS.at=new Date().toLocaleTimeString('ko-KR',{hour12:false}); }
 
 function pack(){ const o=JSON.parse(JSON.stringify(S)); delete o.cloud; delete o._rev; return o; }
-function snapshotJson(){ try{ return JSON.stringify(pack()); }catch(e){ return null; } }
+function canon(v){
+  if(Array.isArray(v)) return v.map(canon);
+  if(v && typeof v==='object'){ const o={}; Object.keys(v).sort().forEach(k=>o[k]=canon(v[k])); return o; }
+  return v;
+}
+function cjson(o){ try{ return JSON.stringify(canon(o)); }catch(e){ return null; } }
+function snapshotJson(){ return cjson(pack()); }
 function detectChange(){
   if(!S) return;
   const j=snapshotJson(); if(j===null) return;
@@ -1691,14 +1697,18 @@ async function cloudPull(force){
     const rows=await r.json();
     if(!rows.length){ CS.state='ok'; CS.msg=''; stamp(); if(force) await cloudPush(true); }
     else{
-      const row=rows[0], remoteJson=JSON.stringify(row.data);
-      if(row.rev>CS.rev || force){
+      const row=rows[0], remoteJson=cjson(row.data), same=(remoteJson===snapshotJson());
+      if(same){
+        CS.rev=Math.max(CS.rev,row.rev); CS.lastJson=remoteJson;
+        if(S._rev!==CS.rev){ S._rev=CS.rev; saveLocal(); }
+        CS.dirty=false;
+      }else if(row.rev>CS.rev || force){
         CS.rev=row.rev; CS.lastJson=remoteJson;
-        adopt(row.data); S._rev=row.rev;
+        adopt(row.data); S._rev=row.rev; CS.dirty=false;
         if(row.updated_by!==CS.me && !force) toast('다른 기기의 변경사항을 불러왔습니다');
       }else{
         CS.rev=Math.max(CS.rev,row.rev);
-        if(snapshotJson()!==remoteJson){ CS.dirty=true; CS.lastEdit=Date.now()-2000; }
+        CS.dirty=true; CS.lastEdit=Date.now()-2000;
       }
       CS.state='ok'; CS.msg=''; stamp();
     }
