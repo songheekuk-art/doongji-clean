@@ -908,7 +908,7 @@ function newSpotWorker(bid,shift,date){
     join:date,leave:date,note:'공석 일시 투입',memo:'',bldgWeek:[],bldgWeekend:[],
     payee:'',phone:'',uniformSize:'',uniformGiven:false,idCopy:false,bankbook:false,contract:false,
     empType:'당일',site:'시대인재',listed:true,vendorId:''};
-  S.staff.push(s);
+  S.staff.push(s); _draft={kind:'staff',id:s.id};
   _pendingAssign={bid,shift,date,id:s.id};
   editStaff(s.id);
 }
@@ -938,7 +938,7 @@ function restoreSnap(ym){
 
 function addBuilding(){
   const b={id:uid('B'),region:F.region,gubun:'단과',building:'',addr:'',gwan:'',floor:'',area:0,note:'',assign:{주간:{},야간:{}}};
-  S.buildings.push(b); editBuilding(b.id);
+  S.buildings.push(b); _draft={kind:'building',id:b.id}; editBuilding(b.id);
 }
 function editBuilding(id){
   const b=S.buildings.find(x=>x.id===id);
@@ -960,6 +960,7 @@ function editBuilding(id){
      <button class="btn pri" onclick="saveBuilding('${id}')">저장</button>`);
 }
 function saveBuilding(id){
+  _draft=null;
   const b=S.buildings.find(x=>x.id===id);
   ['region','gubun','building','gwan','floor','addr','note'].forEach(k=>b[k]=document.getElementById('e_'+k).value.trim());
   b.area=Number(document.getElementById('e_area').value)||0;
@@ -1032,6 +1033,9 @@ function renderStaffTable(){
       · 계약서 ${list.filter(s=>!s.contract).length}
       · 피복 ${list.filter(s=>s.uniformSize&&!s.uniformGiven).length}</span>
     ${unlisted?`<span style="color:#B3452F;font-weight:600">명단 미등록 ${unlisted}명</span>`:''}
+    ${(()=>{ const n=S.staff.filter(s=>!String(s.name||'').trim()).length;
+      return n? `<span style="color:#B3452F;font-weight:600">이름 없는 항목 ${n}건</span>
+        <button class="btn sm danger" onclick="purgeBlankStaff()">빈 항목 삭제</button>`:''; })()}
     <span>서류 칸을 눌러 바로 체크할 수 있습니다</span>
   </div>
   <div class="tw"><table><thead><tr>
@@ -1066,13 +1070,20 @@ function renderStaffTable(){
     }).join('')}
   </tbody></table></div>`;
 }
+function purgeBlankStaff(){
+  const bad=S.staff.filter(s=>!String(s.name||'').trim());
+  if(!bad.length) return;
+  if(!confirm(`이름이 비어 있는 ${bad.length}건을 삭제합니다. 입력하시던 내용이면 먼저 이름을 채워 주세요. 계속할까요?`)) return;
+  S.staff=S.staff.filter(s=>String(s.name||'').trim());
+  save(); pushNow(); toast('빈 항목을 삭제했습니다'); renderStaff();
+}
 function addStaff(){
   const s={id:uid('S'),name:'',region:S.regions[0],shift:'야간',emp:'4대보험',payType:'시급',
     wage:S.settings.baseWage,hours:5,nightHours:5,meal:0,workDays:['월','화','수','목','금'],
     join:new Date().toISOString().slice(0,10),leave:'',note:'',memo:'',bldgWeek:[],bldgWeekend:[],
     payee:'',phone:'',uniformSize:'',uniformGiven:false,idCopy:false,bankbook:false,contract:false,
     empType:'상시',site:'시대인재',listed:true,vendorId:''};
-  S.staff.push(s); editStaff(s.id);
+  S.staff.push(s); _draft={kind:'staff',id:s.id}; editStaff(s.id);
 }
 function editStaff(id){
   const s=S.staff.find(x=>x.id===id);
@@ -1149,7 +1160,7 @@ function editStaff(id){
      <button class="btn pri" onclick="saveStaff('${id}')">저장</button>`);
   dutyRender(); dutySync();
 }
-let _duty=[], _dutyShift='야간', _showCloud=false;
+let _duty=[], _dutyShift='야간', _showCloud=false, _draft=null;
 function gwanRows(key){ return S.buildings.filter(b=>gwanKeyOf(b)===key); }
 function dutyInit(name, shift){
   _dutyShift=shift;
@@ -1252,6 +1263,7 @@ function applyDuty(name, shift, rows){
   return {set, cleared};
 }
 function saveStaff(id){
+  _draft=null;
   const s=S.staff.find(x=>x.id===id), g=k=>document.getElementById('s_'+k).value;
   s.name=g('name').trim()||'(이름없음)'; s.region=g('region'); s.shift=g('shift'); s.emp=g('emp');
   s.vendorId=g('vendorId'); s.payee=g('payee').trim(); s.phone=g('phone').trim();
@@ -1656,7 +1668,7 @@ function renderVendor(){
 function addVendor(){
   const v={id:uid('V'),name:'',ceo:'',tel:'',biz:'',regions:[],type:'월정액',amount:0,rate:0,
     vat:'별도',start:new Date().toISOString().slice(0,10),end:'',note:''};
-  S.vendors.push(v); editVendor(v.id);
+  S.vendors.push(v); _draft={kind:'vendor',id:v.id}; editVendor(v.id);
 }
 function editVendor(id){
   const v=S.vendors.find(x=>x.id===id);
@@ -1707,6 +1719,7 @@ function vendorTypeHint(){
   }[t];
 }
 function saveVendor(id){
+  _draft=null;
   const v=S.vendors.find(x=>x.id===id), g=k=>document.getElementById('v_'+k).value;
   const old=v.name;
   v.name=g('name').trim()||'(업체명 없음)'; v.ceo=g('ceo'); v.tel=g('tel'); v.biz=g('biz'); v.note=g('note');
@@ -1903,7 +1916,23 @@ function openModal(title,body,foot){
   document.getElementById('modal').innerHTML=`<h3>${title}</h3><div class="mbody">${body}</div><div class="mfoot">${foot}</div>`;
   document.getElementById('mask').classList.add('on');
 }
-function closeModal(){ document.getElementById('mask').classList.remove('on'); }
+function discardDraft(){
+  if(!_draft) return;
+  const d=_draft; _draft=null; let removed=false;
+  if(d.kind==='staff'){
+    const s=S.staff.find(x=>x.id===d.id);
+    if(s && !String(s.name||'').trim()){ S.staff=S.staff.filter(x=>x.id!==d.id); removed=true; }
+  }else if(d.kind==='building'){
+    const b=S.buildings.find(x=>x.id===d.id);
+    if(b && !String(b.building||'').trim() && !String(b.gwan||'').trim() && !String(b.floor||'').trim()){
+      S.buildings=S.buildings.filter(x=>x.id!==d.id); removed=true; }
+  }else if(d.kind==='vendor'){
+    const v=S.vendors.find(x=>x.id===d.id);
+    if(v && !String(v.name||'').trim()){ S.vendors=S.vendors.filter(x=>x.id!==d.id); removed=true; }
+  }
+  if(removed){ _pendingAssign=null; saveLocal(); render(); }
+}
+function closeModal(){ discardDraft(); document.getElementById('mask').classList.remove('on'); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
 
 function dl(name,content,type){
