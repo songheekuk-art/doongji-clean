@@ -290,6 +290,17 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 
 /* ============ helpers ============ */
 const DOCS=[['idCopy','신분증'],['bankbook','통장'],['contract','계약서']];
+function docsMatch(s){
+  const f=SF.docs;
+  if(!f) return true;
+  if(f==='미비만') return !docsDone(s);
+  if(f==='완비만') return docsDone(s);
+  if(f==='신분증 미비') return !s.idCopy;
+  if(f==='통장 미비') return !s.bankbook;
+  if(f==='계약서 미비') return !s.contract;
+  if(f==='피복 미지급') return !!s.uniformSize && !s.uniformGiven;
+  return true;
+}
 function docsDone(s){ return DOCS.every(([k])=>s[k]) && (!s.uniformSize||s.uniformGiven); }
 function docChip(s,k,l){
   return `<span class="chip ${s[k]?'on':''}" onclick="event.stopPropagation();toggleDoc('${s.id}','${k}')">${l}</span>`;
@@ -942,8 +953,9 @@ function renderStaff(){
       <option ${SF.status==='재직중만'?'selected':''}>재직중만</option>
       <option ${SF.status==='기준월 재직'?'selected':''}>기준월 재직</option>
       <option ${SF.status==='전체'?'selected':''}>전체</option></select></label>
-    <label class="f">서류<select onchange="SF.docs=this.value;renderStaffTable()"><option value="">전체</option>
-      <option ${SF.docs==='미비만'?'selected':''}>미비만</option><option ${SF.docs==='완비만'?'selected':''}>완비만</option></select></label>
+    <label class="f">서류<select onchange="SF.docs=this.value;renderStaffTable()">
+      ${['전체','미비만','완비만','신분증 미비','통장 미비','계약서 미비','피복 미지급']
+        .map(o=>`<option value="${o==='전체'?'':o}" ${SF.docs===o?'selected':''}>${o}</option>`).join('')}</select></label>
     <label class="f grow">이름 · 연락처 검색<input id="staffQ" value="${esc(SF.q)}" oninput="staffSearch(this.value)"></label>
     <button class="btn pri" onclick="addStaff()">+ 인원 등록</button>
     <button class="btn" onclick="exportStaffCSV()">CSV</button>
@@ -961,7 +973,7 @@ function renderStaffTable(){
     (!SF.empType||s.empType===SF.empType)&&
     (SF.status==='전체' || (SF.status==='기준월 재직'? activeInMonth(s,ym) : statusOf(s)!=='퇴사'))&&
     (!SF.vendor||(SF.vendor==='직영'? !s.vendorId : s.vendorId===SF.vendor))&&
-    (!SF.docs || (SF.docs==='미비만'? !docsDone(s) : docsDone(s)))&&
+    docsMatch(s)&&
     (!q||s.name.includes(q)||(s.phone||'').includes(q)||(s.payee||'').includes(q)));
   list=list.sort((a,b)=>a.region.localeCompare(b.region)||a.shift.localeCompare(b.shift)||a.name.localeCompare(b.name));
   const joined=list.filter(s=>s.join&&s.join.slice(0,7)===ym).length;
@@ -974,6 +986,10 @@ function renderStaffTable(){
     <span><b>${list.length}</b>명</span>
     <span>${ym} 입사 ${joined}명 · 퇴사 ${left}명</span>
     <span style="${lack?'color:#B3452F;font-weight:600':''}">서류 미비 ${lack}명</span>
+    <span>미수령 — 신분증 ${list.filter(s=>!s.idCopy).length}
+      · 통장 ${list.filter(s=>!s.bankbook).length}
+      · 계약서 ${list.filter(s=>!s.contract).length}
+      · 피복 ${list.filter(s=>s.uniformSize&&!s.uniformGiven).length}</span>
     ${unlisted?`<span style="color:#B3452F;font-weight:600">명단 미등록 ${unlisted}명</span>`:''}
     <span>서류 칸을 눌러 바로 체크할 수 있습니다</span>
   </div>
