@@ -977,6 +977,9 @@ function renderStaff(){
       <option ${SF.empType==='상시'?'selected':''}>상시</option><option ${SF.empType==='당일'?'selected':''}>당일</option></select></label>
     <label class="f">시간대<select onchange="SF.shift=this.value;renderStaffTable()"><option value="">전체</option>
       <option ${SF.shift==='주간'?'selected':''}>주간</option><option ${SF.shift==='야간'?'selected':''}>야간</option></select></label>
+    <label class="f">고용형태<select onchange="SF.emp=this.value;renderStaffTable()"><option value="">전체</option>
+      <option ${SF.emp==='3.3%'?'selected':''}>3.3%</option>
+      <option ${SF.emp==='4대보험'?'selected':''}>4대보험</option></select></label>
     <label class="f">재직상태<select onchange="SF.status=this.value;renderStaffTable()">
       ${['재직중만','기준월 재직','퇴사자만','기준월 퇴사','퇴사예정','전체']
         .map(o=>`<option ${SF.status===o?'selected':''}>${o}</option>`).join('')}</select></label>
@@ -1015,6 +1018,7 @@ function renderStaffTable(){
   <div class="legend" style="margin-bottom:8px">
     <span><b>${list.length}</b>명</span>
     <span>${ym} 입사 ${joined}명 · 퇴사 ${left}명</span>
+    <span>3.3% ${list.filter(s=>s.emp==='3.3%').length}명 · 4대보험 ${list.filter(s=>s.emp==='4대보험').length}명</span>
     ${leaveView?`<span style="color:#8A8A84">퇴사일 최근순 · 급여는 퇴사일까지만 계산됩니다</span>`:''}
     <span style="${lack?'color:#B3452F;font-weight:600':''}">서류 미비 ${lack}명</span>
     <span>미수령 — 신분증 ${list.filter(s=>!s.idCopy).length}
