@@ -235,7 +235,7 @@ const DEFAULTS = {
     sev:8.33, freelanceTax:3.3, profit:10
   },
   regions:[...REGIONS_DEFAULT],
-  vendors:[], snapshots:{}, overrides:{},
+  vendors:[], snapshots:{}, overrides:{}, vendorPay:{},
   cloud:null,
   payMonth:new Date().toISOString().slice(0,7),
   buildings:[], staff:[]
@@ -256,7 +256,7 @@ async function load(){
   S.settings=Object.assign({},DEFAULTS.settings,S.settings||{});
   CS.rev=Number(S._rev)||0; CS.lastJson=snapshotJson();
   setTimeout(()=>{ if(cloudReady()) cloudPull(false); }, 400);
-  S.vendors=S.vendors||[]; S.snapshots=S.snapshots||{}; S.overrides=S.overrides||{};
+  S.vendors=S.vendors||[]; S.snapshots=S.snapshots||{}; S.overrides=S.overrides||{}; S.vendorPay=S.vendorPay||{};
   S.cloud=Object.assign({}, CLOUD_DEFAULT, S.cloud||{});
   if(!S.cloud.url){ S.cloud.url=CLOUD_DEFAULT.url; S.cloud.key=CLOUD_DEFAULT.key; S.cloud.on=true; }
   S.cloud.url=baseUrl(S.cloud.url);
@@ -349,6 +349,25 @@ const SPECIALS=[SPOT_OFF,'직수행'];
 function vendorByName(n){ return (S.vendors||[]).find(v=>v.name===n); }
 function vendorRows(v){
   return S.buildings.filter(b=>['주간','야간'].some(sh=>Object.values((b.assign&&b.assign[sh])||{}).includes(v.name)));
+}
+function vpKey(ym,id){ return ym+'|'+id; }
+function vpGet(ym,id){
+  return Object.assign({invoiced:false,taxInvoice:false,paid:false,paidDate:'',amount:null,memo:''},
+    (S.vendorPay||{})[vpKey(ym,id)]||{});
+}
+function vpSet(ym,id,patch){
+  S.vendorPay=S.vendorPay||{};
+  S.vendorPay[vpKey(ym,id)]=Object.assign(vpGet(ym,id),patch);
+  save(); pushNow(); renderVendor();
+}
+function vpToggle(ym,id,k){ const c=vpGet(ym,id); const patch={}; patch[k]=!c[k];
+  if(k==='paid'&&!c.paid&&!c.paidDate) patch.paidDate=new Date().toISOString().slice(0,10);
+  vpSet(ym,id,patch); }
+function prevMonths(ym,n){
+  const [y,m]=ym.split('-').map(Number), out=[];
+  for(let i=0;i<n;i++){ const d=new Date(y,m-1-i,1);
+    out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
+  return out;
 }
 function spotCount(name, ym){
   return Object.entries(S.overrides||{}).filter(([k,val])=>k.startsWith(ym)&&val===name).length;
@@ -1526,6 +1545,9 @@ function renderVendor(){
   const calc=vs.map(v=>({v,c:calcVendor(v,ym)}));
   const T=calc.reduce((a,x)=>({supply:a.supply+x.c.supply,vat:a.vat+x.c.vat,total:a.total+x.c.total}),{supply:0,vat:0,total:0});
   const covered=calc.reduce((a,x)=>a+x.c.rows,0);
+  const paidSum=calc.reduce((a,x)=>{ const v=vpGet(ym,x.v.id);
+    return a+(v.paid? (v.amount!=null? Number(v.amount): x.c.total) : 0); },0);
+  const unpaidCnt=calc.filter(x=>!vpGet(ym,x.v.id).paid).length;
 
   el.innerHTML=`
   <div class="card pad noprint" style="margin-bottom:12px"><div class="row">
@@ -1545,14 +1567,15 @@ function renderVendor(){
     ${kpi('등록 업체',vs.length,'도급 진행')}
     ${kpi('도급 배정 층·호실',covered,`전체 ${S.buildings.length}건 중`)}
     ${kpi(ym+' 도급비 공급가',won(T.supply),'계약 기간 일할 반영')}
-    ${kpi('부가세',won(T.vat),'별도 계약분')}
-    ${kpi('도급비 합계',won(T.total),'세금계산서 기준')}
+    ${kpi('입금 완료',won(paidSum),`${calc.filter(x=>vpGet(ym,x.v.id).paid).length}개 업체`)}
+    ${kpi('미입금',won(T.total-paidSum),unpaidCnt?`${unpaidCnt}개 업체 미입금`:'전액 입금 완료')}
   </div>
 
   ${vs.length? `<div class="tw"><table><thead><tr>
     <th>업체명</th><th>담당 지점</th><th>계약형태</th><th class="num">단가·금액</th><th>부가세</th>
     <th>계약기간</th><th class="num">배정 층</th><th class="num">배정 면적</th><th class="num">소속 인원</th><th class="num">대체 투입</th>
-    <th class="num">공급가</th><th class="num">부가세</th><th class="num">청구 합계</th><th>연락처</th><th></th></tr></thead><tbody>
+    <th class="num">공급가</th><th class="num">부가세</th><th class="num">청구 합계</th>
+    <th>정산 상태</th><th>입금일</th><th class="num">입금액</th><th class="num">차액</th><th></th></tr></thead><tbody>
     ${calc.map(({v,c})=>`<tr>
       <td><b>${esc(v.name)}</b>${c.ratio<1&&c.ratio>0?` <span class="pill warn tiny">일할</span>`:''}${c.ratio===0?` <span class="pill off tiny">기간외</span>`:''}</td>
       <td class="tiny">${esc((v.regions||[]).join(', ')||'—')}</td>
@@ -1564,11 +1587,44 @@ function renderVendor(){
       <td class="num">${c.spot?c.spot+'건':'—'}</td>
       <td class="num">${won(c.supply)}</td><td class="num">${c.vat?won(c.vat):'—'}</td>
       <td class="num"><b>${won(c.total)}</b></td>
-      <td class="tiny muted">${esc(v.tel||'')}</td>
+      ${(()=>{ const vp=vpGet(ym,v.id), amt=vp.amount!=null?Number(vp.amount):c.total, diff=amt-c.total;
+        return `<td style="white-space:nowrap">
+          <span class="chip ${vp.taxInvoice?'on':''}" onclick="vpToggle('${ym}','${v.id}','taxInvoice')">계산서</span>
+          <span class="chip ${vp.paid?'on':''}" onclick="vpToggle('${ym}','${v.id}','paid')">입금</span></td>
+        <td><input type="date" value="${vp.paidDate||''}" onchange="vpSet('${ym}','${v.id}',{paidDate:this.value})"
+          style="border:1px solid var(--line);border-radius:5px;padding:3px 6px;font-size:11.5px;width:132px"></td>
+        <td class="num"><input type="number" value="${vp.amount!=null?vp.amount:''}" placeholder="${c.total}"
+          onchange="vpSet('${ym}','${v.id}',{amount:this.value===''?null:Number(this.value)})"
+          style="border:1px solid var(--line);border-radius:5px;padding:3px 6px;font-size:11.5px;width:104px;text-align:right"></td>
+        <td class="num tiny" style="${vp.paid&&diff?'color:#B3452F;font-weight:700':'color:#8A8A84'}">
+          ${vp.paid? (diff? (diff>0?'+':'')+won(diff) : '일치') : '—'}</td>`; })()}
       <td><button class="btn sm" onclick="editVendor('${v.id}')">수정</button></td></tr>`).join('')}
     <tr class="grp"><td colspan="10">합계 ${vs.length}개 업체</td>
-      <td class="num">${won(T.supply)}</td><td class="num">${won(T.vat)}</td><td class="num">${won(T.total)}</td><td colspan="2"></td></tr>
+      <td class="num">${won(T.supply)}</td><td class="num">${won(T.vat)}</td><td class="num">${won(T.total)}</td>
+      <td colspan="2">입금 ${won(paidSum)}</td><td class="num">${won(T.total-paidSum)}</td><td colspan="2"></td></tr>
   </tbody></table></div>
+
+  <div class="card pad" style="margin-top:14px">
+    <div class="sechead"><h2>월별 입금 현황</h2><span class="hint">최근 6개월 · 셀을 눌러 입금 처리</span></div>
+    <div class="tw" style="max-height:none"><table><thead><tr><th>업체명</th>
+      ${prevMonths(ym,6).reverse().map(m=>`<th style="text-align:center">${m}</th>`).join('')}
+      </tr></thead><tbody>
+      ${vs.map(v=>`<tr><td><b>${esc(v.name)}</b></td>
+        ${prevMonths(ym,6).reverse().map(m=>{
+          const cc=calcVendor(v,m), vp=vpGet(m,v.id);
+          if(!cc.total) return `<td style="text-align:center;color:#C3C2BA">·</td>`;
+          const amt=vp.amount!=null?Number(vp.amount):cc.total;
+          return `<td style="text-align:center;cursor:pointer" onclick="vpToggle('${m}','${v.id}','paid')"
+            title="${m} 청구 ${won(cc.total)}원">
+            <span class="pill ${vp.paid?'ok':'warn'}">${vp.paid?'입금':'미입금'}</span>
+            <div class="tiny muted">${won(amt)}</div></td>`;
+        }).join('')}</tr>`).join('')}
+    </tbody></table></div>
+    <div class="tiny muted" style="margin-top:8px">
+      정산 기간은 매월 1일~말일, 청구는 익월 ${S.settings.billDay||10}일 기준입니다.
+      입금액을 비워두면 청구 합계와 같은 금액으로 봅니다.
+    </div>
+  </div>
 
   <div class="card pad" style="margin-top:14px">
     <div class="sechead"><h2>업체별 배정 현황</h2><span class="hint">근무배치 표에서 배정한 결과</span></div>
@@ -1670,10 +1726,16 @@ function delVendor(id){
 }
 function exportVendorCSV(){
   const ym=S.payMonth;
-  const rows=[['정산월','업체명','대표자','사업자번호','연락처','담당지점','계약형태','금액/단가','부가세','계약시작','계약종료','배정층','배정면적','소속인원','대체투입건수','공급가','부가세액','청구합계','비고']];
+  const rows=[['정산월','업체명','대표자','사업자번호','연락처','담당지점','계약형태','금액/단가','부가세','계약시작','계약종료','배정층','배정면적','소속인원','대체투입건수','공급가','부가세액','청구합계','계산서','입금','입금일','입금액','차액','비고']];
   (S.vendors||[]).forEach(v=>{ const c=calcVendor(v,ym);
     rows.push([ym,v.name,v.ceo,v.biz,v.tel,(v.regions||[]).join(' '),v.type,
-      v.type==='월정액'?v.amount:v.rate,v.vat,v.start,v.end,c.rows,c.area,c.heads,c.spot,c.supply,c.vat,c.total,v.note]);
+      v.type==='월정액'?v.amount:v.rate,v.vat,v.start,v.end,c.rows,c.area,c.heads,c.spot,c.supply,c.vat,c.total,
+      (vp=>vp.taxInvoice?'O':'X')(vpGet(ym,v.id)),
+      (vp=>vp.paid?'O':'X')(vpGet(ym,v.id)),
+      vpGet(ym,v.id).paidDate||'',
+      (vp=>vp.amount!=null?vp.amount:(vp.paid?c.total:''))(vpGet(ym,v.id)),
+      (vp=>vp.paid?((vp.amount!=null?Number(vp.amount):c.total)-c.total):'')(vpGet(ym,v.id)),
+      v.note]);
   });
   dl(`도급업체_정산_${ym}.csv`,csv(rows),'text/csv'); toast('CSV를 저장했습니다');
 }
