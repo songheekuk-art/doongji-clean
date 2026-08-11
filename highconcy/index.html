@@ -284,7 +284,7 @@ function save(){
   saveLocal();
   paintSync();
   clearTimeout(pushTimer);
-  pushTimer=setTimeout(()=>{ if(cloudReady()) cloudPush(true); }, 700);
+  pushTimer=setTimeout(()=>{ if(cloudReady()) cloudPush(true); }, 250);
 }
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1700);}
 
@@ -295,7 +295,7 @@ function docChip(s,k,l){
   return `<span class="chip ${s[k]?'on':''}" onclick="event.stopPropagation();toggleDoc('${s.id}','${k}')">${l}</span>`;
 }
 function toggleDoc(id,k){
-  const s=S.staff.find(x=>x.id===id); s[k]=!s[k]; save(); renderStaffTable();
+  const s=S.staff.find(x=>x.id===id); s[k]=!s[k]; save(); pushNow(); renderStaffTable();
 }
 const won=n=>Math.round(n||0).toLocaleString('ko-KR');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -886,11 +886,11 @@ function saveBuilding(id){
   const b=S.buildings.find(x=>x.id===id);
   ['region','gubun','building','gwan','floor','addr','note'].forEach(k=>b[k]=document.getElementById('e_'+k).value.trim());
   b.area=Number(document.getElementById('e_area').value)||0;
-  save(); closeModal(); toast('저장했습니다'); renderSched();
+  save(); pushNow(); closeModal(); toast('저장했습니다'); renderSched();
 }
 function delBuilding(id){
   if(!confirm('이 층·호실을 삭제할까요?')) return;
-  S.buildings=S.buildings.filter(x=>x.id!==id); save(); closeModal(); toast('삭제했습니다'); renderSched();
+  S.buildings=S.buildings.filter(x=>x.id!==id); save(); pushNow(); closeModal(); toast('삭제했습니다'); renderSched();
 }
 
 /* ============ 3. 인력 ============ */
@@ -1061,13 +1061,13 @@ function saveStaff(id){
     S.overrides=S.overrides||{};
     S.overrides[ovKey(_pendingAssign.date,_pendingAssign.bid,_pendingAssign.shift)]=s.name;
     _pendingAssign=null; _idx.map=null;
-    closeModal(); save(); toast(s.name+' 님을 해당 날짜에 배치했습니다'); renderSchedTable(); return;
+    closeModal(); save(); pushNow(); toast(s.name+' 님을 해당 날짜에 배치했습니다'); renderSchedTable(); return;
   }
-  closeModal(); toast('저장했습니다'); renderStaff();
+  closeModal(); pushNow(); toast('저장했습니다'); renderStaff();
 }
 function delStaff(id){
   if(!confirm('삭제하면 급여 이력도 사라집니다. 퇴사 처리는 퇴사일 입력을 권장합니다. 삭제할까요?')) return;
-  S.staff=S.staff.filter(x=>x.id!==id); save(); closeModal(); toast('삭제했습니다'); renderStaff();
+  S.staff=S.staff.filter(x=>x.id!==id); save(); pushNow(); closeModal(); toast('삭제했습니다'); renderStaff();
 }
 
 /* ============ 4. 급여정산 ============ */
@@ -1274,13 +1274,13 @@ function renderSet(){
 function bulkEmp(t){
   const n=S.staff.length;
   if(!confirm(`등록된 인원 ${n}명 전원을 ${t}(으)로 변경합니다. 계속할까요?`)) return;
-  S.staff.forEach(s=>s.emp=t); save(); toast(`전원 ${t}으로 변경했습니다`); renderSet();
+  S.staff.forEach(s=>s.emp=t); save(); pushNow(); toast(`전원 ${t}으로 변경했습니다`); renderSet();
 }
 function bulkWage(){
   const w=Number(document.getElementById('bulkWage').value)||0;
   if(!w) return;
   if(!confirm(`등록된 인원 전원의 시급을 ${won(w)}원으로 변경합니다. 계속할까요?`)) return;
-  S.staff.forEach(s=>{ if(s.payType==='시급') s.wage=w; }); save(); toast('시급을 일괄 적용했습니다'); renderSet();
+  S.staff.forEach(s=>{ if(s.payType==='시급') s.wage=w; }); save(); pushNow(); toast('시급을 일괄 적용했습니다'); renderSet();
 }
 function renameRegion(i,v){
   const old=S.regions[i]; v=v.trim()||old;
@@ -1436,7 +1436,7 @@ function saveVendor(id){
       DAYS.forEach(d=>{ if(a[d]===old) a[d]=v.name; });
     }));
   }
-  closeModal(); toast('저장했습니다'); renderVendor();
+  closeModal(); pushNow(); toast('저장했습니다'); renderVendor();
 }
 function delVendor(id){
   const v=S.vendors.find(x=>x.id===id);
@@ -1447,7 +1447,7 @@ function delVendor(id){
     DAYS.forEach(d=>{ if(a[d]===v.name) delete a[d]; });
   }));
   S.staff.forEach(s=>{ if(s.vendorId===id) s.vendorId=''; });
-  S.vendors=S.vendors.filter(x=>x.id!==id); save();
+  S.vendors=S.vendors.filter(x=>x.id!==id); save(); pushNow();
   closeModal(); toast('삭제했습니다'); renderVendor();
 }
 function exportVendorCSV(){
@@ -1475,6 +1475,7 @@ alter table fm_sync enable row level security;
 create policy "anon rw" on fm_sync
   for all to anon using (true) with check (true);`;
 
+function pushNow(){ clearTimeout(pushTimer); if(cloudReady()) cloudPush(true); }
 function cloudReady(){ if(!S) return false; const c=S.cloud||{}; return c.on && c.url && c.key && c.doc; }
 function baseUrl(u){ return String(u||'').trim().replace(/\/+$/,'').replace(/\/rest\/v1$/,''); }
 function api(path, opts){
@@ -1540,6 +1541,7 @@ async function cloudPull(force){
     }
   }catch(e){ CS.state='err'; CS.msg=String(e.message||e).slice(0,60); }
   CS.busy=false; paintSync();
+  if(CS.queued||CS.dirty){ CS.queued=false; setTimeout(()=>cloudPush(true),120); }
 }
 async function cloudPush(silent){
   if(!cloudReady()) return;
