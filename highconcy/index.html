@@ -1229,7 +1229,17 @@ function delStaff(id){
 }
 
 /* ============ 4. 급여정산 ============ */
-let PF={region:'',emp:'',scope:'직영만'};
+let PF={region:'',emp:'',scope:'직영만',q:''};
+let payTimer=null;
+function paySearch(v){
+  PF.q=v; clearTimeout(payTimer);
+  payTimer=setTimeout(()=>{
+    const el=document.getElementById('payQ'); const pos=el&&el.selectionStart;
+    renderPay();
+    const n=document.getElementById('payQ');
+    if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} }
+  },160);
+}
 function payDetail(id){
   const s=S.staff.find(x=>x.id===id), ym=S.payMonth;
   const d=dutyDetail(s.name,ym), p=calcPay(s,ym);
@@ -1271,8 +1281,14 @@ function billMonth(ym){
 function renderPay(){
   const el=document.getElementById('v-pay');
   const ym=S.payMonth;
+  const q=PF.q.trim().toLowerCase();
   let list=S.staff.filter(s=>(!PF.region||s.region===PF.region)&&(!PF.emp||s.emp===PF.emp)
     &&(PF.scope!=='직영만'||!s.vendorId));
+  if(q) list=list.filter(s=>{
+    if([s.name,s.payee||'',s.phone||'',s.region].join(' ').toLowerCase().includes(q)) return true;
+    const d=dutyDetail(s.name,ym);
+    return Object.keys(d.byG).some(g=>g.toLowerCase().includes(q));
+  });
   const rows=list.map(s=>({s,p:calcPay(s,ym)})).filter(x=>x.p.work>0||statusOf(x.s)!=='퇴사');
   rows.sort((a,b)=>a.s.region.localeCompare(b.s.region)||a.s.name.localeCompare(b.s.name));
   const T=rows.reduce((a,x)=>({gross:a.gross+x.p.gross,ded:a.ded+x.p.dedTotal,net:a.net+x.p.net,
@@ -1289,7 +1305,8 @@ function renderPay(){
       <option ${PF.emp==='4대보험'?'selected':''}>4대보험</option><option ${PF.emp==='3.3%'?'selected':''}>3.3%</option></select></label>
     <label class="f">대상<select onchange="PF.scope=this.value;renderPay()">
       <option>직영만</option><option ${PF.scope==='전체'?'selected':''}>전체(업체소속 포함)</option></select></label>
-    <div class="grow"></div>
+    <label class="f grow">이름 · 관 · 연락처 검색<input id="payQ" value="${esc(PF.q)}"
+      placeholder="예: 전종칠 · N관 · 태성빌딩" oninput="paySearch(this.value)"></label>
     <button class="btn" onclick="window.print()">급여대장 인쇄</button>
     <button class="btn pri" onclick="exportPayCSV()">CSV 내보내기</button>
   </div></div>
@@ -1305,8 +1322,13 @@ function renderPay(){
     </div>
   </div>
 
+  ${q?`<div class="legend" style="margin-bottom:10px">
+    <span><b>"${esc(PF.q)}"</b> 검색 결과 ${rows.length}명</span>
+    <span>담당 관 이름으로도 찾을 수 있습니다</span>
+    <button class="btn sm" onclick="PF.q='';renderPay()">검색 해제</button></div>`:''}
+
   <div class="kpis">
-    ${kpi('지급 총액',won(T.gross),'기본급+수당+식대')}
+    ${kpi(q?'검색 대상 지급 총액':'지급 총액',won(T.gross),'기본급+수당+식대')}
     ${kpi('공제 합계',won(T.ded),'4대보험 근로자부담 / 3.3%')}
     ${kpi('실지급액',won(T.net),`${rows.length}명`)}
     ${kpi('사업주 부담',won(T.emp),'보험료+퇴직충당')}
