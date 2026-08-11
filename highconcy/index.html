@@ -1019,7 +1019,7 @@ function addStaff(){
 }
 function editStaff(id){
   const s=S.staff.find(x=>x.id===id);
-  _duty=patternDuty(s.name).map(x=>({key:x.key, dows:[...x.dows]}));
+  _duty=dutyInit(s.name, s.shift);
   openModal(`인원 정보`,`
     <div class="grid3">
       ${fld('이름',`<input id="s_name" value="${esc(s.name)}">`)}
@@ -1055,12 +1055,12 @@ function editStaff(id){
     </div>
     <div style="margin-top:12px;padding:12px 13px;background:#EEF1F8;border:1px solid #D6DCEC;border-radius:8px">
       <div class="row" style="justify-content:space-between;margin-bottom:8px">
-        <div class="tiny" style="font-weight:700;color:#2F3F86">담당 관 · 요일</div>
+        <div class="tiny" style="font-weight:700;color:#2F3F86">담당 관 · 층 · 요일</div>
         <button class="btn sm" onclick="dutyAdd()">+ 관 추가</button>
       </div>
       <div id="dutyRows"></div>
       <div class="tiny muted" style="margin-top:7px">
-        여기서 지정하면 저장할 때 근무배치표의 해당 관 전체 층에 자동 반영됩니다.
+        관을 고르면 층이 전부 선택됩니다. 일부 층만 맡으면 해당 층만 켜두세요. 저장할 때 배치표에 반영됩니다.
         근무요일도 여기 요일들을 합쳐서 자동으로 맞춰집니다.
       </div>
     </div>
@@ -1092,78 +1092,107 @@ function editStaff(id){
      <button class="btn pri" onclick="saveStaff('${id}')">저장</button>`);
   dutyRender(); dutySync();
 }
-let _duty=[];
+let _duty=[], _dutyShift='야간';
+function gwanRows(key){ return S.buildings.filter(b=>gwanKeyOf(b)===key); }
+function dutyInit(name, shift){
+  _dutyShift=shift;
+  const groups={};
+  S.buildings.forEach(b=>{
+    const a=(b.assign&&b.assign[shift])||{};
+    const dows=DAYS.filter(d=>a[d]===name);
+    if(!dows.length) return;
+    const sig=gwanKeyOf(b)+'@'+dows.join('');
+    (groups[sig]=groups[sig]||{key:gwanKeyOf(b), dows, floors:[]}).floors.push(b.id);
+  });
+  return Object.values(groups);
+}
 function dutyRender(){
   const box=document.getElementById('dutyRows'); if(!box) return;
   const gl=gwanList();
-  box.innerHTML=_duty.length? _duty.map((r,i)=>`
-    <div class="row" style="margin-bottom:6px;gap:6px;flex-wrap:nowrap">
-      <select onchange="_duty[${i}].key=this.value;dutySync()" style="border:1px solid var(--line);border-radius:6px;padding:5px 7px;min-width:190px;font-size:12px">
-        <option value="">— 관 선택 —</option>
-        ${gl.map(g=>`<option value="${esc(g.key)}" ${r.key===g.key?'selected':''}>${esc(g.region)} · ${esc(g.label)}</option>`).join('')}
-      </select>
-      <div class="dayck" style="flex-wrap:nowrap">${DAYS.map(d=>`
-        <label class="${r.dows.includes(d)?'on':''}" style="padding:4px 7px">
-          <input type="checkbox" ${r.dows.includes(d)?'checked':''}
-            onchange="dutyToggle(${i},'${d}',this.checked)">${d}</label>`).join('')}</div>
-      <button class="btn sm danger" onclick="_duty.splice(${i},1);dutyRender();dutySync()">삭제</button>
-    </div>`).join('')
-    : `<div class="tiny muted" style="padding:4px 0">지정된 담당 관이 없습니다. 위 버튼으로 추가하세요.</div>`;
+  box.innerHTML=_duty.length? _duty.map((r,i)=>{
+    const rows=r.key? gwanRows(r.key):[];
+    const all=rows.length&&rows.every(b=>r.floors.includes(b.id));
+    return `<div style="margin-bottom:9px;padding:9px 10px;background:#fff;border:1px solid #DDE2EF;border-radius:7px">
+      <div class="row" style="gap:6px;flex-wrap:nowrap;margin-bottom:6px">
+        <select onchange="dutyPickGwan(${i},this.value)" style="border:1px solid var(--line);border-radius:6px;padding:5px 7px;min-width:210px;font-size:12px">
+          <option value="">— 관 선택 —</option>
+          ${gl.map(g=>`<option value="${esc(g.key)}" ${r.key===g.key?'selected':''}>${esc(g.region)} · ${esc(g.label)}</option>`).join('')}
+        </select>
+        <div class="dayck" style="flex-wrap:nowrap">${DAYS.map(d=>`
+          <label class="${r.dows.includes(d)?'on':''}" style="padding:4px 7px">
+            <input type="checkbox" ${r.dows.includes(d)?'checked':''}
+              onchange="dutyToggle(${i},'${d}',this.checked)">${d}</label>`).join('')}</div>
+        <div class="grow"></div>
+        <button class="btn sm danger" onclick="_duty.splice(${i},1);dutyRender();dutySync()">삭제</button>
+      </div>
+      ${rows.length? `<div class="row" style="gap:4px;align-items:center">
+        <span class="tiny muted" style="min-width:44px">담당 층</span>
+        <span class="chip ${all?'on':''}" onclick="dutyAllFloors(${i},${all?'false':'true'})">전체</span>
+        ${rows.map(b=>`<span class="chip ${r.floors.includes(b.id)?'on':''}"
+          onclick="dutyFloor(${i},'${b.id}')">${esc(b.floor||'-')}</span>`).join('')}
+      </div>` : `<div class="tiny muted">관을 선택하면 층 목록이 나옵니다.</div>`}
+    </div>`;
+  }).join('')
+  : `<div class="tiny muted" style="padding:4px 0">지정된 담당 관이 없습니다. 위 버튼으로 추가하세요.</div>`;
 }
-function dutyAdd(){ _duty.push({key:'',dows:[]}); dutyRender(); }
+function dutyAdd(){ _duty.push({key:'',dows:[],floors:[]}); dutyRender(); }
+function dutyPickGwan(i,key){
+  _duty[i].key=key;
+  _duty[i].floors=gwanRows(key).map(b=>b.id);
+  dutyRender(); dutySync();
+}
+function dutyFloor(i,id){
+  const f=_duty[i].floors;
+  const n=f.includes(id)? f.filter(x=>x!==id) : f.concat([id]);
+  _duty[i].floors=n; dutyRender(); dutySync();
+}
+function dutyAllFloors(i,on){
+  _duty[i].floors = on? gwanRows(_duty[i].key).map(b=>b.id) : [];
+  dutyRender(); dutySync();
+}
 function dutyToggle(i,d,on){
   const r=_duty[i];
   r.dows = on ? DAYS.filter(x=>r.dows.includes(x)||x===d) : r.dows.filter(x=>x!==d);
   dutyRender(); dutySync();
 }
 function dutySync(){
-  const uni=DAYS.filter(d=>_duty.some(r=>r.key&&r.dows.includes(d)));
+  const uni=DAYS.filter(d=>_duty.some(r=>r.key&&r.floors.length&&r.dows.includes(d)));
   document.querySelectorAll('#s_days input').forEach(i=>{
     if(uni.includes(i.value)){ i.checked=true; i.parentNode.classList.add('on'); }
   });
   const hint=document.getElementById('dutyHint');
   if(hint) hint.textContent=uni.length? '담당 관 기준 '+uni.join('')+' 자동 반영됨' : '';
 }
-/* 담당 관 설정을 근무배치표에 반영 */
+/* 배치표 반영 — 층 단위 */
+function dutyWanted(rows){
+  const want={};
+  rows.filter(r=>r.key&&r.floors.length).forEach(r=>{
+    r.floors.forEach(id=>{ (want[id]=want[id]||new Set()); r.dows.forEach(d=>want[id].add(d)); });
+  });
+  return want;
+}
 function applyDutyPreview(name, shift, rows){
-  const want={}; rows.filter(r=>r.key).forEach(r=>{ want[r.key]=new Set(r.dows); });
-  const taken=[];
+  const want=dutyWanted(rows), taken=[];
   S.buildings.forEach(b=>{
-    const k=gwanKeyOf(b); if(!(k in want)) return;
+    const w=want[b.id]; if(!w) return;
     const a=(b.assign&&b.assign[shift])||{};
-    DAYS.forEach(d=>{ if(want[k].has(d)&&a[d]&&a[d]!==name) taken.push(`${bldgLabel(b)} ${b.floor} ${d}요일 — 현재 ${a[d]}`); });
+    DAYS.forEach(d=>{ if(w.has(d)&&a[d]&&a[d]!==name) taken.push(`${bldgLabel(b)} ${b.floor} ${d}요일 — 현재 ${a[d]}`); });
   });
   return {taken};
 }
 function applyDuty(name, shift, rows){
-  const want={};
-  rows.filter(r=>r.key).forEach(r=>{ want[r.key]=new Set(r.dows); });
-  let set=0, cleared=0, taken=[];
+  const want=dutyWanted(rows);
+  let set=0, cleared=0;
   S.buildings.forEach(b=>{
-    const k=gwanKeyOf(b);
     if(!b.assign) b.assign={주간:{},야간:{}};
     const a=b.assign[shift]=b.assign[shift]||{};
-    if(k in want){
-      DAYS.forEach(d=>{
-        if(want[k].has(d)){
-          if(a[d]&&a[d]!==name) taken.push(`${bldgLabel(b)} ${b.floor} ${d} (${a[d]})`);
-          if(a[d]!==name){ a[d]=name; set++; }
-        } else if(a[d]===name){ delete a[d]; cleared++; }
-      });
-    } else {
-      DAYS.forEach(d=>{ if(a[d]===name){ delete a[d]; cleared++; } });
-    }
+    const w=want[b.id];
+    DAYS.forEach(d=>{
+      if(w&&w.has(d)){ if(a[d]!==name){ a[d]=name; set++; } }
+      else if(a[d]===name){ delete a[d]; cleared++; }
+    });
   });
-  return {set, cleared, taken};
-}
-function applyPatternDays(id){
-  const s=S.staff.find(x=>x.id===id);
-  const pd=patternDuty(s.name);
-  const uni=DAYS.filter(d=>pd.some(x=>x.dows.includes(d)));
-  document.querySelectorAll('#s_days input').forEach(i=>{
-    i.checked=uni.includes(i.value); i.parentNode.classList.toggle('on',i.checked);
-  });
-  toast('배치표 기준 '+uni.join('')+'로 맞췄습니다. 저장을 눌러 반영하세요');
+  return {set, cleared};
 }
 function saveStaff(id){
   const s=S.staff.find(x=>x.id===id), g=k=>document.getElementById('s_'+k).value;
