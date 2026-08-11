@@ -1108,7 +1108,7 @@ function editStaff(id){
      <button class="btn pri" onclick="saveStaff('${id}')">저장</button>`);
   dutyRender(); dutySync();
 }
-let _duty=[], _dutyShift='야간';
+let _duty=[], _dutyShift='야간', _showCloud=false;
 function gwanRows(key){ return S.buildings.filter(b=>gwanKeyOf(b)===key); }
 function dutyInit(name, shift){
   _dutyShift=shift;
@@ -1453,39 +1453,32 @@ function renderSet(){
 
       <div class="card pad">
         <div class="sechead"><h2>클라우드 동기화</h2>
-          <span class="hint">${cloudReady()?'연결됨 · 4초마다 자동 동기화':'미연결 · 이 브라우저에만 저장'}</span></div>
+          <span class="hint">${cloudReady()?'연결됨 · 자동 저장 중':'미연결 · 이 브라우저에만 저장'}</span></div>
+        <div class="row" style="justify-content:space-between">
+          <div class="row" style="gap:8px">
+            <span class="sdot ${CS.state==='ok'?'ok':(CS.state==='err'?'err':'')}" style="width:9px;height:9px;border-radius:50%;display:inline-block;background:${CS.state==='ok'?'#25A05C':(CS.state==='err'?'#C0392B':'#B8B5A8')}"></span>
+            <span class="tiny">${cloudReady()
+              ? `수정하면 자동으로 저장되고 다른 기기에 반영됩니다. 문서 <b>${esc(S.cloud.doc)}</b>`
+              : '연결되어 있지 않습니다.'}${CS.at?` · 최신 ${CS.at}`:''}</span>
+          </div>
+          <button class="btn sm" onclick="_showCloud=!_showCloud;renderSet()">${_showCloud?'연결 정보 숨기기':'연결 정보'}</button>
+        </div>
+        ${_showCloud? `
+        <hr class="sep">
+        <div class="tiny" style="color:#B3452F;font-weight:600;margin-bottom:9px">
+          이미 연결되어 있습니다. 아래 값을 바꾸면 동기화가 끊기거나 다른 데이터를 보게 됩니다.</div>
         <div class="grid2">
-          ${fld('Supabase 프로젝트 URL',`<input id="c_url" value="${esc((S.cloud||{}).url||'')}" placeholder="https://xxxx.supabase.co">`)}
-          ${fld('anon public key',`<input id="c_key" value="${esc((S.cloud||{}).key||'')}" placeholder="eyJhbGciOi...">`)}
+          ${fld('Supabase 프로젝트 URL',`<input id="c_url" value="${esc((S.cloud||{}).url||'')}">`)}
+          ${fld('anon public key',`<input id="c_key" value="${esc((S.cloud||{}).key||'')}">`)}
         </div>
         <div class="grid2" style="margin-top:10px">
           ${fld('문서 키 (같은 값을 쓰는 기기끼리 공유)',`<input id="c_doc" value="${esc((S.cloud||{}).doc||'sidae-cleaning')}">`)}
         </div>
         <div class="row" style="margin-top:11px">
-          <button class="btn pri" onclick="cloudConnect()">${cloudReady()?'다시 연결':'연결하기'}</button>
-          ${cloudReady()?`<button class="btn" onclick="cloudPush()">지금 올리기</button>
-            <button class="btn" onclick="cloudPull(true)">지금 내려받기</button>
-            <button class="btn danger" onclick="cloudDisconnect()">연결 해제</button>`:''}
-        </div>
-        <div class="tiny muted" style="margin-top:10px">
-          먼저 Supabase SQL Editor에서 아래를 한 번 실행하세요. 변경은 1~2초 뒤 자동으로 올라가고,
-          다른 기기의 변경은 4초 안에 내려옵니다. 같은 칸을 동시에 고치면 나중에 저장한 쪽이 남습니다.
-        </div>
-        <div class="row" style="margin:8px 0"><button class="btn sm" onclick="copySQL()">SQL 복사</button></div>
-        <div class="sqlbox">${esc(SQL_SETUP)}</div>
-      </div>
-
-      <div class="card pad" style="margin-top:14px">
-        <div class="sechead"><h2>일괄 변경</h2><span class="hint">등록된 인원 ${S.staff.length}명</span></div>
-        <div class="row">
-          <button class="btn" onclick="bulkEmp('3.3%')">전원 3.3% 사업소득으로</button>
-          <button class="btn" onclick="bulkEmp('4대보험')">전원 4대보험으로</button>
-        </div>
-        <div class="row" style="margin-top:8px">
-          ${fld('전원 시급 일괄 적용',`<input type="number" id="bulkWage" value="${st.baseWage}">`)}
-          <button class="btn" onclick="bulkWage()" style="align-self:flex-end">적용</button>
-        </div>
-        <div class="tiny muted" style="margin-top:8px">개인별로 다른 값은 인력 탭에서 다시 수정할 수 있습니다.</div>
+          <button class="btn" onclick="cloudConnect()">다시 연결</button>
+          <button class="btn danger" onclick="cloudDisconnect()">연결 해제</button>
+          <button class="btn sm" onclick="copySQL()">테이블 생성 SQL 복사</button>
+        </div>` : ''}
       </div>
 
       <div class="card pad" style="margin-top:14px">
@@ -1493,7 +1486,6 @@ function renderSet(){
         <div class="row">
           <button class="btn" onclick="exportJSON()">전체 백업(JSON) 저장</button>
           <button class="btn" onclick="document.getElementById('imp').click()">백업 불러오기</button>
-          <button class="btn danger" onclick="resetAll()">초기 데이터로 되돌리기</button>
         </div>
         <div class="tiny muted" style="margin-top:9px">
           층·호실 ${S.buildings.length}건 · 인원 ${S.staff.length}명 · 도급업체 ${(S.vendors||[]).length}개.
@@ -1502,17 +1494,6 @@ function renderSet(){
       </div>
     </div>
   </div>`;
-}
-function bulkEmp(t){
-  const n=S.staff.length;
-  if(!confirm(`등록된 인원 ${n}명 전원을 ${t}(으)로 변경합니다. 계속할까요?`)) return;
-  S.staff.forEach(s=>s.emp=t); save(); pushNow(); toast(`전원 ${t}으로 변경했습니다`); renderSet();
-}
-function bulkWage(){
-  const w=Number(document.getElementById('bulkWage').value)||0;
-  if(!w) return;
-  if(!confirm(`등록된 인원 전원의 시급을 ${won(w)}원으로 변경합니다. 계속할까요?`)) return;
-  S.staff.forEach(s=>{ if(s.payType==='시급') s.wage=w; }); save(); pushNow(); toast('시급을 일괄 적용했습니다'); renderSet();
 }
 function renameRegion(i,v){
   const old=S.regions[i]; v=v.trim()||old;
@@ -1523,13 +1504,6 @@ function delRegion(i){
   const r=S.regions[i];
   if(S.buildings.some(b=>b.region===r)||S.staff.some(s=>s.region===r)){ alert('해당 지점에 등록된 건물 또는 인원이 있어 삭제할 수 없습니다.'); return; }
   S.regions.splice(i,1); save(); renderSet();
-}
-function resetAll(){
-  if(!confirm('입력한 내용이 모두 지워지고 처음 상태로 돌아갑니다. 계속할까요?')) return;
-  window.__mem=null;
-  try{ window.storage.delete('sidae-cleaning-v1'); }catch(e){}
-  S=null; paintSync();
-load(); toast('초기화했습니다');
 }
 
 
