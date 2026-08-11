@@ -1495,11 +1495,9 @@ function paintSync(){
     <span class="sname">${cloudReady()?'공유 클라우드 저장(Supabase)':'이 브라우저에만 저장'}</span>
     <span class="sep">·</span><span class="sdot ${cls}"></span>
     <span>${CS.dirty&&CS.state!=='err'?'저장 중…':label}</span>
-    ${CS.at?`<span class="sep">·</span><span>최신 ${CS.at}${CS.rev?' · v'+CS.rev:''}</span>`:''}
-    ${CS.msg?`<span class="sep">·</span><span style="color:#C0392B">${esc(CS.msg)}</span>`:''}
-    ${cloudReady()?`<button class="sbtn" onclick="cloudPush()">지금 저장</button>
-      <button class="sbtn" onclick="cloudPull(true)">새로고침</button>`:''}
-    <button class="sbtn" onclick="setTab('set')">설정</button>`;
+    ${CS.at?`<span class="sep">·</span><span>최신 ${CS.at}</span>`:''}
+    ${CS.msg?`<span class="sep">·</span><span style="color:#C0392B">${esc(CS.msg)}</span>
+      <button class="sbtn" onclick="cloudPull(true)">다시 시도</button>`:''}`;
 }
 function stamp(){ CS.at=new Date().toLocaleTimeString('ko-KR',{hour12:false}); }
 
