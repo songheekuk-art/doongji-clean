@@ -118,6 +118,10 @@ table.sched.month th.sun{color:#B3452F}table.sched.month th.sat{color:#2F3F86}
 table.sched td.cell.bad:hover{background:#F6E1D8}
 table.sched td.cell.vend:hover{background:#DCEBE4}
 .pill.vend{background:var(--vendBg);color:var(--vend)}
+.sched td.sticky .fl{cursor:pointer;border-bottom:1px dotted #C9C8C0}
+.sched td.sticky .fl:hover{color:#2F3F86;border-bottom-color:#2F3F86}
+.sched td.sticky .fx{float:right;padding:0 6px;line-height:18px;opacity:0;transition:.12s}
+.sched tr:hover td.sticky .fx{opacity:1}
 table.sched td.sticky,table.sched th.sticky{position:sticky;left:0;background:#fff;z-index:4;border-right:1px solid var(--line)}
 table.sched tr.grp td{position:relative}
 table.sched thead th.sticky{z-index:6;background:#FAF9F5}
@@ -720,19 +724,18 @@ function renderSchedTable(){
     html+=`<div class="tw"><table class="sched"><thead><tr>
       <th class="sticky" style="min-width:230px">건물 · 관 · 층</th><th class="num">면적</th><th>구분</th>
       ${DAYS.map(d=>`<th style="text-align:center">${d}<div class="tiny muted" style="font-weight:400">${cnt[d]}회</div></th>`).join('')}
-      <th>특이사항</th><th></th></tr></thead><tbody>`;
+      <th>특이사항</th></tr></thead><tbody>`;
     let last='';
     rows.forEach(b=>{
       const key=b.building+'|'+b.gwan;
-      if(key!==last){ last=key; html+=grpRow(b,DAYS.length+5); }
+      if(key!==last){ last=key; html+=grpRow(b,DAYS.length+4); }
       const a=assignOf(b,F.shift,ym);
       html+=`<tr>${headCells(b)}
         ${DAYS.map(d=>{
           const v=a[d]||'', iss=issueOf(v,null,d,ym);
           return cellTd(b.id,'dow',d,v,iss,(d==='토'||d==='일'),false);
         }).join('')}
-        <td class="tiny muted">${esc(b.note||'')}</td>
-        <td><button class="btn sm noprint" onclick="editBuilding('${b.id}')">⋯</button></td></tr>`;
+        <td class="tiny muted">${esc(b.note||'')}</td></tr>`;
     });
     html+=`</tbody></table></div>`;
   }else{
@@ -790,7 +793,10 @@ function grpRow(b,span){
     <span class="tiny" style="font-weight:400;color:#7A7A72">${esc(b.addr)}${b.area?' · '+won(b.area)+'평':''}</span></span></td></tr>`;
 }
 function headCells(b,compact){
-  const t=`<td class="sticky"><span class="tiny muted">${esc(b.gwan)}</span> ${esc(b.floor||'-')}</td>`;
+  const t=`<td class="sticky">
+    <span class="fl" onclick="editBuilding('${b.id}')" title="누르면 층 정보 수정·삭제">
+      <span class="tiny muted">${esc(b.gwan)}</span> ${esc(b.floor||'(층 미입력)')}</span>
+    <button class="btn sm noprint fx" onclick="editBuilding('${b.id}')">⋯</button></td>`;
   return compact? t : t+`<td class="num">${b.area?won(b.area):''}</td><td class="tiny muted">${esc(b.gubun)}</td>`;
 }
 function cellTd(bid,mode,key,v,iss,weekend,ov){
