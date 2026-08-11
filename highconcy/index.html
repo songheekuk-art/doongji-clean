@@ -254,6 +254,7 @@ async function load(){
       type:'월정액',amount:3700000,rate:0,vat:'별도',start:'',end:'',note:'대전 지역 전담'}];
   }
   S.settings=Object.assign({},DEFAULTS.settings,S.settings||{});
+  CS.rev=Number(S._rev)||0; CS.lastJson=snapshotJson();
   setTimeout(()=>{ if(cloudReady()) cloudPull(false); }, 400);
   S.vendors=S.vendors||[]; S.snapshots=S.snapshots||{}; S.overrides=S.overrides||{};
   S.cloud=Object.assign({}, CLOUD_DEFAULT, S.cloud||{});
@@ -419,7 +420,7 @@ function renderTabs(){
 function render(){
   renderTabs();
   ({home:renderHome,sched:renderSched,staff:renderStaff,vendor:renderVendor,pay:renderPay,set:renderSet})[TAB]();
-  saveLocal(); paintSync();
+  saveLocal(); detectChange(); paintSync();
 }
 
 /* ============ 1. 현황 ============ */
@@ -885,11 +886,11 @@ function saveBuilding(id){
   const b=S.buildings.find(x=>x.id===id);
   ['region','gubun','building','gwan','floor','addr','note'].forEach(k=>b[k]=document.getElementById('e_'+k).value.trim());
   b.area=Number(document.getElementById('e_area').value)||0;
-  closeModal(); toast('저장했습니다'); renderSched();
+  save(); closeModal(); toast('저장했습니다'); renderSched();
 }
 function delBuilding(id){
   if(!confirm('이 층·호실을 삭제할까요?')) return;
-  S.buildings=S.buildings.filter(x=>x.id!==id); closeModal(); toast('삭제했습니다'); renderSched();
+  S.buildings=S.buildings.filter(x=>x.id!==id); save(); closeModal(); toast('삭제했습니다'); renderSched();
 }
 
 /* ============ 3. 인력 ============ */
@@ -1055,6 +1056,7 @@ function saveStaff(id){
   s.bldgWeek=g('bw').split(',').map(x=>x.trim()).filter(Boolean);
   s.bldgWeekend=g('bwe').split(',').map(x=>x.trim()).filter(Boolean);
   s.workDays=[...document.querySelectorAll('#s_days input:checked')].map(i=>i.value);
+  save();
   if(_pendingAssign && _pendingAssign.id===id){
     S.overrides=S.overrides||{};
     S.overrides[ovKey(_pendingAssign.date,_pendingAssign.bid,_pendingAssign.shift)]=s.name;
@@ -1065,7 +1067,7 @@ function saveStaff(id){
 }
 function delStaff(id){
   if(!confirm('삭제하면 급여 이력도 사라집니다. 퇴사 처리는 퇴사일 입력을 권장합니다. 삭제할까요?')) return;
-  S.staff=S.staff.filter(x=>x.id!==id); closeModal(); toast('삭제했습니다'); renderStaff();
+  S.staff=S.staff.filter(x=>x.id!==id); save(); closeModal(); toast('삭제했습니다'); renderStaff();
 }
 
 /* ============ 4. 급여정산 ============ */
@@ -1167,15 +1169,15 @@ function renderSet(){
       <div class="sechead"><h2>급여 기준</h2><span class="hint">전체 계산에 즉시 반영</span></div>
       <div class="grid2">
         ${fld('기본 시급',`<input type="number" value="${st.baseWage}" onchange="S.settings.baseWage=+this.value;save()">`)}
-        ${fld('야간 가산율 (배)',`<input type="number" step="0.1" value="${st.nightMul}" onchange="S.settings.nightMul=+this.value;renderSet()">`)}
-        ${fld('주휴수당 적용',`<select onchange="S.settings.weeklyPay=this.value==='적용';renderSet()">
+        ${fld('야간 가산율 (배)',`<input type="number" step="0.1" value="${st.nightMul}" onchange="S.settings.nightMul=+this.value;save();renderSet()">`)}
+        ${fld('주휴수당 적용',`<select onchange="S.settings.weeklyPay=this.value==='적용';save();renderSet()">
           <option ${st.weeklyPay?'selected':''}>적용</option><option ${!st.weeklyPay?'selected':''}>미적용</option></select>`)}
-        ${fld('기업 이윤율 (%)',`<input type="number" step="0.1" value="${st.profit}" onchange="S.settings.profit=+this.value;renderSet()">`)}
-        ${fld('급여 산정 기준',`<select onchange="S.settings.payBasis=this.value;renderSet()">
+        ${fld('기업 이윤율 (%)',`<input type="number" step="0.1" value="${st.profit}" onchange="S.settings.profit=+this.value;save();renderSet()">`)}
+        ${fld('급여 산정 기준',`<select onchange="S.settings.payBasis=this.value;save();renderSet()">
           <option ${(st.payBasis||'자동')==='자동'?'selected':''}>자동</option>
           <option ${st.payBasis==='근무요일'?'selected':''}>근무요일</option>
           <option ${st.payBasis==='배치표'?'selected':''}>배치표</option></select>`)}
-        ${fld('청구일 (익월 N일)',`<input type="number" min="1" max="28" value="${st.billDay||10}" onchange="S.settings.billDay=+this.value;renderSet()">`)}
+        ${fld('청구일 (익월 N일)',`<input type="number" min="1" max="28" value="${st.billDay||10}" onchange="S.settings.billDay=+this.value;save();renderSet()">`)}
       </div>
       <div class="tiny muted" style="margin-top:8px">
         <b>자동(권장)</b> — 월간 배치표에 이름이 있으면 그 날짜로, 배치표에 없으면 근무요일 설정으로 계산합니다.
@@ -1186,23 +1188,23 @@ function renderSet(){
       <hr class="sep">
       <div class="sechead"><h2>4대보험 요율 (%)</h2><span class="hint">근로자 부담</span></div>
       <div class="grid2">
-        ${fld('국민연금',`<input type="number" step="0.001" value="${st.ins.np}" onchange="S.settings.ins.np=+this.value;renderSet()">`)}
-        ${fld('건강보험',`<input type="number" step="0.001" value="${st.ins.hi}" onchange="S.settings.ins.hi=+this.value;renderSet()">`)}
-        ${fld('장기요양 (건강보험료 대비)',`<input type="number" step="0.01" value="${st.ins.ltc}" onchange="S.settings.ins.ltc=+this.value;renderSet()">`)}
-        ${fld('고용보험',`<input type="number" step="0.01" value="${st.ins.ei}" onchange="S.settings.ins.ei=+this.value;renderSet()">`)}
+        ${fld('국민연금',`<input type="number" step="0.001" value="${st.ins.np}" onchange="S.settings.ins.np=+this.value;save();renderSet()">`)}
+        ${fld('건강보험',`<input type="number" step="0.001" value="${st.ins.hi}" onchange="S.settings.ins.hi=+this.value;save();renderSet()">`)}
+        ${fld('장기요양 (건강보험료 대비)',`<input type="number" step="0.01" value="${st.ins.ltc}" onchange="S.settings.ins.ltc=+this.value;save();renderSet()">`)}
+        ${fld('고용보험',`<input type="number" step="0.01" value="${st.ins.ei}" onchange="S.settings.ins.ei=+this.value;save();renderSet()">`)}
       </div>
       <div class="sechead" style="margin-top:14px"><h2>사업주 부담 (%)</h2></div>
       <div class="grid3">
-        ${fld('국민연금',`<input type="number" step="0.001" value="${st.insEmp.np}" onchange="S.settings.insEmp.np=+this.value;renderSet()">`)}
-        ${fld('건강보험',`<input type="number" step="0.001" value="${st.insEmp.hi}" onchange="S.settings.insEmp.hi=+this.value;renderSet()">`)}
-        ${fld('장기요양',`<input type="number" step="0.01" value="${st.insEmp.ltc}" onchange="S.settings.insEmp.ltc=+this.value;renderSet()">`)}
-        ${fld('고용보험',`<input type="number" step="0.01" value="${st.insEmp.ei}" onchange="S.settings.insEmp.ei=+this.value;renderSet()">`)}
-        ${fld('산재보험',`<input type="number" step="0.01" value="${st.insEmp.iacc}" onchange="S.settings.insEmp.iacc=+this.value;renderSet()">`)}
-        ${fld('퇴직충당 (%)',`<input type="number" step="0.01" value="${st.sev}" onchange="S.settings.sev=+this.value;renderSet()">`)}
+        ${fld('국민연금',`<input type="number" step="0.001" value="${st.insEmp.np}" onchange="S.settings.insEmp.np=+this.value;save();renderSet()">`)}
+        ${fld('건강보험',`<input type="number" step="0.001" value="${st.insEmp.hi}" onchange="S.settings.insEmp.hi=+this.value;save();renderSet()">`)}
+        ${fld('장기요양',`<input type="number" step="0.01" value="${st.insEmp.ltc}" onchange="S.settings.insEmp.ltc=+this.value;save();renderSet()">`)}
+        ${fld('고용보험',`<input type="number" step="0.01" value="${st.insEmp.ei}" onchange="S.settings.insEmp.ei=+this.value;save();renderSet()">`)}
+        ${fld('산재보험',`<input type="number" step="0.01" value="${st.insEmp.iacc}" onchange="S.settings.insEmp.iacc=+this.value;save();renderSet()">`)}
+        ${fld('퇴직충당 (%)',`<input type="number" step="0.01" value="${st.sev}" onchange="S.settings.sev=+this.value;save();renderSet()">`)}
       </div>
       <div class="sechead" style="margin-top:14px"><h2>사업소득</h2></div>
       <div class="grid2">
-        ${fld('원천징수율 (%)',`<input type="number" step="0.1" value="${st.freelanceTax}" onchange="S.settings.freelanceTax=+this.value;renderSet()">`)}
+        ${fld('원천징수율 (%)',`<input type="number" step="0.1" value="${st.freelanceTax}" onchange="S.settings.freelanceTax=+this.value;save();renderSet()">`)}
       </div>
       <div class="tiny muted" style="margin-top:10px">요율은 매년 바뀝니다. 고시 요율을 확인해 직접 수정해 주세요.</div>
     </div>
@@ -1214,7 +1216,7 @@ function renderSet(){
           <input value="${esc(r)}" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;flex:1"
             onchange="renameRegion(${i},this.value)">
           <button class="btn sm danger" onclick="delRegion(${i})">삭제</button></div>`).join('')}</div>
-        <button class="btn" onclick="S.regions.push('신규지점');renderSet()">+ 지점 추가</button>
+        <button class="btn" onclick="S.regions.push('신규지점');save();renderSet()">+ 지점 추가</button>
       </div>
 
       <div class="card pad">
@@ -1288,7 +1290,7 @@ function renameRegion(i,v){
 function delRegion(i){
   const r=S.regions[i];
   if(S.buildings.some(b=>b.region===r)||S.staff.some(s=>s.region===r)){ alert('해당 지점에 등록된 건물 또는 인원이 있어 삭제할 수 없습니다.'); return; }
-  S.regions.splice(i,1); renderSet();
+  S.regions.splice(i,1); save(); renderSet();
 }
 function resetAll(){
   if(!confirm('입력한 내용이 모두 지워지고 처음 상태로 돌아갑니다. 계속할까요?')) return;
@@ -1427,6 +1429,7 @@ function saveVendor(id){
   v.type=g('type'); v.amount=Number(g('amount'))||0; v.rate=Number(g('rate'))||0;
   v.vat=g('vat'); v.start=g('start'); v.end=g('end');
   v.regions=[...document.querySelectorAll('#v_regions input:checked')].map(i=>i.value);
+  save();
   if(old && old!==v.name){
     S.buildings.forEach(b=>['주간','야간'].forEach(sh=>{
       const a=(b.assign&&b.assign[sh])||{};
@@ -1444,7 +1447,7 @@ function delVendor(id){
     DAYS.forEach(d=>{ if(a[d]===v.name) delete a[d]; });
   }));
   S.staff.forEach(s=>{ if(s.vendorId===id) s.vendorId=''; });
-  S.vendors=S.vendors.filter(x=>x.id!==id);
+  S.vendors=S.vendors.filter(x=>x.id!==id); save();
   closeModal(); toast('삭제했습니다'); renderVendor();
 }
 function exportVendorCSV(){
@@ -1460,7 +1463,7 @@ function exportVendorCSV(){
 
 /* ============ 클라우드 동기화 ============ */
 const CLOUD_DEFAULT={url:'https://ugwzyxsynpvnbbsqlcqq.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnd3p5eHN5bnB2bmJic3FsY3FxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNjA3NDIsImV4cCI6MjA5OTYzNjc0Mn0.DswVM1dtfaEgRujb0mZpDPXTEb7xdeOAnVuRKKdQtlE',doc:'sidae-cleaning',on:true};
-const CS={state:'off', dirty:false, lastEdit:0, rev:0, at:null, msg:'', me:Math.random().toString(36).slice(2,9), busy:false, busySince:0, queued:false};
+const CS={state:'off', dirty:false, lastEdit:0, rev:0, at:null, msg:'', me:Math.random().toString(36).slice(2,9), busy:false, busySince:0, queued:false, lastJson:null};
 const SQL_SETUP=`create table if not exists fm_sync (
   key         text primary key,
   data        jsonb not null,
@@ -1499,7 +1502,14 @@ function paintSync(){
 }
 function stamp(){ CS.at=new Date().toLocaleTimeString('ko-KR',{hour12:false}); }
 
-function pack(){ const o=JSON.parse(JSON.stringify(S)); delete o.cloud; return o; }
+function pack(){ const o=JSON.parse(JSON.stringify(S)); delete o.cloud; delete o._rev; return o; }
+function snapshotJson(){ try{ return JSON.stringify(pack()); }catch(e){ return null; } }
+function detectChange(){
+  if(!S) return;
+  const j=snapshotJson(); if(j===null) return;
+  if(CS.lastJson===null){ CS.lastJson=j; return; }
+  if(j!==CS.lastJson){ CS.lastJson=j; CS.dirty=true; CS.lastEdit=Date.now(); paintSync(); }
+}
 function adopt(data){
   const cloud=S.cloud;
   S=Object.assign(data,{cloud});
@@ -1517,12 +1527,14 @@ async function cloudPull(force){
     const rows=await r.json();
     if(!rows.length){ CS.state='ok'; CS.msg=''; stamp(); if(force) await cloudPush(true); }
     else{
-      const row=rows[0];
+      const row=rows[0], remoteJson=JSON.stringify(row.data);
       if(row.rev>CS.rev || force){
-        if(row.updated_by!==CS.me || force){
-          CS.rev=row.rev; adopt(row.data);
-          if(row.updated_by!==CS.me) toast('다른 기기의 변경사항을 불러왔습니다');
-        } else CS.rev=row.rev;
+        CS.rev=row.rev; CS.lastJson=remoteJson;
+        adopt(row.data); S._rev=row.rev;
+        if(row.updated_by!==CS.me && !force) toast('다른 기기의 변경사항을 불러왔습니다');
+      }else{
+        CS.rev=Math.max(CS.rev,row.rev);
+        if(snapshotJson()!==remoteJson){ CS.dirty=true; CS.lastEdit=Date.now()-2000; }
       }
       CS.state='ok'; CS.msg=''; stamp();
     }
@@ -1544,6 +1556,7 @@ async function cloudPush(silent){
     const out=await r.json();
     CS.rev=(out[0]&&out[0].rev)||CS.rev+1;
     if(CS.lastEdit===token) CS.dirty=false;
+    S._rev=CS.rev; CS.lastJson=snapshotJson(); saveLocal();
     CS.state='ok'; CS.msg=''; stamp();
     if(!silent) toast('클라우드에 저장했습니다');
   }catch(e){ CS.state='err'; CS.msg=String(e.message||e).slice(0,60); }
@@ -1551,6 +1564,7 @@ async function cloudPush(silent){
   if(CS.queued){ CS.queued=false; setTimeout(()=>cloudPush(true),100); }
 }
 setInterval(()=>{
+  detectChange();
   if(!cloudReady()) return;
   if(CS.busy){
     if(Date.now()-(CS.busySince||0)>10000){ CS.busy=false; CS.state='err'; CS.msg='응답 지연 — 재시도'; paintSync(); }
