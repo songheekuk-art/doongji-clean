@@ -290,6 +290,15 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 
 /* ============ helpers ============ */
 const DOCS=[['idCopy','신분증'],['bankbook','통장'],['contract','계약서']];
+function statusMatch(s,ym){
+  const f=SF.status, st=statusOf(s);
+  if(f==='전체') return true;
+  if(f==='기준월 재직') return activeInMonth(s,ym);
+  if(f==='퇴사자만') return st==='퇴사';
+  if(f==='기준월 퇴사') return !!s.leave && s.leave.slice(0,7)===ym;
+  if(f==='퇴사예정') return st==='퇴사예정';
+  return st!=='퇴사';
+}
 function docsMatch(s){
   const f=SF.docs;
   if(!f) return true;
@@ -950,9 +959,8 @@ function renderStaff(){
     <label class="f">시간대<select onchange="SF.shift=this.value;renderStaffTable()"><option value="">전체</option>
       <option ${SF.shift==='주간'?'selected':''}>주간</option><option ${SF.shift==='야간'?'selected':''}>야간</option></select></label>
     <label class="f">재직상태<select onchange="SF.status=this.value;renderStaffTable()">
-      <option ${SF.status==='재직중만'?'selected':''}>재직중만</option>
-      <option ${SF.status==='기준월 재직'?'selected':''}>기준월 재직</option>
-      <option ${SF.status==='전체'?'selected':''}>전체</option></select></label>
+      ${['재직중만','기준월 재직','퇴사자만','기준월 퇴사','퇴사예정','전체']
+        .map(o=>`<option ${SF.status===o?'selected':''}>${o}</option>`).join('')}</select></label>
     <label class="f">서류<select onchange="SF.docs=this.value;renderStaffTable()">
       ${['전체','미비만','완비만','신분증 미비','통장 미비','계약서 미비','피복 미지급']
         .map(o=>`<option value="${o==='전체'?'':o}" ${SF.docs===o?'selected':''}>${o}</option>`).join('')}</select></label>
@@ -971,11 +979,14 @@ function renderStaffTable(){
   let list=S.staff.filter(s=>
     (!SF.region||s.region===SF.region)&&(!SF.shift||s.shift===SF.shift)&&(!SF.emp||s.emp===SF.emp)&&
     (!SF.empType||s.empType===SF.empType)&&
-    (SF.status==='전체' || (SF.status==='기준월 재직'? activeInMonth(s,ym) : statusOf(s)!=='퇴사'))&&
+    statusMatch(s,ym)&&
     (!SF.vendor||(SF.vendor==='직영'? !s.vendorId : s.vendorId===SF.vendor))&&
     docsMatch(s)&&
     (!q||s.name.includes(q)||(s.phone||'').includes(q)||(s.payee||'').includes(q)));
-  list=list.sort((a,b)=>a.region.localeCompare(b.region)||a.shift.localeCompare(b.shift)||a.name.localeCompare(b.name));
+  const leaveView=['퇴사자만','기준월 퇴사','퇴사예정'].includes(SF.status);
+  list=list.sort(leaveView
+    ? (a,b)=>String(b.leave||'').localeCompare(String(a.leave||''))||a.name.localeCompare(b.name)
+    : (a,b)=>a.region.localeCompare(b.region)||a.shift.localeCompare(b.shift)||a.name.localeCompare(b.name));
   const joined=list.filter(s=>s.join&&s.join.slice(0,7)===ym).length;
   const left=list.filter(s=>s.leave&&s.leave.slice(0,7)===ym).length;
   const lack=list.filter(s=>!docsDone(s)).length;
@@ -985,6 +996,7 @@ function renderStaffTable(){
   <div class="legend" style="margin-bottom:8px">
     <span><b>${list.length}</b>명</span>
     <span>${ym} 입사 ${joined}명 · 퇴사 ${left}명</span>
+    ${leaveView?`<span style="color:#8A8A84">퇴사일 최근순 · 급여는 퇴사일까지만 계산됩니다</span>`:''}
     <span style="${lack?'color:#B3452F;font-weight:600':''}">서류 미비 ${lack}명</span>
     <span>미수령 — 신분증 ${list.filter(s=>!s.idCopy).length}
       · 통장 ${list.filter(s=>!s.bankbook).length}
