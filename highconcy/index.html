@@ -238,6 +238,7 @@ let S = null;
 const DEFAULTS = {
   settings:{
     baseWage:10320, nightMul:0.5, weeklyPay:true, mealDaily:8000, mealStdDays:21.75, payBasis:'자동', billDay:10,
+    annualPay:true, annualDaysU1:11, annualDaysO1:15, minWeeklyHours:15,
     ins:{ np:4.5, hi:3.545, ltc:12.95, ei:0.9 },
     insEmp:{ np:4.5, hi:3.545, ltc:12.95, ei:1.15, iacc:0.9 },
     sev:8.33, freelanceTax:3.3, profit:10
@@ -435,6 +436,13 @@ function extraDel(id,ym,i){
   save(); pushNow();
 }
 
+function serviceMonths(s,ym){
+  if(!s.join) return 0;
+  const [jy,jm]=s.join.slice(0,7).split('-').map(Number);
+  const [y,m]=ym.split('-').map(Number);
+  return (y-jy)*12+(m-jm);
+}
+
 /* ============ payroll ============ */
 function calcPay(s, ym){
   const st=S.settings, dates=monthDates(ym);
@@ -450,6 +458,7 @@ function calcPay(s, ym){
   const patternDays=pattern.length, assignedDays=assigned.length;
   const totalInMonth=dates.filter(d=>(s.workDays||[]).includes(d.dow)).length;
   const h=Number(s.hours)||0, nh=Number(s.nightHours)||0, wage=Number(s.wage)||0;
+  const regular = (s.empType||'상시')!=='당일';
   let base=0, night=0, weekly=0, meal=0;
   if(s.payType==='월급'){
     const ratio=totalInMonth? work.length/totalInMonth : 0;
@@ -458,18 +467,42 @@ function calcPay(s, ym){
     base=Math.round(wage*h*work.length);
     night=Math.round(wage*st.nightMul*nh*work.length);
     const weeklyHours=h*(s.workDays||[]).length;
-    if(st.weeklyPay && s.emp==='4대보험' && weeklyHours>=15){
+    if(st.weeklyPay && regular && weeklyHours>=(st.minWeeklyHours||15)){
       const weeks=work.length/Math.max((s.workDays||[]).length,1);
       weekly=Math.round(wage*Math.min(weeklyHours,40)/40*8*weeks);
     }
   }
   const ratio=totalInMonth? work.length/totalInMonth : 0;
+  /* 연차수당 — 월할 지급 */
+  let annual=0, annualDays=0, annualNote='';
+  if(st.annualPay && regular && s.payType!=='월급'){
+    const wh=h*(s.workDays||[]).length;
+    if(wh>=(st.minWeeklyHours||15)){
+      const mon=serviceMonths(s,ym), daily=wage*h;
+      if(s.annualDays!=null){
+        annualDays=Number(s.annualDays);
+        annual=Math.round(daily*annualDays/12*ratio);
+        annualNote=`연 ${annualDays}일 ÷ 12개월`;
+      }else if(mon>=12){
+        annualDays=st.annualDaysO1||15;
+        annual=Math.round(daily*annualDays/12*ratio);
+        annualNote=`1년 이상 · 연 ${annualDays}일 ÷ 12개월`;
+      }else{
+        /* 1년 미만: 1개월 개근 시 1일 발생 (최대 ${st.annualDaysU1}일) */
+        const used=Math.max(0,Math.min(mon, st.annualDaysU1||11));
+        annualDays=(mon>=1 && used<(st.annualDaysU1||11)+0)?1:0;
+        if(mon>=1 && mon<=(st.annualDaysU1||11)) annualDays=1; else annualDays=0;
+        annual=Math.round(daily*annualDays*ratio);
+        annualNote=annualDays? `1년 미만 · 월 1일 발생 (${mon}/${st.annualDaysU1||11}개월)` : '발생 없음';
+      }
+    }
+  }
   const mealDay = s.mealDaily!=null? Number(s.mealDaily) : (s.shift==='주간'? (st.mealDaily||0) : 0);
   meal = mealDay? Math.round(mealDay*work.length) : Math.round((Number(s.meal)||0)*ratio);
   const ex=extrasOf(s.id,ym);
   const exPay=ex.reduce((a,e)=>a+extraAmount(s,e),0);
   const exHours=ex.reduce((a,e)=>a+(Number(e.hours)||0),0);
-  const gross=base+night+weekly+meal+exPay;
+  const gross=base+night+weekly+annual+meal+exPay;
   const taxable=gross-Math.min(meal,200000);
   let ded={}, dedTotal=0, employer={}, empTotal=0;
   if(s.emp==='4대보험'){
@@ -490,6 +523,7 @@ function calcPay(s, ym){
   }
   return {work:work.length, totalInMonth, patternDays, assignedDays, totalInMonthActive:patternDays,
           basis: useAssigned?'배치표':'요일', mealDay, exPay, exHours, exCount:ex.length,
+          annual, annualDays, annualNote, regular,
           base, night, weekly, meal, gross, taxable, ded, dedTotal,
           net:gross-dedTotal, employer, empTotal, cost:gross+empTotal};
 }
@@ -1212,6 +1246,11 @@ function editStaff(id){
     <div class="grid3" style="margin-top:10px">
       ${fld('1일 근무시간',`<input id="s_hours" type="number" step="0.5" value="${s.hours||0}">`)}
       ${fld('그 중 야간시간 (22~06시)',`<input id="s_nightHours" type="number" step="0.5" value="${s.nightHours||0}">`)}
+      ${fld('연차 (연간 일수)',`<select id="s_annualDays">
+        <option value="" ${s.annualDays==null?'selected':''}>자동 (1년 미만 ${S.settings.annualDaysU1}일 · 이상 ${S.settings.annualDaysO1}일)</option>
+        <option value="0" ${s.annualDays===0?'selected':''}>미지급</option>
+        ${[11,12,13,14,15,16,17].map(v=>`<option value="${v}" ${Number(s.annualDays)===v?'selected':''}>${v}일</option>`).join('')}
+      </select>`)}
       ${fld('비고',`<input id="s_note" value="${esc(s.note||'')}">`)}
     </div>
     <div class="tiny muted" style="margin-top:8px">업체 소속으로 지정하면 직영 급여대장에서 제외되고, 도급업체 탭에서 인원수로 집계됩니다.</div>
@@ -1365,6 +1404,7 @@ function saveStaff(id){
   s.join=g('join'); s.leave=g('leave'); s.payType=g('payType');
   s.wage=Number(g('wage'))||0;
   s.mealDaily = g('mealDaily')===''? null : Number(g('mealDaily'));
+  s.annualDays = g('annualDays')===''? null : Number(g('annualDays'));
   s.hours=Number(g('hours'))||0; s.nightHours=Number(g('nightHours'))||0; s.note=g('note');
   s.workDays=[...document.querySelectorAll('#s_days input:checked')].map(i=>i.value);
   if(document.getElementById('dutyRows')){
@@ -1451,6 +1491,8 @@ function payDetail(id){
       ${kpi('실근무일',p.work+'일',p.basis==='배치표'?'배치표 기준':'근무요일 기준')}
       ${kpi('담당 관',gs.length+'곳','')}
       ${kpi('지급 총액',won(p.gross)+'원',`실지급 ${won(p.net)}원`)}
+      ${kpi('주휴수당',won(p.weekly)+'원',p.weekly?'주 15h 이상':'미해당')}
+      ${kpi('연차수당',won(p.annual)+'원',p.annualNote||'미해당')}
       ${kpi('식대',won(p.meal)+'원',p.mealDay?`일 ${won(p.mealDay)}원 × ${p.work}일`:'미적용')}
       ${kpi('추가 근무·수당',won(p.exPay)+'원',p.exCount?`${p.exCount}건 · ${p.exHours}시간`:'없음')}
     </div>
@@ -1540,6 +1582,8 @@ function renderPay(){
       <div class="row" style="gap:10px">
         <span class="pill b4">청구월 ${billMonth(ym)} · ${S.settings.billDay||10}일</span>
         <span class="pill ${S.settings.payBasis==='배치표'?'vend':'off'}">산정기준 ${S.settings.payBasis||'근무요일'}</span>
+        <span class="pill b33">주간 기본급+주휴+연차+식대</span>
+        <span class="pill night">야간 기본급+야간가산+주휴+연차</span>
       </div>
     </div>
   </div>
@@ -1561,7 +1605,7 @@ function renderPay(){
 
   <div class="tw"><table><thead><tr>
     <th>이름</th><th>지점</th><th>고용</th><th>상태</th><th class="num">근무일</th><th class="num">배치일수</th>
-    <th class="num">기본급</th><th class="num">야간수당</th><th class="num">주휴수당</th><th class="num">식대</th><th class="num">추가</th>
+    <th class="num">기본급</th><th class="num">야간수당</th><th class="num">주휴수당</th><th class="num">연차수당</th><th class="num">식대</th><th class="num">추가</th>
     <th class="num">지급총액</th><th class="num">공제</th><th class="num">실지급</th>
     <th class="num">사업주부담</th><th class="num">원가</th></tr></thead><tbody>
     ${rows.map(({s,p})=>{
@@ -1579,7 +1623,8 @@ function renderPay(){
         <span class="pill ${p.basis==='배치표'?'vend':'off'} tiny">${p.basis}</span></td>
       <td class="num tiny muted">${p.assignedDays}</td>
       <td class="num">${won(p.base)}</td><td class="num">${p.night?won(p.night):'—'}</td>
-      <td class="num">${p.weekly?won(p.weekly):'—'}</td><td class="num">${p.meal?won(p.meal):'—'}</td>
+      <td class="num">${p.weekly?won(p.weekly):'—'}</td>
+      <td class="num">${p.annual?won(p.annual):'—'}</td><td class="num">${p.meal?won(p.meal):'—'}</td>
       <td class="num">${p.exPay?`<b style="color:${p.exPay<0?'#B3452F':'#1F6E43'}">${won(p.exPay)}</b>`:'—'}</td>
       <td class="num"><b>${won(p.gross)}</b></td><td class="num">${won(p.dedTotal)}</td>
       <td class="num"><b>${won(p.net)}</b></td><td class="num">${won(p.empTotal)}</td><td class="num">${won(p.cost)}</td></tr>`;
@@ -1588,6 +1633,7 @@ function renderPay(){
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.base,0))}</td>
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.night,0))}</td>
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.weekly,0))}</td>
+      <td class="num">${won(rows.reduce((a,x)=>a+x.p.annual,0))}</td>
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.meal,0))}</td>
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.exPay,0))}</td>
       <td class="num">${won(T.gross)}</td><td class="num">${won(T.ded)}</td><td class="num">${won(T.net)}</td>
@@ -1597,6 +1643,8 @@ function renderPay(){
     퇴사일·입사일이 있는 인원은 해당 월의 실제 재직 근무일만 계산됩니다(‘일할’ 표시).
     소득세·지방소득세(4대보험 가입자)는 간이세액표 기준이라 이 표에 포함되지 않습니다.
     업체 소속 인원은 도급업체 탭에서 도급비로 정산됩니다.
+    주휴·연차수당은 상시 근무자 중 주 소정근로 ${S.settings.minWeeklyHours||15}시간 이상인 분에게 지급되며,
+    당일 근로자는 제외됩니다.
   </div>`;
 }
 
@@ -1612,6 +1660,11 @@ function renderSet(){
         ${fld('야간 가산율 (배)',`<input type="number" step="0.1" value="${st.nightMul}" onchange="S.settings.nightMul=+this.value;save();renderSet()">`)}
         ${fld('주휴수당 적용',`<select onchange="S.settings.weeklyPay=this.value==='적용';save();renderSet()">
           <option ${st.weeklyPay?'selected':''}>적용</option><option ${!st.weeklyPay?'selected':''}>미적용</option></select>`)}
+        ${fld('연차수당 적용',`<select onchange="S.settings.annualPay=this.value==='적용';save();renderSet()">
+          <option ${st.annualPay?'selected':''}>적용</option><option ${!st.annualPay?'selected':''}>미적용</option></select>`)}
+        ${fld('1년 미만 최대 발생일',`<input type="number" value="${st.annualDaysU1}" onchange="S.settings.annualDaysU1=+this.value;save();renderSet()">`)}
+        ${fld('연차 일수 (1년 이상)',`<input type="number" value="${st.annualDaysO1}" onchange="S.settings.annualDaysO1=+this.value;save();renderSet()">`)}
+        ${fld('주휴·연차 최소 주근로(h)',`<input type="number" value="${st.minWeeklyHours}" onchange="S.settings.minWeeklyHours=+this.value;save();renderSet()">`)}
         ${fld('기업 이윤율 (%)',`<input type="number" step="0.1" value="${st.profit}" onchange="S.settings.profit=+this.value;save();renderSet()">`)}
         ${fld('급여 산정 기준',`<select onchange="S.settings.payBasis=this.value;save();renderSet()">
           <option ${(st.payBasis||'자동')==='자동'?'selected':''}>자동</option>
@@ -2127,10 +2180,10 @@ function exportStaffCSV(){
 }
 function exportPayCSV(){
   const ym=S.payMonth;
-  const rows=[['정산월','이름','실지급대상','연락처','지점','근무구분','시간대','고용형태','상태','입사일','퇴사일','근무일','기본급','야간수당','주휴수당','식대','추가수당','지급총액','공제','실지급','사업주부담','원가']];
+  const rows=[['정산월','이름','실지급대상','연락처','지점','근무구분','시간대','고용형태','상태','입사일','퇴사일','근무일','기본급','야간수당','주휴수당','연차수당','식대','추가수당','지급총액','공제','실지급','사업주부담','원가']];
   S.staff.filter(s=>(!PF.region||s.region===PF.region)&&(!PF.emp||s.emp===PF.emp)).forEach(s=>{
     const p=calcPay(s,ym);
-    rows.push([ym,s.name,s.payee||'',s.phone||'',s.region,s.empType||'상시',s.shift,s.emp,statusOf(s),s.join,s.leave,p.work,p.base,p.night,p.weekly,p.meal,p.exPay,p.gross,p.dedTotal,p.net,p.empTotal,p.cost]);
+    rows.push([ym,s.name,s.payee||'',s.phone||'',s.region,s.empType||'상시',s.shift,s.emp,statusOf(s),s.join,s.leave,p.work,p.base,p.night,p.weekly,p.annual,p.meal,p.exPay,p.gross,p.dedTotal,p.net,p.empTotal,p.cost]);
   });
   dl(`급여대장_${ym}.csv`,csv(rows),'text/csv'); toast('급여대장을 저장했습니다');
 }
