@@ -158,6 +158,10 @@ table.sched tr:hover td.sticky{background:#FAFAF6}
 }
 .dayck input{margin:0}
 .dayck label.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.dwall{border:1px solid var(--line);border-radius:var(--r);padding:5px 11px;cursor:pointer;font-size:12px;
+  background:#fff;user-select:none;white-space:nowrap;font-weight:600;color:#4A4A44;flex:none}
+.dwall:hover{border-color:#B9B8B0}
+.dwall.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .picker{position:fixed;z-index:300;background:#fff;border:1px solid #C9C8C0;border-radius:9px;
   box-shadow:0 12px 34px rgba(20,20,18,.22);width:236px;overflow:hidden}
 .picker .pq{width:100%;border:0;border-bottom:1px solid var(--line);padding:9px 11px;font-size:13px;outline:none}
@@ -1192,7 +1196,8 @@ function editStaff(id){
       <div class="dayck" id="s_days">${DAYS.map(d=>{
         const on=(s.workDays||[]).includes(d);
         return `<label class="${on?'on':''}"><input type="checkbox" value="${d}" ${on?'checked':''}
-          onchange="this.parentNode.classList.toggle('on',this.checked)">${d}</label>`;}).join('')}</div>
+          onchange="this.parentNode.classList.toggle('on',this.checked);wdAllPaint()">${d}</label>`;}).join('')}
+        <label class="dwall" id="s_daysAll" onclick="wdAll()">전체</label></div>
       <div class="tiny muted" style="margin-top:5px">담당 관에 없는 날을 추가로 인정하려면 여기서 직접 체크하세요.</div>
     </div>
     <div class="grid3" style="margin-top:12px">
@@ -1214,7 +1219,7 @@ function editStaff(id){
   `,`<button class="btn danger" onclick="delStaff('${id}')">삭제</button>
      <button class="btn" onclick="closeModal()">취소</button>
      <button class="btn pri" onclick="saveStaff('${id}')">저장</button>`);
-  dutyRender(); dutySync();
+  dutyRender(); dutySync(); wdAllPaint();
 }
 let _duty=[], _dutyShift='야간', _showCloud=false, _draft=null;
 function gwanRows(key){ return S.buildings.filter(b=>gwanKeyOf(b)===key); }
@@ -1246,10 +1251,8 @@ function dutyRender(){
           <label class="${r.dows.includes(d)?'on':''}" style="padding:4px 7px">
             <input type="checkbox" ${r.dows.includes(d)?'checked':''}
               onchange="dutyToggle(${i},'${d}',this.checked)">${d}</label>`).join('')}</div>
-        <span class="chip ${r.dows.length===7?'on':''}" onclick="dutyAllDays(${i},${r.dows.length===7?'false':'true'})"
-          title="월~일 전체 선택">전체</span>
-        <span class="chip" onclick="dutySetDays(${i},['월','화','수','목','금'])">주5일</span>
-        <span class="chip" onclick="dutySetDays(${i},['월','화','수','목','금','토'])">월~토</span>
+        <label class="dwall ${r.dows.length===7?'on':''}" onclick="dutyAllDays(${i},${r.dows.length===7?'false':'true'})"
+          title="월~일 전체 선택">전체</label>
         <div class="grow"></div>
         <button class="btn sm danger" onclick="_duty.splice(${i},1);dutyRender();dutySync()">삭제</button>
       </div>
@@ -1263,27 +1266,38 @@ function dutyRender(){
   }).join('')
   : `<div class="tiny muted" style="padding:4px 0">지정된 담당 관이 없습니다. 위 버튼으로 추가하세요.</div>`;
 }
-function dutyAllDays(i,on){ _duty[i].dows = on? DAYS.slice() : []; dutyRender(); dutySync(); }
-function dutySetDays(i,arr){ _duty[i].dows = arr.slice(); dutyRender(); dutySync(); }
+function wdAllPaint(){
+  const b=document.getElementById('s_daysAll'); if(!b) return;
+  const all=[...document.querySelectorAll('#s_days input')].every(i=>i.checked);
+  b.classList.toggle('on',all);
+}
+function wdAll(){
+  const on=![...document.querySelectorAll('#s_days input')].every(i=>i.checked);
+  document.querySelectorAll('#s_days input').forEach(i=>{
+    i.checked=on; i.parentNode.classList.toggle('on',on);
+  });
+  wdAllPaint();
+}
+function dutyAllDays(i,on){ _duty[i].dows = on? DAYS.slice() : []; dutyRender(); dutySync(); wdAllPaint(); }
 function dutyAdd(){ _duty.push({key:'',dows:[],floors:[]}); dutyRender(); }
 function dutyPickGwan(i,key){
   _duty[i].key=key;
   _duty[i].floors=gwanRows(key).map(b=>b.id);
-  dutyRender(); dutySync();
+  dutyRender(); dutySync(); wdAllPaint();
 }
 function dutyFloor(i,id){
   const f=_duty[i].floors;
   const n=f.includes(id)? f.filter(x=>x!==id) : f.concat([id]);
-  _duty[i].floors=n; dutyRender(); dutySync();
+  _duty[i].floors=n; dutyRender(); dutySync(); wdAllPaint();
 }
 function dutyAllFloors(i,on){
   _duty[i].floors = on? gwanRows(_duty[i].key).map(b=>b.id) : [];
-  dutyRender(); dutySync();
+  dutyRender(); dutySync(); wdAllPaint();
 }
 function dutyToggle(i,d,on){
   const r=_duty[i];
   r.dows = on ? DAYS.filter(x=>r.dows.includes(x)||x===d) : r.dows.filter(x=>x!==d);
-  dutyRender(); dutySync();
+  dutyRender(); dutySync(); wdAllPaint();
 }
 function dutySync(){
   const uni=DAYS.filter(d=>_duty.some(r=>r.key&&r.floors.length&&r.dows.includes(d)));
