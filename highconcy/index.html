@@ -1475,12 +1475,16 @@ function exAdd(id){
   extraAdd(id, S.payMonth, {type:g('type'), date:g('date'), memo:g('memo').trim(),
     hours:hours||null, rate:g('rate')===''?null:Number(g('rate')), amount});
   ['hours','rate','amount','memo'].forEach(k=>document.getElementById('x_'+k).value='');
-  exFormHint(); exRender(id); toast('추가했습니다');
+  exFormHint(); exRender(id);
+  if(TAB==='pay') renderPay();
   const p=calcPay(S.staff.find(x=>x.id===id),S.payMonth);
+  toast(`추가했습니다 — 추가수당 합계 ${won(p.exPay)}원`);
 }
 function exDel(id,i){
   if(!confirm('이 내역을 삭제할까요?')) return;
-  extraDel(id,S.payMonth,i); exRender(id); toast('삭제했습니다');
+  extraDel(id,S.payMonth,i); exRender(id);
+  if(TAB==='pay') renderPay();
+  toast('삭제했습니다');
 }
 function payDetail(id){
   const s=S.staff.find(x=>x.id===id), ym=S.payMonth;
@@ -1625,7 +1629,9 @@ function renderPay(){
       <td class="num">${won(p.base)}</td><td class="num">${p.night?won(p.night):'—'}</td>
       <td class="num">${p.weekly?won(p.weekly):'—'}</td>
       <td class="num">${p.annual?won(p.annual):'—'}</td><td class="num">${p.meal?won(p.meal):'—'}</td>
-      <td class="num">${p.exPay?`<b style="color:${p.exPay<0?'#B3452F':'#1F6E43'}">${won(p.exPay)}</b>`:'—'}</td>
+      <td class="num">${p.exPay
+        ? `<b style="color:${p.exPay<0?'#B3452F':'#1F6E43'}">${won(p.exPay)}</b><span class="tiny muted"> ${p.exCount}건</span>`
+        : '—'}</td>
       <td class="num"><b>${won(p.gross)}</b></td><td class="num">${won(p.dedTotal)}</td>
       <td class="num"><b>${won(p.net)}</b></td><td class="num">${won(p.empTotal)}</td><td class="num">${won(p.cost)}</td></tr>`;
     }).join('')}
