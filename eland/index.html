@@ -841,9 +841,9 @@ function renderPay(){
     </div>
     <label class="fld">정산 기간 선택</label>
     <div class="seg" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">${presets.map(p=>`<button class="${r.preset===p[0]?'on':''}" style="flex:0 0 auto;min-width:104px" onclick="setPreset('${p[0]}')">${p[1]}</button>`).join('')}</div>
-    <div class="row" style="${r.preset==='custom'?'':'display:none'}"><div style="flex:1"><label class="fld">시작일</label><input type="date" id="pr_s" value="${r.start||iso(DTS[0]||new Date())}"></div>
-      <div style="flex:1"><label class="fld">종료일</label><input type="date" id="pr_e" value="${r.end||iso((DTS[DTS.length-1])||new Date())}"></div>
-      <button class="btn pri" onclick="applyCustom()">적용</button></div>
+    <div class="row" style="${r.preset==='custom'?'':'display:none'}"><div style="flex:1"><label class="fld">시작일</label><input type="date" id="pay_s" value="${r.start||iso(DTS[0]||new Date())}"></div>
+      <div style="flex:1"><label class="fld">종료일</label><input type="date" id="pay_e" value="${r.end||iso((DTS[DTS.length-1])||new Date())}"></div>
+      <button class="btn pri" onclick="applyCustom('pay')">적용</button></div>
     <div style="margin-top:8px;font-size:12.5px;color:var(--purple);font-weight:700">\uD83D\uDCC5 ${rangeLabel()} · ${DTS.length}일</div></div></div>
     <div class="cards"><div class="kpi accent"><div class="lab">${monthLabel} 알바 지급 합계</div><div class="val num">${won(tot.total)}</div><div class="sub">세전 ${won(tot.total)} · 실지급 ${won(tot.net)}</div></div>
       <div class="kpi"><div class="lab">알바 근무 연인원</div><div class="val num">${tot.days}건</div><div class="sub">심야 ${won(tot.night)} · 초과 ${won(tot.otpay)} · 3.3%공제 ${won(tot.tax)}</div></div>
@@ -1220,7 +1220,7 @@ function saveSet(){const hk=parseInt(document.getElementById('set_hk').value)||1
 function exportJSON(){dl('애슐리_플랫폼_'+S.month+'.json',JSON.stringify(S,null,2),'application/json');}
 function importJSON(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{S=migrate(JSON.parse(r.result));save();document.getElementById('monthPick').value=S.month;render();alert('가져왔습니다.');}catch(e){alert('파일을 읽을 수 없습니다.');}};r.readAsText(f);}
 function setPreset(p){S.payRange={...(S.payRange||{}),preset:p};if(p==='custom'&&!(S.payRange.start&&S.payRange.end)){const d=rangeDates();S.payRange.start=iso(d[0]);S.payRange.end=iso(d[d.length-1]);}save();render();}
-function applyCustom(){const s=document.getElementById('pr_s').value,e=document.getElementById('pr_e').value;if(!s||!e){alert('시작일과 종료일을 선택하세요.');return;}if(e<s){alert('종료일이 시작일보다 빠릅니다.');return;}S.payRange={preset:'custom',start:s,end:e};save();render();}
+function applyCustom(pfx){pfx=pfx||'pr';const s=document.getElementById(pfx+'_s').value,e=document.getElementById(pfx+'_e').value;if(!s||!e){alert('시작일과 종료일을 선택하세요.');return;}if(e<s){alert('종료일이 시작일보다 빠릅니다.');return;}S.payRange={preset:'custom',start:s,end:e};save();render();}
 function exportCSV(){const DTS=rangeDates();const agg=workerAgg(DTS);let rows=[['정산기간',rangeLabel()],['구분','이름','은행','계좌번호','예금주','근무일','정규h','초과h','기본급','심야','초과','지급액','3.3%공제','실지급액']];
   sortAlbaPayWorkers(S.workers.filter(w=>w.type==='hourly'),agg).forEach(w=>{const m=agg[w.id];if(m.days===0)return;const tax=m.total*((w.withhold!=null?w.withhold:3.3)/100);rows.push(['알바',w.name,w.bankName||'',w.bankAccount||'',w.bankHolder||'',m.days,m.reg.toFixed(1),m.ot.toFixed(1),Math.round(m.base),Math.round(m.night),Math.round(m.otpay),Math.round(m.total),Math.round(tax),Math.round(m.total-tax)]);});
   dl('애슐리_정산_'+periodLabel()+'.csv','\uFEFF'+rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'),'text/csv');}
