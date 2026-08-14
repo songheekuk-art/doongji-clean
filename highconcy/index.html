@@ -289,6 +289,8 @@ async function load(){
     ['uniformGiven','idCopy','bankbook','contract'].forEach(k=>{ if(s[k]===undefined) s[k]=false; });
     if(!s.empType) s.empType='상시';
     if(!s.site) s.site='시대인재';
+    if(!Array.isArray(s.duties)) s.duties=[];
+    if(!Array.isArray(s.dutyKeys)) s.dutyKeys=[];
     if(s.listed===undefined) s.listed=true;
   });
   render();
@@ -445,6 +447,27 @@ function extraDel(id,ym,i){
   save(); pushNow();
 }
 
+function gwanPayOf(s,ym){
+  const rows=(s.duties||[]).filter(r=>Number(r.amount));
+  if(!rows.length) return {total:0, items:[]};
+  const dates=monthDates(ym), items=[];
+  rows.forEach(r=>{
+    const amt=Number(r.amount)||0;
+    const label=(S.buildings.find(b=>gwanKeyOf(b)===r.key)||{});
+    const nm=label.building? bldgLabel(label) : r.key;
+    if(!r.from && !r.to){ items.push({name:nm, amount:amt, note:'상시'}); return; }
+    const base=dates.filter(d=>r.dows.includes(d.dow)).length;
+    let hit=0;
+    eachDate(r.from||dates[0].date, r.to||dates[dates.length-1].date, (dt,dow)=>{
+      if(dt.slice(0,7)!==ym) return;
+      if(r.dows.includes(dow)) hit++;
+    });
+    if(!hit) return;
+    const val=Math.round(amt*(base? Math.min(hit/base,1):0));
+    items.push({name:nm, amount:val, note:`${dutyPeriodLabel(r)} · ${hit}/${base}일`});
+  });
+  return {total:items.reduce((a,x)=>a+x.amount,0), items};
+}
 function serviceMonths(s,ym){
   if(!s.join) return 0;
   const [jy,jm]=s.join.slice(0,7).split('-').map(Number);
@@ -511,7 +534,8 @@ function calcPay(s, ym){
   const ex=extrasOf(s.id,ym);
   const exPay=ex.reduce((a,e)=>a+extraAmount(s,e),0);
   const exHours=ex.reduce((a,e)=>a+(Number(e.hours)||0),0);
-  const gross=base+night+weekly+annual+meal+exPay;
+  const gp=gwanPayOf(s,ym);
+  const gross=base+night+weekly+annual+meal+exPay+gp.total;
   const taxable=gross-Math.min(meal,200000);
   let ded={}, dedTotal=0, employer={}, empTotal=0;
   if(s.emp==='4대보험'){
@@ -532,7 +556,7 @@ function calcPay(s, ym){
   }
   return {work:work.length, totalInMonth, patternDays, assignedDays, totalInMonthActive:patternDays,
           basis: useAssigned?'배치표':'요일', mealDay, exPay, exHours, exCount:ex.length,
-          annual, annualDays, annualNote, regular,
+          annual, annualDays, annualNote, regular, gwanPay:gp.total, gwanItems:gp.items,
           base, night, weekly, meal, gross, taxable, ded, dedTotal,
           net:gross-dedTotal, employer, empTotal, cost:gross+empTotal};
 }
@@ -1064,7 +1088,7 @@ function delBuilding(id){
 }
 
 /* ============ 3. 인력 ============ */
-let SF={region:'', shift:'', emp:'', status:'재직중만', vendor:'', empType:'', docs:'', q:''};
+let SF={region:'', shift:'', emp:'', status:'재직중만', vendor:'', empType:'', docs:'', q:'', sort:'이름순'};
 function renderStaff(){
   const el=document.getElementById('v-staff');
   el.innerHTML=`
@@ -1085,6 +1109,8 @@ function renderStaff(){
     <label class="f">서류<select onchange="SF.docs=this.value;renderStaffTable()">
       ${['전체','미비만','완비만','신분증 미비','통장 미비','계약서 미비','피복 미지급']
         .map(o=>`<option value="${o==='전체'?'':o}" ${SF.docs===o?'selected':''}>${o}</option>`).join('')}</select></label>
+    <label class="f">정렬<select onchange="SF.sort=this.value;renderStaffTable()">
+      ${['이름순','입사일순','지점순'].map(o=>`<option ${SF.sort===o?'selected':''}>${o}</option>`).join('')}</select></label>
     <label class="f grow">이름 · 연락처 검색<input id="staffQ" value="${esc(SF.q)}" oninput="staffSearch(this.value)"></label>
     <button class="btn pri" onclick="addStaff()">+ 인원 등록</button>
     <button class="btn" onclick="exportStaffCSV()">CSV</button>
@@ -1105,9 +1131,16 @@ function renderStaffTable(){
     docsMatch(s)&&
     (!q||s.name.includes(q)||(s.phone||'').includes(q)||(s.payee||'').includes(q)));
   const leaveView=['퇴사자만','기준월 퇴사','퇴사예정'].includes(SF.status);
+  const byName=(a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko');
+  const sorters={
+    '이름순': byName,
+    '입사일순': (a,b)=>String(b.join||'').localeCompare(String(a.join||''))||byName(a,b),
+    '지점순': (a,b)=>String(a.region||'').localeCompare(String(b.region||''),'ko')
+      ||String(a.shift||'').localeCompare(String(b.shift||''))||byName(a,b)
+  };
   list=list.sort(leaveView
-    ? (a,b)=>String(b.leave||'').localeCompare(String(a.leave||''))||a.name.localeCompare(b.name)
-    : (a,b)=>a.region.localeCompare(b.region)||a.shift.localeCompare(b.shift)||a.name.localeCompare(b.name));
+    ? (a,b)=>String(b.leave||'').localeCompare(String(a.leave||''))||byName(a,b)
+    : (sorters[SF.sort]||byName));
   const joined=list.filter(s=>s.join&&s.join.slice(0,7)===ym).length;
   const left=list.filter(s=>s.leave&&s.leave.slice(0,7)===ym).length;
   const lack=list.filter(s=>!docsDone(s)).length;
@@ -1118,7 +1151,8 @@ function renderStaffTable(){
     <span><b>${list.length}</b>명</span>
     <span>${ym} 입사 ${joined}명 · 퇴사 ${left}명</span>
     <span>3.3% ${list.filter(s=>s.emp==='3.3%').length}명 · 4대보험 ${list.filter(s=>s.emp==='4대보험').length}명</span>
-    ${leaveView?`<span style="color:#8A8A84">퇴사일 최근순 · 급여는 퇴사일까지만 계산됩니다</span>`:''}
+    ${leaveView?`<span style="color:#8A8A84">퇴사일 최근순 · 급여는 퇴사일까지만 계산됩니다</span>`
+      :`<span style="color:#8A8A84">${SF.sort}${SF.sort==='입사일순'?' (최근 입사 먼저)':''}</span>`}
     <span style="${lack?'color:#B3452F;font-weight:600':''}">서류 미비 ${lack}명</span>
     <span>미수령 — 신분증 ${list.filter(s=>!s.idCopy).length}
       · 통장 ${list.filter(s=>!s.bankbook).length}
@@ -1173,13 +1207,14 @@ function addStaff(){
   const s={id:uid('S'),name:'',region:S.regions[0],shift:'야간',emp:'3.3%',payType:'시급',
     wage:S.settings.baseWage,hours:5,nightHours:5,meal:0,workDays:['월','화','수','목','금'],
     join:new Date().toISOString().slice(0,10),leave:'',note:'',memo:'',bldgWeek:[],bldgWeekend:[],mealDaily:null,
+    duties:[],dutyKeys:[],
     payee:'',phone:'',uniformSize:'',uniformGiven:false,idCopy:false,bankbook:false,contract:false,
     empType:'상시',site:'시대인재',listed:true,vendorId:''};
   S.staff.push(s); _draft={kind:'staff',id:s.id}; editStaff(s.id);
 }
 function editStaff(id){
   const s=S.staff.find(x=>x.id===id);
-  _duty=dutyInit(s.name, s.shift);
+  _duty=dutyInit(s, s.shift);
   openModal(`인원 정보`,`
     <div class="grid3">
       ${fld('이름',`<input id="s_name" value="${esc(s.name)}">`)}
@@ -1236,10 +1271,11 @@ function editStaff(id){
         <div class="tiny" style="font-weight:700;color:var(--muted)">근무요일 (급여 계산 기준)</div>
         <span class="tiny muted" id="dutyHint"></span>
       </div>
-      <div class="dayck" id="s_days">${DAYS.map(d=>{
+      <div class="dayck" id="s_days" style="flex-wrap:nowrap;align-items:center">${DAYS.map(d=>{
         const on=(s.workDays||[]).includes(d);
         return `<label class="${on?'on':''}"><input type="checkbox" value="${d}" ${on?'checked':''}
           onchange="this.parentNode.classList.toggle('on',this.checked);wdAllPaint()">${d}</label>`;}).join('')}
+        <div class="grow"></div>
         <label class="dwall" id="s_daysAll" onclick="wdAll()">전체</label></div>
       <div class="tiny muted" style="margin-top:5px">담당 관에 없는 날을 추가로 인정하려면 여기서 직접 체크하세요.</div>
     </div>
@@ -1271,27 +1307,40 @@ function editStaff(id){
 }
 let _duty=[], _dutyShift='야간', _showCloud=false, _draft=null;
 function gwanRows(key){ return S.buildings.filter(b=>gwanKeyOf(b)===key); }
-function dutyInit(name, shift){
+function newDuty(){ return {key:'',dows:[],floors:[],from:'',to:'',amount:null,note:''}; }
+function dutyInit(s, shift){
   _dutyShift=shift;
+  if(Array.isArray(s.duties) && s.duties.length){
+    return s.duties.map(r=>Object.assign(newDuty(), r, {dows:(r.dows||[]).slice(), floors:(r.floors||[]).slice()}));
+  }
   const groups={};
   S.buildings.forEach(b=>{
     const a=(b.assign&&b.assign[shift])||{};
-    const dows=DAYS.filter(d=>a[d]===name);
+    const dows=DAYS.filter(d=>a[d]===s.name);
     if(!dows.length) return;
     const sig=gwanKeyOf(b)+'@'+dows.join('');
-    (groups[sig]=groups[sig]||{key:gwanKeyOf(b), dows, floors:[]}).floors.push(b.id);
+    if(!groups[sig]) groups[sig]=Object.assign(newDuty(),{key:gwanKeyOf(b), dows});
+    groups[sig].floors.push(b.id);
   });
   return Object.values(groups);
+}
+function dutyPeriodLabel(r){
+  if(!r.from && !r.to) return '상시';
+  const f=r.from? r.from.slice(5).replace('-','/') : '시작 미정';
+  const t=r.to? r.to.slice(5).replace('-','/') : '계속';
+  return f+' ~ '+t;
 }
 function dutyRender(){
   const box=document.getElementById('dutyRows'); if(!box) return;
   const gl=gwanList();
-  box.innerHTML=_duty.length? _duty.map((r,i)=>{
+  const total=_duty.reduce((a,r)=>a+(Number(r.amount)||0),0);
+  box.innerHTML=(_duty.length? _duty.map((r,i)=>{
     const rows=r.key? gwanRows(r.key):[];
     const all=rows.length&&rows.every(b=>r.floors.includes(b.id));
-    return `<div style="margin-bottom:9px;padding:9px 10px;background:#fff;border:1px solid #DDE2EF;border-radius:7px">
+    const dated=!!(r.from||r.to);
+    return `<div style="margin-bottom:9px;padding:9px 10px;background:#fff;border:1px solid ${dated?'#E2D5C0':'#DDE2EF'};border-radius:7px">
       <div class="row" style="gap:6px;flex-wrap:nowrap;margin-bottom:6px">
-        <select onchange="dutyPickGwan(${i},this.value)" style="border:1px solid var(--line);border-radius:6px;padding:5px 7px;min-width:210px;font-size:12px">
+        <select onchange="dutyPickGwan(${i},this.value)" style="border:1px solid var(--line);border-radius:6px;padding:5px 7px;min-width:200px;font-size:12px">
           <option value="">— 관 선택 —</option>
           ${gl.map(g=>`<option value="${esc(g.key)}" ${r.key===g.key?'selected':''}>${esc(g.region)} · ${esc(g.label)}</option>`).join('')}
         </select>
@@ -1299,21 +1348,45 @@ function dutyRender(){
           <label class="${r.dows.includes(d)?'on':''}" style="padding:4px 7px">
             <input type="checkbox" ${r.dows.includes(d)?'checked':''}
               onchange="dutyToggle(${i},'${d}',this.checked)">${d}</label>`).join('')}</div>
+        <div class="grow"></div>
         <label class="dwall ${r.dows.length===7?'on':''}" onclick="dutyAllDays(${i},${r.dows.length===7?'false':'true'})"
           title="월~일 전체 선택">전체</label>
-        <div class="grow"></div>
         <button class="btn sm danger" onclick="_duty.splice(${i},1);dutyRender();dutySync()">삭제</button>
       </div>
-      ${rows.length? `<div class="row" style="gap:4px;align-items:center">
+
+      <div class="row" style="gap:6px;flex-wrap:nowrap;margin-bottom:6px;align-items:center">
+        <span class="tiny muted" style="min-width:44px">기간</span>
+        <input type="date" value="${r.from||''}" onchange="dutyField(${i},'from',this.value)"
+          style="border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:11.5px;width:136px">
+        <span class="tiny muted">~</span>
+        <input type="date" value="${r.to||''}" onchange="dutyField(${i},'to',this.value)"
+          style="border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:11.5px;width:136px">
+        <span class="pill ${dated?'b33':'ok'} tiny">${dutyPeriodLabel(r)}</span>
+        <div class="grow"></div>
+        <span class="tiny muted">관 추가금액</span>
+        <input type="number" value="${r.amount!=null?r.amount:''}" placeholder="0"
+          onchange="dutyField(${i},'amount',this.value===''?null:Number(this.value))"
+          style="border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:11.5px;width:110px;text-align:right">
+        <span class="tiny muted">원/월</span>
+      </div>
+
+      ${rows.length? `<div class="row" style="gap:4px;align-items:center;flex-wrap:nowrap">
         <span class="tiny muted" style="min-width:44px">담당 층</span>
+        <div class="row" style="gap:4px;flex:1">
+          ${rows.map(b=>`<span class="chip ${r.floors.includes(b.id)?'on':''}"
+            onclick="dutyFloor(${i},'${b.id}')">${esc(b.floor||'-')}</span>`).join('')}
+        </div>
         <span class="chip ${all?'on':''}" onclick="dutyAllFloors(${i},${all?'false':'true'})">전체</span>
-        ${rows.map(b=>`<span class="chip ${r.floors.includes(b.id)?'on':''}"
-          onclick="dutyFloor(${i},'${b.id}')">${esc(b.floor||'-')}</span>`).join('')}
       </div>` : `<div class="tiny muted">관을 선택하면 층 목록이 나옵니다.</div>`}
     </div>`;
   }).join('')
-  : `<div class="tiny muted" style="padding:4px 0">지정된 담당 관이 없습니다. 위 버튼으로 추가하세요.</div>`;
+  : `<div class="tiny muted" style="padding:4px 0">지정된 담당 관이 없습니다. 위 버튼으로 추가하세요.</div>`)
+  + (total? `<div class="row" style="justify-content:flex-end;padding:4px 2px">
+      <span class="tiny" style="font-weight:700;color:#2F3F86">관 추가금액 합계 ${won(total)}원/월</span></div>`:'')
+  + (_duty.length? `<div class="tiny muted" style="padding:2px">
+      같은 관을 기간을 나눠 여러 줄로 추가할 수 있습니다 (예: 8/1~8/9 근무 후 8/19~8/20 재투입).</div>`:'');
 }
+function dutyField(i,k,v){ _duty[i][k]=v; dutyRender(); dutySync(); }
 function wdAllPaint(){
   const b=document.getElementById('s_daysAll'); if(!b) return;
   const all=[...document.querySelectorAll('#s_days input')].every(i=>i.checked);
@@ -1327,7 +1400,8 @@ function wdAll(){
   wdAllPaint();
 }
 function dutyAllDays(i,on){ _duty[i].dows = on? DAYS.slice() : []; dutyRender(); dutySync(); wdAllPaint(); }
-function dutyAdd(){ _duty.push({key:'',dows:[],floors:[]}); dutyRender(); }
+function dutyAdd(){ _duty.push(newDuty()); dutyRender(); }
+
 function dutyPickGwan(i,key){
   _duty[i].key=key;
   _duty[i].floors=gwanRows(key).map(b=>b.id);
@@ -1358,10 +1432,21 @@ function dutySync(){
 /* 배치표 반영 — 층 단위 */
 function dutyWanted(rows){
   const want={};
-  rows.filter(r=>r.key&&r.floors.length).forEach(r=>{
+  rows.filter(r=>r.key&&r.floors.length&&!r.from&&!r.to).forEach(r=>{
     r.floors.forEach(id=>{ (want[id]=want[id]||new Set()); r.dows.forEach(d=>want[id].add(d)); });
   });
   return want;
+}
+function datedRows(rows){ return rows.filter(r=>r.key&&r.floors.length&&(r.from||r.to)); }
+function eachDate(from,to,fn){
+  if(!from) return;
+  const end = to || from;
+  let d=new Date(from), z=new Date(end), guard=0;
+  while(d<=z && guard++<400){
+    const s=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    fn(s, DAYS[(d.getDay()+6)%7]);
+    d.setDate(d.getDate()+1);
+  }
 }
 function applyDutyPreview(name, shift, rows){
   const want=dutyWanted(rows), taken=[];
@@ -1403,6 +1488,23 @@ function applyDuty(name, shift, rows, from){
   });
   return {set, cleared, frozen};
 }
+/* 기간 지정 행 → 날짜별 배치 기록 */
+function applyDutyDated(s, shift, rows){
+  S.overrides=S.overrides||{};
+  (s.dutyKeys||[]).forEach(k=>{ if(S.overrides[k]===s.name) delete S.overrides[k]; });
+  const keys=[]; let n=0;
+  datedRows(rows).forEach(r=>{
+    eachDate(r.from, r.to, (date,dow)=>{
+      if(!r.dows.includes(dow)) return;
+      r.floors.forEach(id=>{
+        const k=ovKey(date,id,shift);
+        S.overrides[k]=s.name; keys.push(k); n++;
+      });
+    });
+  });
+  s.dutyKeys=keys;
+  return n;
+}
 function saveStaff(id){
   _draft=null;
   const s=S.staff.find(x=>x.id===id), g=k=>document.getElementById('s_'+k).value;
@@ -1423,10 +1525,13 @@ function saveStaff(id){
         +pre.taken.slice(0,8).join('\n')+(pre.taken.length>8?`\n… 외 ${pre.taken.length-8}건`:''))) return;
     }
     const eff=(document.getElementById('s_effFrom')||{}).value||'';
+    s.duties=_duty.filter(r=>r.key).map(r=>({key:r.key, dows:r.dows.slice(), floors:r.floors.slice(),
+      from:r.from||'', to:r.to||'', amount:r.amount!=null?Number(r.amount):null, note:r.note||''}));
     const r=applyDuty(s.name, s.shift, _duty, eff);
+    const dn=applyDutyDated(s, s.shift, _duty);
     _idx.map=null;
-    if(r.set||r.cleared) setTimeout(()=>toast(
-      `${eff? eff.slice(5)+'부터 ':''}배치 반영 — 지정 ${r.set}칸 · 해제 ${r.cleared}칸`),300);
+    if(r.set||r.cleared||dn) setTimeout(()=>toast(
+      `${eff? eff.slice(5)+'부터 ':''}배치 반영 — 상시 ${r.set}칸 · 해제 ${r.cleared}칸${dn?` · 기간지정 ${dn}칸`:''}`),300);
   }
   save();
   if(_pendingAssign && _pendingAssign.id===id){
@@ -1506,6 +1611,7 @@ function payDetail(id){
       ${kpi('지급 총액',won(p.gross)+'원',`실지급 ${won(p.net)}원`)}
       ${kpi('주휴수당',won(p.weekly)+'원',p.weekly?'주 15h 이상':'미해당')}
       ${kpi('연차수당',won(p.annual)+'원',p.annualNote||'미해당')}
+      ${kpi('관 추가수당',won(p.gwanPay)+'원',p.gwanItems.length?`${p.gwanItems.length}개 관`:'없음')}
       ${kpi('식대',won(p.meal)+'원',p.mealDay?`일 ${won(p.mealDay)}원 × ${p.work}일`:'미적용')}
       ${kpi('추가 근무·수당',won(p.exPay)+'원',p.exCount?`${p.exCount}건 · ${p.exHours}시간`:'없음')}
     </div>
@@ -1523,6 +1629,13 @@ function payDetail(id){
       여러 관을 맡아도 같은 날은 1일로 집계되어 급여가 중복 지급되지 않습니다.
       관별로 근무 요일이 다르면 근무배치 탭에서 관마다 따로 지정하세요.
     </div>
+    ${p.gwanItems.length? `<div class="tw" style="max-height:none;margin-bottom:12px"><table><thead><tr>
+      <th>관 추가수당</th><th>적용</th><th class="num">금액</th></tr></thead><tbody>
+      ${p.gwanItems.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td class="tiny muted">${esc(x.note)}</td>
+        <td class="num">${won(x.amount)}</td></tr>`).join('')}
+      <tr class="grp"><td colspan="2">합계</td><td class="num">${won(p.gwanPay)}</td></tr>
+    </tbody></table></div>`:''}
+
     <hr class="sep">
     <div class="sechead"><h2>추가 근무 · 수당</h2><span class="hint">고정 근무 외 알바·대타·추가시간</span></div>
     <div id="exList"></div>
@@ -1618,7 +1731,7 @@ function renderPay(){
 
   <div class="tw"><table><thead><tr>
     <th>이름</th><th>지점</th><th>고용</th><th>상태</th><th class="num">근무일</th><th class="num">배치일수</th>
-    <th class="num">기본급</th><th class="num">야간수당</th><th class="num">주휴수당</th><th class="num">연차수당</th><th class="num">식대</th><th class="num">추가</th>
+    <th class="num">기본급</th><th class="num">야간수당</th><th class="num">주휴수당</th><th class="num">연차수당</th><th class="num">관수당</th><th class="num">식대</th><th class="num">추가</th>
     <th class="num">지급총액</th><th class="num">공제</th><th class="num">실지급</th>
     <th class="num">사업주부담</th><th class="num">원가</th></tr></thead><tbody>
     ${rows.map(({s,p})=>{
@@ -1637,7 +1750,8 @@ function renderPay(){
       <td class="num tiny muted">${p.assignedDays}</td>
       <td class="num">${won(p.base)}</td><td class="num">${p.night?won(p.night):'—'}</td>
       <td class="num">${p.weekly?won(p.weekly):'—'}</td>
-      <td class="num">${p.annual?won(p.annual):'—'}</td><td class="num">${p.meal?won(p.meal):'—'}</td>
+      <td class="num">${p.annual?won(p.annual):'—'}</td>
+      <td class="num">${p.gwanPay?`<b>${won(p.gwanPay)}</b>`:'—'}</td><td class="num">${p.meal?won(p.meal):'—'}</td>
       <td class="num">${p.exPay
         ? `<b style="color:${p.exPay<0?'#B3452F':'#1F6E43'}">${won(p.exPay)}</b><span class="tiny muted"> ${p.exCount}건</span>`
         : '—'}</td>
@@ -1649,6 +1763,7 @@ function renderPay(){
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.night,0))}</td>
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.weekly,0))}</td>
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.annual,0))}</td>
+      <td class="num">${won(rows.reduce((a,x)=>a+x.p.gwanPay,0))}</td>
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.meal,0))}</td>
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.exPay,0))}</td>
       <td class="num">${won(T.gross)}</td><td class="num">${won(T.ded)}</td><td class="num">${won(T.net)}</td>
@@ -2270,10 +2385,10 @@ function exportStaffCSV(){
 }
 function exportPayCSV(){
   const ym=S.payMonth;
-  const rows=[['정산월','이름','실지급대상','연락처','지점','근무구분','시간대','고용형태','상태','입사일','퇴사일','근무일','기본급','야간수당','주휴수당','연차수당','식대','추가수당','지급총액','공제','실지급','사업주부담','원가']];
+  const rows=[['정산월','이름','실지급대상','연락처','지점','근무구분','시간대','고용형태','상태','입사일','퇴사일','근무일','기본급','야간수당','주휴수당','연차수당','관수당','식대','추가수당','지급총액','공제','실지급','사업주부담','원가']];
   S.staff.filter(s=>(!PF.region||s.region===PF.region)&&(!PF.emp||s.emp===PF.emp)).forEach(s=>{
     const p=calcPay(s,ym);
-    rows.push([ym,s.name,s.payee||'',s.phone||'',s.region,s.empType||'상시',s.shift,s.emp,statusOf(s),s.join,s.leave,p.work,p.base,p.night,p.weekly,p.annual,p.meal,p.exPay,p.gross,p.dedTotal,p.net,p.empTotal,p.cost]);
+    rows.push([ym,s.name,s.payee||'',s.phone||'',s.region,s.empType||'상시',s.shift,s.emp,statusOf(s),s.join,s.leave,p.work,p.base,p.night,p.weekly,p.annual,p.gwanPay,p.meal,p.exPay,p.gross,p.dedTotal,p.net,p.empTotal,p.cost]);
   });
   dl(`급여대장_${ym}.csv`,csv(rows),'text/csv'); toast('급여대장을 저장했습니다');
 }
