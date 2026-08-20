@@ -254,7 +254,7 @@ const DEFAULTS = {
     sev:8.33, freelanceTax:3.3, profit:10
   },
   regions:[...REGIONS_DEFAULT],
-  vendors:[], snapshots:{}, overrides:{}, vendorPay:{}, extras:{},
+  vendors:[], snapshots:{}, overrides:{}, vendorPay:{}, extras:{}, dutyOv:{},
   cloud:null,
   payMonth:new Date().toISOString().slice(0,7),
   buildings:[], staff:[]
@@ -297,7 +297,7 @@ async function load(){
   }
   CS.rev=Number(S._rev)||0; CS.lastJson=snapshotJson();
   setTimeout(()=>{ if(cloudReady()) cloudPull(false); }, 400);
-  S.vendors=S.vendors||[]; S.snapshots=S.snapshots||{}; S.overrides=S.overrides||{}; S.vendorPay=S.vendorPay||{}; S.extras=S.extras||{};
+  S.vendors=S.vendors||[]; S.snapshots=S.snapshots||{}; S.overrides=S.overrides||{}; S.vendorPay=S.vendorPay||{}; S.extras=S.extras||{}; S.dutyOv=S.dutyOv||{};
   S.cloud=Object.assign({}, CLOUD_DEFAULT, S.cloud||{});
   if(!S.cloud.url){ S.cloud.url=CLOUD_DEFAULT.url; S.cloud.key=CLOUD_DEFAULT.key; S.cloud.on=true; }
   S.cloud.url=baseUrl(S.cloud.url);
@@ -1485,73 +1485,104 @@ function eachDate(from,to,fn){
   }
 }
 function applyDutyPreview(name, shift, rows){
-  const want=dutyWanted(rows), taken=[];
-  S.buildings.forEach(b=>{
-    const w=want[b.id]; if(!w) return;
+  const taken=[];
+  const seen=(b,d,label)=>{
     const a=(b.assign&&b.assign[shift])||{};
-    DAYS.forEach(d=>{ if(w[d]!==undefined&&a[d]&&a[d]!==name) taken.push(`${bldgLabel(b)} ${b.floor} ${d}요일 — 현재 ${a[d]}`); });
-  });
-  datedRows(rows).forEach(r=>{
+    if(a[d]&&a[d]!==name) taken.push(`${bldgLabel(b)} ${b.floor} ${d}요일${label?' ('+label+')':''} — 현재 ${a[d]}`);
+  };
+  validRows(rows).forEach(r=>{
     r.floors.forEach(id=>{
       const b=S.buildings.find(x=>x.id===id); if(!b) return;
-      const a=(b.assign&&b.assign[shift])||{};
-      r.dows.forEach(d=>{ if(a[d]&&a[d]!==name) taken.push(`${bldgLabel(b)} ${b.floor} ${d}요일 (${dutyPeriodLabel(r)}) — 현재 ${a[d]}`); });
+      r.dows.forEach(d=>seen(b,d, r.to? dutyPeriodLabel(r):''));
     });
   });
   return {taken:[...new Set(taken)]};
 }
-function applyDuty(name, shift, rows, eff){
-  const want=dutyWanted(rows);
-  let set=0, cleared=0, frozen=0;
-  S.overrides=S.overrides||{};
-  /* 변경 이전 날짜의 배치를 날짜별로 고정해 과거 기록·급여를 보존 */
-  const ym=(eff||'').slice(0,7)||S.payMonth;
-  const months=[ym, prevMonths(ym,2)[1]].filter(Boolean);
-  months.forEach(m=>{
-    monthDates(m).forEach(d=>{
-      S.buildings.forEach(b=>{
-        const a=(b.assign&&b.assign[shift])||{};
-        const cur=a[d.dow]||'';
-        const w=want[b.id];
-        const grantFrom = w && w[d.dow]!==undefined ? (w[d.dow]||eff||'') : null;
-        const startAt = grantFrom!==null ? (grantFrom||eff||'') : (eff||'');
-        const willBe = grantFrom!==null ? name : (cur===name? '' : cur);
-        if(cur===willBe) return;
-        if(!startAt || d.date>=startAt) return;   /* 적용일 이후는 패턴이 처리 */
-        const key=ovKey(d.date,b.id,shift);
-        if(S.overrides[key]===undefined){ S.overrides[key]=cur||SPOT_OFF; frozen++; }
+
+/* 이 사람의 배치를 전부 지우고 duties 기준으로 다시 그린다 */
+function horizonMonths(eff){
+  const ym=(eff||S.payMonth).slice(0,7);
+  const [y,m]=ym.split('-').map(Number);
+  const out=[];
+  for(let k=-2;k<=2;k++){ const d=new Date(y,m-1+k,1);
+    out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
+  return out;
+}
+function applyDutyAll(s, shift, rows, eff){
+  const name=s.name;
+  S.overrides=S.overrides||{}; S.dutyOv=S.dutyOv||{};
+  const months=horizonMonths(eff);
+
+  /* 1) 변경 전 화면에 보이던 값을 날짜별로 기억 */
+  const before={};
+  months.forEach(m=>monthDates(m).forEach(d=>{
+    S.buildings.forEach(b=>{
+      before[d.date+'|'+b.id] = cellAt(b, shift, m, d.date, d.dow).v || '';
+    });
+  }));
+
+  /* 2) 이 사람이 남긴 흔적을 전부 제거 (패턴 + 자동 생성 override) */
+  Object.keys(S.dutyOv).forEach(k=>{
+    if(S.dutyOv[k]===s.id){ delete S.overrides[k]; delete S.dutyOv[k]; }
+  });
+  (s.dutyKeys||[]).forEach(k=>{ if(S.overrides[k]===name){ delete S.overrides[k]; delete S.dutyOv[k]; } });
+  S.buildings.forEach(b=>{
+    const a=(b.assign&&b.assign[shift])||{};
+    DAYS.forEach(d=>{ if(a[d]===name) delete a[d]; });
+  });
+
+  /* 3) 종료일 없는 행 → 요일 패턴 (시작일은 4단계에서 처리) */
+  const startOf={};
+  ongoingRows(rows).forEach(r=>{
+    r.floors.forEach(id=>{
+      const b=S.buildings.find(x=>x.id===id); if(!b) return;
+      if(!b.assign) b.assign={주간:{},야간:{}};
+      const a=b.assign[shift]=b.assign[shift]||{};
+      r.dows.forEach(d=>{
+        a[d]=name;
+        const key=id+'|'+d, cur=startOf[key];
+        const from=r.from||'';
+        startOf[key] = (cur===undefined)? from : (from&&cur? (from<cur?from:cur) : '');
       });
     });
   });
-  S.buildings.forEach(b=>{
-    if(!b.assign) b.assign={주간:{},야간:{}};
-    const a=b.assign[shift]=b.assign[shift]||{};
-    const w=want[b.id];
-    DAYS.forEach(d=>{
-      if(w&&w[d]!==undefined){ if(a[d]!==name){ a[d]=name; set++; } }
-      else if(a[d]===name){ delete a[d]; cleared++; }
+
+  /* 4) 시작일 이전 + 담당에서 빠진 자리 → 이전 값을 날짜별로 되살림 */
+  let frozen=0;
+  months.forEach(m=>monthDates(m).forEach(d=>{
+    S.buildings.forEach(b=>{
+      const a=(b.assign&&b.assign[shift])||{};
+      const mine=a[d.dow]===name;
+      const start = mine ? (startOf[b.id+'|'+d.dow] || eff || '') : (eff||'');
+      const prev = before[d.date+'|'+b.id]||'';
+      const now = mine? name : (a[d.dow]||'');
+      if(prev===now) return;
+      if(start && d.date>=start) return;      /* 적용일 이후는 새 배치가 맞음 */
+      const key=ovKey(d.date,b.id,shift);
+      if(S.overrides[key]===undefined){
+        S.overrides[key]=prev||SPOT_OFF; S.dutyOv[key]=s.id; frozen++;
+      }
     });
-  });
-  return {set, cleared, frozen};
-}
-/* 기간 지정 행 → 날짜별 배치 기록 */
-function applyDutyDated(s, shift, rows){
-  S.overrides=S.overrides||{};
-  (s.dutyKeys||[]).forEach(k=>{ if(S.overrides[k]===s.name) delete S.overrides[k]; });
-  const keys=[]; let n=0;
+  }));
+
+  /* 5) 종료일 있는 행 → 해당 날짜에만 기록 */
+  const keys=[]; let dated=0;
   datedRows(rows).forEach(r=>{
-    const from=r.from || (S.payMonth+'-01');
+    const from=r.from || (months[2]+'-01');
     eachDate(from, r.to, (date,dow)=>{
       if(!r.dows.includes(dow)) return;
       r.floors.forEach(id=>{
-        const k=ovKey(date,id,shift);
-        S.overrides[k]=s.name; keys.push(k); n++;
+        const key=ovKey(date,id,shift);
+        S.overrides[key]=name; S.dutyOv[key]=s.id; keys.push(key); dated++;
       });
     });
   });
   s.dutyKeys=keys;
-  return n;
+
+  const set=Object.keys(startOf).length;
+  return {set, frozen, dated};
 }
+
 function saveStaff(id){
   _draft=null;
   const s=S.staff.find(x=>x.id===id), g=k=>document.getElementById('s_'+k).value;
@@ -1575,11 +1606,9 @@ function saveStaff(id){
     const eff=(document.getElementById('s_effFrom')||{}).value||'';
     s.duties=_duty.filter(r=>r.key).map(r=>({key:r.key, dows:r.dows.slice(), floors:r.floors.slice(),
       from:r.from||'', to:r.to||'', amount:r.amount!=null?Number(r.amount):null, note:r.note||''}));
-    const r=applyDuty(s.name, s.shift, _duty, eff);
-    const dn=applyDutyDated(s, s.shift, _duty);
+    const r=applyDutyAll(s, s.shift, _duty, eff);
     _idx.map=null;
-    if(r.set||r.cleared||dn) setTimeout(()=>toast(
-      `${eff? eff.slice(5)+'부터 ':''}배치 반영 — 상시 ${r.set}칸 · 해제 ${r.cleared}칸${dn?` · 기간지정 ${dn}칸`:''}`),300);
+    setTimeout(()=>toast(`배치 반영 — 상시 ${r.set}칸${r.dated?` · 기간지정 ${r.dated}칸`:''}${r.frozen?` · 이전 기록 ${r.frozen}칸 보존`:''}`),300);
   }
   save();
   if(_pendingAssign && _pendingAssign.id===id){
