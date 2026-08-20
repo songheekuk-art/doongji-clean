@@ -1559,21 +1559,27 @@ function applyDutyAll(s, shift, rows, eff){
     });
   });
 
-  /* 4) 시작일 이전 + 담당에서 빠진 자리 → 이전 값을 날짜별로 되살림 */
+  /* 4) 담당 시작일 이전에는 그 관에 나타나지 않도록, 빠진 자리는 이전 값을 되살림 */
   let frozen=0;
   months.forEach(m=>monthDates(m).forEach(d=>{
     S.buildings.forEach(b=>{
       const a=(b.assign&&b.assign[shift])||{};
       const mine=a[d.dow]===name;
-      const start = mine ? (startOf[b.id+'|'+d.dow] || eff || '') : (eff||'');
-      const prev = before[d.date+'|'+b.id]||'';
+      const prev=before[d.date+'|'+b.id]||'';
+      let want;
+      if(mine){
+        const start=startOf[b.id+'|'+d.dow] || '';
+        if(!start || d.date>=start) return;        /* 담당 시작일 이후 → 그대로 배치 */
+        want = (prev===name)? '' : prev;           /* 시작 전에는 본인 제외 */
+      }else{
+        if(!eff || d.date>=eff) return;            /* 적용일 이후 → 새 상태 유지 */
+        want = prev;                               /* 적용일 이전은 과거 기록 보존 */
+      }
       const now = mine? name : (a[d.dow]||'');
-      if(prev===now) return;
-      if(start && d.date>=start) return;      /* 적용일 이후는 새 배치가 맞음 */
+      if(want===now) return;
       const key=ovKey(d.date,b.id,shift);
-      if(S.overrides[key]===undefined){
-        S.overrides[key]=prev;            /* 비어 있었으면 그대로 빈칸 유지 */
-        S.dutyOv[key]=s.id; frozen++;
+      if(S.overrides[key]===undefined || S.dutyOv[key]===s.id){
+        S.overrides[key]=want; S.dutyOv[key]=s.id; frozen++;
       }
     });
   }));
