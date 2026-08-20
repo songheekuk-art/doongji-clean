@@ -476,7 +476,9 @@ function gwanPayOf(s,ym){
     if(!r.from && !r.to){ items.push({name:nm, amount:amt, note:'상시'}); return; }
     const base=dates.filter(d=>r.dows.includes(d.dow)).length;
     let hit=0;
-    eachDate(r.from||dates[0].date, r.to||dates[dates.length-1].date, (dt,dow)=>{
+    const f=r.from||dates[0].date, t=r.to||dates[dates.length-1].date;
+    if(t<dates[0].date || f>dates[dates.length-1].date) return;
+    eachDate(f>dates[0].date?f:dates[0].date, t<dates[dates.length-1].date?t:dates[dates.length-1].date, (dt,dow)=>{
       if(dt.slice(0,7)!==ym) return;
       if(r.dows.includes(dow)) hit++;
     });
@@ -1349,9 +1351,9 @@ function dutyInit(s, shift){
 }
 function dutyPeriodLabel(r){
   if(!r.from && !r.to) return '상시';
-  const f=r.from? r.from.slice(5).replace('-','/') : '시작 미정';
-  const t=r.to? r.to.slice(5).replace('-','/') : '계속';
-  return f+' ~ '+t;
+  const f=r.from? r.from.slice(5).replace('-','/') : '월초';
+  if(!r.to) return f+'부터 계속';
+  return f+' ~ '+r.to.slice(5).replace('-','/');
 }
 function dutyRender(){
   const box=document.getElementById('dutyRows'); if(!box) return;
@@ -1360,7 +1362,7 @@ function dutyRender(){
   box.innerHTML=(_duty.length? _duty.map((r,i)=>{
     const rows=r.key? gwanRows(r.key):[];
     const all=rows.length&&rows.every(b=>r.floors.includes(b.id));
-    const dated=!!(r.from||r.to);
+    const dated=!!r.to;
     return `<div style="margin-bottom:9px;padding:9px 10px;background:#fff;border:1px solid ${dated?'#E2D5C0':'#DDE2EF'};border-radius:7px">
       <div class="row" style="gap:6px;flex-wrap:nowrap;margin-bottom:6px">
         <select onchange="dutyPickGwan(${i},this.value)" style="border:1px solid var(--line);border-radius:6px;padding:5px 7px;min-width:200px;font-size:12px">
@@ -1384,7 +1386,7 @@ function dutyRender(){
         <span class="tiny muted">~</span>
         <input type="date" value="${r.to||''}" onchange="dutyField(${i},'to',this.value)"
           style="border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:11.5px;width:136px">
-        <span class="pill ${dated?'b33':'ok'} tiny">${dutyPeriodLabel(r)}</span>
+        <span class="pill ${r.to?'b33':(r.from?'b4':'ok')} tiny">${dutyPeriodLabel(r)}</span>
         <div class="grow"></div>
         <span class="tiny muted">관 추가금액</span>
         <input type="number" value="${r.amount!=null?r.amount:''}" placeholder="0"
@@ -1407,7 +1409,8 @@ function dutyRender(){
   + (total? `<div class="row" style="justify-content:flex-end;padding:4px 2px">
       <span class="tiny" style="font-weight:700;color:#2F3F86">관 추가금액 합계 ${won(total)}원/월</span></div>`:'')
   + (_duty.length? `<div class="tiny muted" style="padding:2px">
-      같은 관을 기간을 나눠 여러 줄로 추가할 수 있습니다 (예: 8/1~8/9 근무 후 8/19~8/20 재투입).</div>`:'');
+      <b>종료일을 비우면</b> 시작일부터 계속 근무로 반영되고, 그 이전 날짜는 기존 배치가 유지됩니다.
+      같은 관을 기간을 나눠 여러 줄로 추가할 수도 있습니다 (예: 8/1~8/9 근무 후 8/19~8/20 재투입).</div>`:'');
 }
 function dutyField(i,k,v){ _duty[i][k]=v; dutyRender(); dutySync(); }
 function wdAllPaint(){
@@ -1453,14 +1456,24 @@ function dutySync(){
   if(hint) hint.textContent=uni.length? '담당 관 기준 '+uni.join('')+' 자동 반영됨' : '';
 }
 /* 배치표 반영 — 층 단위 */
+function validRows(rows){ return rows.filter(r=>r.key&&r.floors.length&&r.dows.length); }
+/* 종료일이 없는 행 = 그 날짜부터 계속 → 요일 패턴에 반영 */
+function ongoingRows(rows){ return validRows(rows).filter(r=>!r.to); }
+/* 종료일이 있는 행 = 한시적 → 날짜별 기록 */
+function datedRows(rows){ return validRows(rows).filter(r=>!!r.to); }
 function dutyWanted(rows){
   const want={};
-  rows.filter(r=>r.key&&r.floors.length&&!r.from&&!r.to).forEach(r=>{
-    r.floors.forEach(id=>{ (want[id]=want[id]||new Set()); r.dows.forEach(d=>want[id].add(d)); });
+  ongoingRows(rows).forEach(r=>{
+    r.floors.forEach(id=>{
+      const m=(want[id]=want[id]||{});
+      r.dows.forEach(d=>{
+        const cur=m[d];
+        m[d] = (cur===undefined)? (r.from||'') : (r.from&&cur? (r.from<cur? r.from:cur) : '');
+      });
+    });
   });
   return want;
 }
-function datedRows(rows){ return rows.filter(r=>r.key&&r.floors.length&&(r.from||r.to)); }
 function eachDate(from,to,fn){
   if(!from) return;
   const end = to || from;
@@ -1476,36 +1489,46 @@ function applyDutyPreview(name, shift, rows){
   S.buildings.forEach(b=>{
     const w=want[b.id]; if(!w) return;
     const a=(b.assign&&b.assign[shift])||{};
-    DAYS.forEach(d=>{ if(w.has(d)&&a[d]&&a[d]!==name) taken.push(`${bldgLabel(b)} ${b.floor} ${d}요일 — 현재 ${a[d]}`); });
+    DAYS.forEach(d=>{ if(w[d]!==undefined&&a[d]&&a[d]!==name) taken.push(`${bldgLabel(b)} ${b.floor} ${d}요일 — 현재 ${a[d]}`); });
   });
-  return {taken};
+  datedRows(rows).forEach(r=>{
+    r.floors.forEach(id=>{
+      const b=S.buildings.find(x=>x.id===id); if(!b) return;
+      const a=(b.assign&&b.assign[shift])||{};
+      r.dows.forEach(d=>{ if(a[d]&&a[d]!==name) taken.push(`${bldgLabel(b)} ${b.floor} ${d}요일 (${dutyPeriodLabel(r)}) — 현재 ${a[d]}`); });
+    });
+  });
+  return {taken:[...new Set(taken)]};
 }
-function applyDuty(name, shift, rows, from){
+function applyDuty(name, shift, rows, eff){
   const want=dutyWanted(rows);
   let set=0, cleared=0, frozen=0;
-  /* 시작일 이전 날짜는 현재 배치를 날짜별로 고정해 과거 기록·급여를 보존 */
-  if(from){
-    const ym=from.slice(0,7);
-    S.overrides=S.overrides||{};
-    [ym, prevMonths(ym,2)[1]].filter(Boolean).forEach(m=>{
-      monthDates(m).forEach(d=>{
-        if(d.date>=from) return;
-        S.buildings.forEach(b=>{
-          const cur=(b.assign&&b.assign[shift]&&b.assign[shift][d.dow])||'';
-          const w=want[b.id], willBe = (w&&w.has(d.dow))? name : (cur===name? '' : cur);
-          if(cur===willBe) return;
-          const key=ovKey(d.date,b.id,shift);
-          if(S.overrides[key]===undefined){ S.overrides[key]=cur||SPOT_OFF; frozen++; }
-        });
+  S.overrides=S.overrides||{};
+  /* 변경 이전 날짜의 배치를 날짜별로 고정해 과거 기록·급여를 보존 */
+  const ym=(eff||'').slice(0,7)||S.payMonth;
+  const months=[ym, prevMonths(ym,2)[1]].filter(Boolean);
+  months.forEach(m=>{
+    monthDates(m).forEach(d=>{
+      S.buildings.forEach(b=>{
+        const a=(b.assign&&b.assign[shift])||{};
+        const cur=a[d.dow]||'';
+        const w=want[b.id];
+        const grantFrom = w && w[d.dow]!==undefined ? (w[d.dow]||eff||'') : null;
+        const startAt = grantFrom!==null ? (grantFrom||eff||'') : (eff||'');
+        const willBe = grantFrom!==null ? name : (cur===name? '' : cur);
+        if(cur===willBe) return;
+        if(!startAt || d.date>=startAt) return;   /* 적용일 이후는 패턴이 처리 */
+        const key=ovKey(d.date,b.id,shift);
+        if(S.overrides[key]===undefined){ S.overrides[key]=cur||SPOT_OFF; frozen++; }
       });
     });
-  }
+  });
   S.buildings.forEach(b=>{
     if(!b.assign) b.assign={주간:{},야간:{}};
     const a=b.assign[shift]=b.assign[shift]||{};
     const w=want[b.id];
     DAYS.forEach(d=>{
-      if(w&&w.has(d)){ if(a[d]!==name){ a[d]=name; set++; } }
+      if(w&&w[d]!==undefined){ if(a[d]!==name){ a[d]=name; set++; } }
       else if(a[d]===name){ delete a[d]; cleared++; }
     });
   });
@@ -1517,7 +1540,8 @@ function applyDutyDated(s, shift, rows){
   (s.dutyKeys||[]).forEach(k=>{ if(S.overrides[k]===s.name) delete S.overrides[k]; });
   const keys=[]; let n=0;
   datedRows(rows).forEach(r=>{
-    eachDate(r.from, r.to, (date,dow)=>{
+    const from=r.from || (S.payMonth+'-01');
+    eachDate(from, r.to, (date,dow)=>{
       if(!r.dows.includes(dow)) return;
       r.floors.forEach(id=>{
         const k=ovKey(date,id,shift);
