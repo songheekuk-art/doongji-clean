@@ -254,7 +254,7 @@ const DEFAULTS = {
     sev:8.33, freelanceTax:3.3, profit:10
   },
   regions:[...REGIONS_DEFAULT],
-  vendors:[], snapshots:{}, overrides:{}, vendorPay:{}, extras:{}, dutyOv:{},
+  vendors:[], snapshots:{}, overrides:{}, vendorPay:{}, extras:{}, dutyOv:{}, manualOv:{},
   cloud:null,
   payMonth:new Date().toISOString().slice(0,7),
   buildings:[], staff:[]
@@ -297,7 +297,7 @@ async function load(){
   }
   CS.rev=Number(S._rev)||0; CS.lastJson=snapshotJson();
   setTimeout(()=>{ if(cloudReady()) cloudPull(false); }, 400);
-  S.vendors=S.vendors||[]; S.snapshots=S.snapshots||{}; S.overrides=S.overrides||{}; S.vendorPay=S.vendorPay||{}; S.extras=S.extras||{}; S.dutyOv=S.dutyOv||{};
+  S.vendors=S.vendors||[]; S.snapshots=S.snapshots||{}; S.overrides=S.overrides||{}; S.vendorPay=S.vendorPay||{}; S.extras=S.extras||{}; S.dutyOv=S.dutyOv||{}; S.manualOv=S.manualOv||{};
   S.cloud=Object.assign({}, CLOUD_DEFAULT, S.cloud||{});
   if(!S.cloud.url){ S.cloud.url=CLOUD_DEFAULT.url; S.cloud.key=CLOUD_DEFAULT.key; S.cloud.on=true; }
   S.cloud.url=baseUrl(S.cloud.url);
@@ -1030,9 +1030,10 @@ function editCell(td){
       if(!b.assign[F.shift]) b.assign[F.shift]={};
       if(v && v!=='__RESET__') b.assign[F.shift][k]=v; else delete b.assign[F.shift][k];
     }else{
-      S.overrides=S.overrides||{};
+      S.overrides=S.overrides||{}; S.manualOv=S.manualOv||{};
       const key=ovKey(k,b.id,F.shift);
-      if(v==='__RESET__') delete S.overrides[key]; else S.overrides[key]=v;
+      if(v==='__RESET__'){ delete S.overrides[key]; delete S.manualOv[key]; delete (S.dutyOv||{})[key]; }
+      else { S.overrides[key]=v; S.manualOv[key]=1; delete (S.dutyOv||{})[key]; }
     }
     _idx.map=null; save(); renderSchedTable();
   });
@@ -1500,18 +1501,20 @@ function applyDutyPreview(name, shift, rows){
 }
 
 /* 이 사람의 배치를 전부 지우고 duties 기준으로 다시 그린다 */
-function horizonMonths(eff){
-  const ym=(eff||S.payMonth).slice(0,7);
-  const [y,m]=ym.split('-').map(Number);
-  const out=[];
-  for(let k=-2;k<=2;k++){ const d=new Date(y,m-1+k,1);
-    out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
-  return out;
+function horizonMonths(eff, rows){
+  const set=new Set();
+  const push=(y,m)=>{ const d=new Date(y,m,1);
+    set.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); };
+  const seed=ym=>{ const [y,m]=ym.split('-').map(Number); for(let k=-2;k<=2;k++) push(y,m-1+k); };
+  seed((eff||S.payMonth).slice(0,7));
+  seed(S.payMonth);
+  (rows||[]).forEach(r=>{ if(r.from) seed(r.from.slice(0,7)); if(r.to) seed(r.to.slice(0,7)); });
+  return [...set].sort();
 }
 function applyDutyAll(s, shift, rows, eff){
   const name=s.name;
   S.overrides=S.overrides||{}; S.dutyOv=S.dutyOv||{};
-  const months=horizonMonths(eff);
+  const months=horizonMonths(eff, rows);
 
   /* 1) 변경 전 화면에 보이던 값을 날짜별로 기억 */
   const before={};
@@ -1521,11 +1524,20 @@ function applyDutyAll(s, shift, rows, eff){
     });
   }));
 
-  /* 2) 이 사람이 남긴 흔적을 전부 제거 (패턴 + 자동 생성 override) */
+  /* 2) 이 사람이 남긴 흔적을 전부 제거 (패턴 + 자동 생성 override + 과거 잔여 기록) */
+  let swept=0;
   Object.keys(S.dutyOv).forEach(k=>{
     if(S.dutyOv[k]===s.id){ delete S.overrides[k]; delete S.dutyOv[k]; }
   });
   (s.dutyKeys||[]).forEach(k=>{ if(S.overrides[k]===name){ delete S.overrides[k]; delete S.dutyOv[k]; } });
+  /* 이전 버전이 남긴 추적 불가 기록 청소 — 근무배치 화면에서 직접 지정한 것은 보존 */
+  Object.keys(S.overrides).forEach(k=>{
+    if(S.overrides[k]!==name) return;
+    if((S.manualOv||{})[k]) return;
+    const mm=k.slice(0,7);
+    if(!months.includes(mm)) return;
+    delete S.overrides[k]; delete S.dutyOv[k]; swept++;
+  });
   S.buildings.forEach(b=>{
     const a=(b.assign&&b.assign[shift])||{};
     DAYS.forEach(d=>{ if(a[d]===name) delete a[d]; });
@@ -1560,7 +1572,8 @@ function applyDutyAll(s, shift, rows, eff){
       if(start && d.date>=start) return;      /* 적용일 이후는 새 배치가 맞음 */
       const key=ovKey(d.date,b.id,shift);
       if(S.overrides[key]===undefined){
-        S.overrides[key]=prev||SPOT_OFF; S.dutyOv[key]=s.id; frozen++;
+        S.overrides[key]=prev;            /* 비어 있었으면 그대로 빈칸 유지 */
+        S.dutyOv[key]=s.id; frozen++;
       }
     });
   }));
@@ -1568,7 +1581,7 @@ function applyDutyAll(s, shift, rows, eff){
   /* 5) 종료일 있는 행 → 해당 날짜에만 기록 */
   const keys=[]; let dated=0;
   datedRows(rows).forEach(r=>{
-    const from=r.from || (months[2]+'-01');
+    const from=r.from || (S.payMonth+'-01');
     eachDate(from, r.to, (date,dow)=>{
       if(!r.dows.includes(dow)) return;
       r.floors.forEach(id=>{
@@ -1580,7 +1593,7 @@ function applyDutyAll(s, shift, rows, eff){
   s.dutyKeys=keys;
 
   const set=Object.keys(startOf).length;
-  return {set, frozen, dated};
+  return {set, frozen, dated, swept};
 }
 
 function saveStaff(id){
@@ -1608,7 +1621,8 @@ function saveStaff(id){
       from:r.from||'', to:r.to||'', amount:r.amount!=null?Number(r.amount):null, note:r.note||''}));
     const r=applyDutyAll(s, s.shift, _duty, eff);
     _idx.map=null;
-    setTimeout(()=>toast(`배치 반영 — 상시 ${r.set}칸${r.dated?` · 기간지정 ${r.dated}칸`:''}${r.frozen?` · 이전 기록 ${r.frozen}칸 보존`:''}`),300);
+    setTimeout(()=>toast(`배치 반영 — 상시 ${r.set}칸${r.dated?` · 기간지정 ${r.dated}칸`:''}`
+      +`${r.frozen?` · 이전 기록 ${r.frozen}칸 보존`:''}${r.swept?` · 잔여 ${r.swept}칸 정리`:''}`),300);
   }
   save();
   if(_pendingAssign && _pendingAssign.id===id){
