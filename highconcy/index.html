@@ -1951,6 +1951,11 @@ function renderSet(){
           </div>
           <button class="btn sm" onclick="_showCloud=!_showCloud;renderSet()">${_showCloud?'연결 정보 숨기기':'연결 정보'}</button>
         </div>
+        <div class="tiny muted" style="margin-top:8px">
+          이번 접속 통신량 약 ${(CS.net||0)<1024?`${CS.net||0}B`:((CS.net||0)<1048576?`${((CS.net||0)/1024).toFixed(1)}KB`:`${((CS.net||0)/1048576).toFixed(2)}MB`)}
+          · 저장 데이터 ${(()=>{const n=(snapshotJson()||'').length; return n<1048576?`${(n/1024).toFixed(0)}KB`:`${(n/1048576).toFixed(2)}MB`;})()}
+          · 변경이 없으면 6~30초 간격으로 갱신 여부만 확인하고, 다른 탭을 보고 있을 때는 통신하지 않습니다.
+        </div>
         ${_showCloud? `
         <hr class="sep">
         <div class="tiny" style="color:#B3452F;font-weight:600;margin-bottom:9px">
@@ -2276,7 +2281,7 @@ function exportVendorCSV(){
 
 /* ============ 클라우드 동기화 ============ */
 const CLOUD_DEFAULT={url:'https://ugwzyxsynpvnbbsqlcqq.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnd3p5eHN5bnB2bmJic3FsY3FxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNjA3NDIsImV4cCI6MjA5OTYzNjc0Mn0.DswVM1dtfaEgRujb0mZpDPXTEb7xdeOAnVuRKKdQtlE',doc:'sidae-cleaning',on:true};
-const CS={state:'off', dirty:false, lastEdit:0, rev:0, at:null, msg:'', me:Math.random().toString(36).slice(2,9), busy:false, busySince:0, queued:false, lastJson:null};
+const CS={state:'off', dirty:false, lastEdit:0, rev:0, at:null, msg:'', me:Math.random().toString(36).slice(2,9), busy:false, busySince:0, queued:false, lastJson:null, net:0};
 const SQL_SETUP=`create table if not exists fm_sync (
   key         text primary key,
   data        jsonb not null,
@@ -2334,6 +2339,18 @@ function adopt(data){
   _idx.map=null;
   const t=TAB; render(); TAB=t;
 }
+/* 변경 여부만 확인 — 수십 바이트 */
+async function cloudPeek(){
+  if(!cloudReady()||CS.busy) return null;
+  try{
+    const r=await api(`fm_sync?key=eq.${encodeURIComponent(S.cloud.doc)}&select=rev,updated_by`);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const rows=await r.json();
+    CS.net=(CS.net||0)+80;
+    CS.state='ok'; CS.msg=''; stamp(); paintSync();
+    return rows.length? rows[0] : null;
+  }catch(e){ CS.state='err'; CS.msg=String(e.message||e).slice(0,60); paintSync(); return null; }
+}
 async function cloudPull(force){
   if(!cloudReady()||CS.busy) return;
   if(CS.state==='off') CS.state='busy';
@@ -2346,6 +2363,7 @@ async function cloudPull(force){
     if(!rows.length){ CS.state='ok'; CS.msg=''; stamp(); if(force) await cloudPush(true); }
     else{
       const row=rows[0], remoteJson=cjson(row.data), same=(remoteJson===snapshotJson());
+      CS.net=(CS.net||0)+(remoteJson? remoteJson.length : 0);
       if(same){
         CS.rev=Math.max(CS.rev,row.rev); CS.lastJson=remoteJson;
         if(S._rev!==CS.rev){ S._rev=CS.rev; saveLocal(); }
@@ -2373,29 +2391,38 @@ async function cloudPush(silent){
     const body=[{key:S.cloud.doc, data:pack(), rev:CS.rev+1, updated_by:CS.me, updated_at:new Date().toISOString()}];
     const r=await api('fm_sync?on_conflict=key',{method:'POST',
       headers:{'apikey':S.cloud.key,'Authorization':'Bearer '+S.cloud.key,'Content-Type':'application/json',
-               'Prefer':'resolution=merge-duplicates,return=representation'},
+               'Prefer':'resolution=merge-duplicates,return=minimal'},
       body:JSON.stringify(body)});
     if(!r.ok) throw new Error('HTTP '+r.status+' '+(await r.text()).slice(0,50));
-    const out=await r.json();
-    CS.rev=(out[0]&&out[0].rev)||CS.rev+1;
+    CS.rev=CS.rev+1;
     if(CS.lastEdit===token) CS.dirty=false;
     S._rev=CS.rev; CS.lastJson=snapshotJson(); saveLocal();
+    CS.net=(CS.net||0)+120;
     CS.state='ok'; CS.msg=''; stamp();
     if(!silent) toast('클라우드에 저장했습니다');
   }catch(e){ CS.state='err'; CS.msg=String(e.message||e).slice(0,60); }
   CS.busy=false; paintSync();
   if(CS.queued){ CS.queued=false; setTimeout(()=>cloudPush(true),100); }
 }
-setInterval(()=>{
+let _idleTicks=0;
+setInterval(async()=>{
   detectChange();
   if(!cloudReady()) return;
   if(CS.busy){
     if(Date.now()-(CS.busySince||0)>10000){ CS.busy=false; CS.state='err'; CS.msg='응답 지연 — 재시도'; paintSync(); }
     return;
   }
-  if(CS.dirty && Date.now()-CS.lastEdit>1200) cloudPush(true);
-  else if(!CS.dirty) cloudPull(false);
-}, 2500);
+  if(CS.dirty && Date.now()-CS.lastEdit>1000){ _idleTicks=0; cloudPush(true); return; }
+  if(CS.dirty) return;
+  if(document.hidden) return;                      /* 다른 탭·최소화 상태면 통신 안 함 */
+  /* 조작이 없으면 확인 간격을 6초 → 30초까지 늘림 */
+  const quiet=Date.now()-(CS.lastEdit||0);
+  const step = quiet>10*60000? 10 : (quiet>60000? 4 : 2);
+  if(++_idleTicks < step) return;
+  _idleTicks=0;
+  const row=await cloudPeek();
+  if(row && row.rev>CS.rev) cloudPull(false);
+}, 3000);
 window.addEventListener('online',()=>{ if(cloudReady()) cloudPull(false); });
 window.addEventListener('focus',()=>{ if(cloudReady()&&!CS.dirty) cloudPull(false); });
 document.addEventListener('visibilitychange',()=>{
