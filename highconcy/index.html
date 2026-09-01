@@ -1953,7 +1953,8 @@ function renderSet(){
         </div>
         <div class="tiny muted" style="margin-top:8px">
           이번 접속 통신량 약 ${(CS.net||0)<1024?`${CS.net||0}B`:((CS.net||0)<1048576?`${((CS.net||0)/1024).toFixed(1)}KB`:`${((CS.net||0)/1048576).toFixed(2)}MB`)}
-          · 저장 데이터 ${(()=>{const n=(snapshotJson()||'').length; return n<1048576?`${(n/1024).toFixed(0)}KB`:`${(n/1048576).toFixed(2)}MB`;})()}
+          · 저장 데이터 ${(()=>{const n=(snapshotJson()||'').length; return n<1048576?`${(n/1024).toFixed(0)}KB`:`${(n/1048576).toFixed(2)}MB`;})()}${
+            CS.sentZ&&CS.sent? ` → 압축 후 ${(CS.sentZ/1024).toFixed(0)}KB (${Math.round(100-CS.sentZ/CS.sent*100)}% 절감)`:''}
           · 변경이 없으면 6~30초 간격으로 갱신 여부만 확인하고, 다른 탭을 보고 있을 때는 통신하지 않습니다.
         </div>
         ${_showCloud? `
@@ -1979,6 +1980,7 @@ function renderSet(){
         <div class="row">
           <button class="btn" onclick="exportJSON()">전체 백업(JSON) 저장</button>
           <button class="btn" onclick="document.getElementById('imp').click()">백업 불러오기</button>
+          <button class="btn" onclick="pruneData()">6개월 이전 기록 정리</button>
         </div>
         <div class="tiny muted" style="margin-top:9px">
           층·호실 ${S.buildings.length}건 · 인원 ${S.staff.length}명 · 도급업체 ${(S.vendors||[]).length}개.
@@ -2319,6 +2321,28 @@ function paintSync(){
 }
 function stamp(){ CS.at=new Date().toLocaleTimeString('ko-KR',{hour12:false}); }
 
+async function gzip(str){
+  if(!('CompressionStream' in window)) return null;
+  try{
+    const cs=new CompressionStream('gzip');
+    const w=cs.writable.getWriter(); w.write(new TextEncoder().encode(str)); w.close();
+    const buf=await new Response(cs.readable).arrayBuffer();
+    let bin=''; const b=new Uint8Array(buf);
+    for(let i=0;i<b.length;i+=8192) bin+=String.fromCharCode.apply(null,b.subarray(i,i+8192));
+    return btoa(bin);
+  }catch(e){ return null; }
+}
+async function gunzip(b64){
+  const bin=atob(b64), arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  const ds=new DecompressionStream('gzip');
+  const w=ds.writable.getWriter(); w.write(arr); w.close();
+  return new TextDecoder().decode(await new Response(ds.readable).arrayBuffer());
+}
+function unpackRow(data){
+  if(data && typeof data==='object' && data.z) return null;   /* 비동기 처리 필요 */
+  return data;
+}
 function pack(){ const o=JSON.parse(JSON.stringify(S)); delete o.cloud; delete o._rev; return o; }
 function canon(v){
   if(Array.isArray(v)) return v.map(canon);
@@ -2362,7 +2386,13 @@ async function cloudPull(force){
     const rows=await r.json();
     if(!rows.length){ CS.state='ok'; CS.msg=''; stamp(); if(force) await cloudPush(true); }
     else{
-      const row=rows[0], remoteJson=cjson(row.data), same=(remoteJson===snapshotJson());
+      const row=rows[0];
+      let data=row.data;
+      if(data && typeof data==='object' && data.z){
+        try{ data=JSON.parse(await gunzip(data.z)); }
+        catch(e){ throw new Error('압축 해제 실패'); }
+      }
+      const remoteJson=cjson(data), same=(remoteJson===snapshotJson());
       CS.net=(CS.net||0)+(remoteJson? remoteJson.length : 0);
       if(same){
         CS.rev=Math.max(CS.rev,row.rev); CS.lastJson=remoteJson;
@@ -2370,7 +2400,7 @@ async function cloudPull(force){
         CS.dirty=false;
       }else if(row.rev>CS.rev || force){
         CS.rev=row.rev; CS.lastJson=remoteJson;
-        adopt(row.data); S._rev=row.rev; CS.dirty=false;
+        adopt(data); S._rev=row.rev; CS.dirty=false;
         if(row.updated_by!==CS.me && !force) toast('다른 기기의 변경사항을 불러왔습니다');
       }else{
         CS.rev=Math.max(CS.rev,row.rev);
@@ -2388,7 +2418,11 @@ async function cloudPush(silent){
   const token=CS.lastEdit;
   CS.busy=true; CS.busySince=Date.now(); CS.state='busy'; paintSync();
   try{
-    const body=[{key:S.cloud.doc, data:pack(), rev:CS.rev+1, updated_by:CS.me, updated_at:new Date().toISOString()}];
+    const raw=JSON.stringify(pack());
+    const z=await gzip(raw);
+    const payload = z && z.length < raw.length*0.9 ? {z} : pack();
+    const body=[{key:S.cloud.doc, data:payload, rev:CS.rev+1, updated_by:CS.me, updated_at:new Date().toISOString()}];
+    CS.sent=raw.length; CS.sentZ=z? z.length : raw.length;
     const r=await api('fm_sync?on_conflict=key',{method:'POST',
       headers:{'apikey':S.cloud.key,'Authorization':'Bearer '+S.cloud.key,'Content-Type':'application/json',
                'Prefer':'resolution=merge-duplicates,return=minimal'},
@@ -2423,11 +2457,16 @@ setInterval(async()=>{
   const row=await cloudPeek();
   if(row && row.rev>CS.rev) cloudPull(false);
 }, 3000);
-window.addEventListener('online',()=>{ if(cloudReady()) cloudPull(false); });
-window.addEventListener('focus',()=>{ if(cloudReady()&&!CS.dirty) cloudPull(false); });
-document.addEventListener('visibilitychange',()=>{
-  if(!document.hidden && cloudReady() && !CS.dirty) cloudPull(false);
-});
+async function syncIfChanged(){
+  if(!cloudReady()||CS.dirty||CS.busy) return;
+  if(Date.now()-(CS.peekAt||0)<4000) return;      /* 짧은 시간 내 반복 확인 방지 */
+  CS.peekAt=Date.now();
+  const row=await cloudPeek();
+  if(row && row.rev>CS.rev) cloudPull(false);
+}
+window.addEventListener('online', syncIfChanged);
+window.addEventListener('focus', syncIfChanged);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) syncIfChanged(); });
 
 async function cloudConnect(){
   const g=k=>document.getElementById('c_'+k).value.trim();
@@ -2442,6 +2481,22 @@ async function cloudConnect(){
 function cloudDisconnect(){
   if(!confirm('연결을 끊으면 이 브라우저에만 저장됩니다. 계속할까요?')) return;
   S.cloud.on=false; CS.state='off'; CS.msg=''; saveLocal(); toast('연결을 해제했습니다'); renderSet();
+}
+function pruneData(){
+  const keep=6;
+  const ym=S.payMonth, [y,m]=ym.split('-').map(Number);
+  const cut=new Date(y,m-1-keep,1);
+  const cutYm=cut.getFullYear()+'-'+String(cut.getMonth()+1).padStart(2,'0');
+  let ov=0, sn=0, ex=0, vp=0;
+  Object.keys(S.overrides||{}).forEach(k=>{ if(k.slice(0,7)<cutYm){ delete S.overrides[k]; delete (S.dutyOv||{})[k]; delete (S.manualOv||{})[k]; ov++; } });
+  Object.keys(S.snapshots||{}).forEach(k=>{ if(k<cutYm){ delete S.snapshots[k]; sn++; } });
+  Object.keys(S.extras||{}).forEach(k=>{ if(k.slice(0,7)<cutYm){ delete S.extras[k]; ex++; } });
+  Object.keys(S.vendorPay||{}).forEach(k=>{ if(k.slice(0,7)<cutYm){ delete S.vendorPay[k]; vp++; } });
+  if(!(ov+sn+ex+vp)){ toast(`${keep}개월 이전 기록이 없습니다`); return; }
+  if(!confirm(`${cutYm} 이전 기록을 정리합니다.\n\n배치 기록 ${ov}건 · 저장본 ${sn}개 · 추가수당 ${ex}건 · 입금기록 ${vp}건\n\n계속할까요? (백업을 먼저 받아두세요)`)){
+    location.reload(); return;
+  }
+  save(); pushNow(); toast('오래된 기록을 정리했습니다'); renderSet();
 }
 function copySQL(){
   navigator.clipboard.writeText(SQL_SETUP).then(()=>toast('SQL을 복사했습니다'),()=>{});
