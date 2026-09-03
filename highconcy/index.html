@@ -262,18 +262,7 @@ const DEFAULTS = {
   buildings:[], staff:[]
 };
 
-async function load(){
-  let saved=null;
-  try{ const r=await window.storage.get('sidae-cleaning-v1'); if(r&&r.value) saved=JSON.parse(r.value); }catch(e){}
-  if(!saved && window.__mem) saved=window.__mem;
-  if(saved){ S=saved; }
-  else{
-    S=JSON.parse(JSON.stringify(DEFAULTS));
-    S.buildings=SEED.buildings.map(b=>({...b, assign:{주간:{...b.day}, 야간:{...b.night}}, day:undefined, night:undefined}));
-    S.staff=SEED.staff.map(s=>({...s, wage:s.wage||S.settings.baseWage, vendorId:s.vendorId||''}));
-    S.vendors=[{id:'V001',name:'그린파트너스',ceo:'',tel:'010-4776-1230',biz:'',regions:['대전'],
-      type:'월정액',amount:3700000,rate:0,vat:'별도',start:'',end:'',note:'대전 지역 전담'}];
-  }
+function migrate(){
   S.settings=Object.assign({},DEFAULTS.settings,S.settings||{});
   /* 1회 마이그레이션: 목동 주간 근로자 1일 6시간 */
   if(S._day6===1){                       /* 직전 버전에서 전체 6시간이 적용된 경우 되돌림 */
@@ -297,10 +286,20 @@ async function load(){
       if(s && !s.vendorId) s.vendorId=arc;
     });
   }
-  CS.rev=Number(S._rev)||0; CS.lastJson=snapshotJson();
-  setTimeout(()=>{ if(cloudReady()) cloudPull(false); }, 400);
   S.vendors=S.vendors||[]; S.snapshots=S.snapshots||{}; S.overrides=S.overrides||{}; S.vendorPay=S.vendorPay||{}; S.extras=S.extras||{}; S.dutyOv=S.dutyOv||{}; S.manualOv=S.manualOv||{}; S.adjust=S.adjust||{};
-  /* 1회: 8월 대조 시트 반영 */
+  /* 1회: 8월 알바 인원 보충 */
+  if(S._alba8!==1){
+    S._alba8=1;
+    const have=new Set(S.staff.map(s=>s.name));
+    let added=0;
+    SEED.staff.forEach(x=>{
+      if(x.empType==='당일' && x.note==='알바' && !have.has(x.name)){
+        S.staff.push(JSON.parse(JSON.stringify(x))); have.add(x.name); added++;
+      }
+    });
+    if(added) setTimeout(()=>toast(`알바 인원 ${added}명을 추가했습니다`),800);
+  }
+  /* 1회: 8월 알바비 지급건 반영 */
   if(S._adj8!==3){
     S._adj8=3;
     Object.keys(ADJ_SEED).forEach(m=>{
@@ -322,6 +321,23 @@ async function load(){
     if(!Array.isArray(s.dutyKeys)) s.dutyKeys=[];
     if(s.listed===undefined) s.listed=true;
   });
+}
+
+async function load(){
+  let saved=null;
+  try{ const r=await window.storage.get('sidae-cleaning-v1'); if(r&&r.value) saved=JSON.parse(r.value); }catch(e){}
+  if(!saved && window.__mem) saved=window.__mem;
+  if(saved){ S=saved; }
+  else{
+    S=JSON.parse(JSON.stringify(DEFAULTS));
+    S.buildings=SEED.buildings.map(b=>({...b, assign:{주간:{...b.day}, 야간:{...b.night}}, day:undefined, night:undefined}));
+    S.staff=SEED.staff.map(s=>({...s, wage:s.wage||S.settings.baseWage, vendorId:s.vendorId||''}));
+    S.vendors=[{id:'V001',name:'그린파트너스',ceo:'',tel:'010-4776-1230',biz:'',regions:['대전'],
+      type:'월정액',amount:3700000,rate:0,vat:'별도',start:'',end:'',note:'대전 지역 전담'}];
+  }
+  migrate();
+  CS.rev=Number(S._rev)||0; CS.lastJson=snapshotJson();
+  setTimeout(()=>{ if(cloudReady()) cloudPull(false); }, 400);
   render();
 }
 let saveTimer=null, pushTimer=null;
@@ -2438,7 +2454,13 @@ function detectChange(){
 function adopt(data){
   const cloud=S.cloud;
   S=Object.assign(data,{cloud});
+  const before=snapshotJson();
+  migrate();                       /* 서버 데이터에도 최신 반영분 적용 */
   _idx.map=null;
+  if(snapshotJson()!==before){     /* 반영된 내용이 있으면 서버에도 올림 */
+    CS.dirty=true; CS.lastEdit=Date.now();
+    setTimeout(()=>{ if(cloudReady()) cloudPush(true); }, 600);
+  }
   const t=TAB; render(); TAB=t;
 }
 /* 변경 여부만 확인 — 수십 바이트 */
