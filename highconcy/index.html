@@ -613,7 +613,9 @@ function render(){
 /* ============ 1. 현황 ============ */
 function renderHome(){
   const el=document.getElementById('v-home');
-  const act=S.staff.filter(s=>statusOf(s)!=='퇴사');
+  const all=S.staff.filter(s=>statusOf(s)!=='퇴사');
+  const act=all.filter(s=>s.empType!=='당일');
+  const dayM=S.staff.filter(s=>s.empType==='당일'&&inMonth(s,S.payMonth));
   const day=act.filter(s=>s.shift==='주간').length, night=act.filter(s=>s.shift==='야간').length;
   const b4=act.filter(s=>s.emp==='4대보험').length, b33=act.length-b4;
   const area=S.buildings.reduce((a,b)=>a+(b.area||0),0);
@@ -639,7 +641,8 @@ function renderHome(){
   el.innerHTML=`
   <div class="kpis">
     ${kpi('관리 층·호실',S.buildings.length,`${gwans}개 관 · ${won(area)}평`)}
-    ${kpi('재직 인원',act.length,`주간 ${day} · 야간 ${night}`)}
+    ${kpi('상시 인원',act.length,`주간 ${day} · 야간 ${night}`)}
+    ${kpi('당일 근무자',dayM.length,`${S.payMonth} 투입 기준`)}
     ${kpi('4대보험 / 3.3%',`${b4} / ${b33}`,'고용형태 구분')}
     ${kpi('서류 미비',act.filter(s=>!docsDone(s)).length,'신분증·통장·계약서·피복')}
     ${kpi(ym+' 인건비 총원가',won(cost)+'원','급여+사업주부담+퇴직충당')}
@@ -1146,7 +1149,7 @@ function delBuilding(id){
 }
 
 /* ============ 3. 인력 ============ */
-let SF={region:'', shift:'', emp:'', status:'재직중만', vendor:'', empType:'', docs:'', q:'', sort:'name', dir:1};
+let SF={region:'', shift:'', emp:'', status:'재직중만', vendor:'', empType:'', docs:'', q:'', sort:'name', dir:1, dayAll:false};
 function renderStaff(){
   const el=document.getElementById('v-staff');
   el.innerHTML=`
@@ -1204,68 +1207,106 @@ function renderStaffTable(){
   };
   const base=sorters[SF.sort]||byName;
   list=list.sort((a,b)=>base(a,b)*(SF.dir||1));
-  const joined=list.filter(s=>s.join&&s.join.slice(0,7)===ym).length;
-  const left=list.filter(s=>s.leave&&s.leave.slice(0,7)===ym).length;
-  const lack=list.filter(s=>!docsDone(s)).length;
+
+  const isDay=s=>s.empType==='당일';
+  const perm=list.filter(s=>!isDay(s));
+  let day=list.filter(isDay);
+  const dayAll=day.length;
+  if(!SF.dayAll) day=day.filter(s=>inMonth(s,ym));
+
+  const joined=perm.filter(s=>s.join&&s.join.slice(0,7)===ym).length;
+  const left=perm.filter(s=>s.leave&&s.leave.slice(0,7)===ym).length;
+  const lack=perm.filter(s=>!docsDone(s)).length;
   const unlisted=list.filter(s=>s.listed===false).length;
 
   wrap.innerHTML=`
   <div class="legend" style="margin-bottom:8px">
-    <span><b>${list.length}</b>명</span>
+    <span>상시 <b>${perm.length}</b>명 · 당일 <b>${day.length}</b>명</span>
     <span>${ym} 입사 ${joined}명 · 퇴사 ${left}명</span>
     <span>3.3% ${list.filter(s=>s.emp==='3.3%').length}명 · 4대보험 ${list.filter(s=>s.emp==='4대보험').length}명</span>
-    <span style="color:#8A8A84">${({name:'이름',region:'지점',join:'입사일'})[SF.sort]||'이름'}
-      ${(SF.dir||1)>0?'오름차순':'내림차순'} · 표 머리글을 눌러 정렬</span>
     <span style="${lack?'color:#B3452F;font-weight:600':''}">서류 미비 ${lack}명</span>
-    <span>미수령 — 신분증 ${list.filter(s=>!s.idCopy).length}
-      · 통장 ${list.filter(s=>!s.bankbook).length}
-      · 계약서 ${list.filter(s=>!s.contract).length}
-      · 피복 ${list.filter(s=>s.uniformSize&&!s.uniformGiven).length}</span>
     ${unlisted?`<span style="color:#B3452F;font-weight:600">명단 미등록 ${unlisted}명</span>`:''}
     ${(()=>{ const n=S.staff.filter(s=>!String(s.name||'').trim()).length;
       return n? `<span style="color:#B3452F;font-weight:600">이름 없는 항목 ${n}건</span>
         <button class="btn sm danger" onclick="purgeBlankStaff()">빈 항목 삭제</button>`:''; })()}
-    <span>서류 칸을 눌러 바로 체크할 수 있습니다</span>
+    <span style="color:#8A8A84">${({name:'이름',region:'지점',join:'입사일'})[SF.sort]||'이름'}
+      ${(SF.dir||1)>0?'오름차순':'내림차순'} · 표 머리글을 눌러 정렬</span>
   </div>
-  <div class="tw"><table><thead><tr>
+
+  <div class="sechead" style="margin:2px 0 7px"><h2>상시 인원</h2>
+    <span class="hint">계속 근무 중인 인원 ${perm.length}명</span></div>
+  ${staffTable(perm, ym, false)}
+
+  <div class="sechead" style="margin:20px 0 7px"><h2>당일 근무자</h2>
+    <span class="hint">${ym} 투입 ${day.length}명${SF.dayAll?` · 전체 기간 ${dayAll}명`:''} — 근무한 달에만 표시됩니다</span>
+    <div class="grow"></div>
+    <div class="dayck noprint"><label class="${SF.dayAll?'on':''}">
+      <input type="checkbox" ${SF.dayAll?'checked':''} onchange="SF.dayAll=this.checked;renderStaffTable()">전체 기간 보기</label></div>
+    <button class="btn sm noprint" onclick="addDailyStaff()">+ 당일 근무자 등록</button>
+  </div>
+  ${staffTable(day, ym, true)}`;
+}
+function inMonth(s,ym){
+  const a=s.join||'', b=s.leave||'';
+  if(!a && !b) return true;
+  const from=a||b, to=b||a;
+  return from.slice(0,7)<=ym && to.slice(0,7)>=ym;
+}
+function staffTable(list, ym, daily){
+  if(!list.length) return `<div class="card"><div class="empty">${daily?`${ym}에 투입된 당일 근무자가 없습니다.`:'조건에 맞는 인원이 없습니다.'}</div></div>`;
+  return `<div class="tw"><table><thead><tr>
     ${sortTh('이름','name')}<th>연락처</th>${sortTh('지점','region')}<th>구분</th><th>고용</th><th>상태</th>
-    ${sortTh('입사일','join')}<th>퇴사일</th><th>서류</th><th>피복</th>
-    <th>근무요일</th><th class="num">주근로</th><th class="num">${ym} 근무일</th><th class="num">단가</th><th></th></tr></thead><tbody>
+    ${daily?'<th>근무일자</th><th class="num">배치</th>':`${sortTh('입사일','join')}<th>퇴사일</th>`}
+    <th>서류</th>${daily?'':'<th>피복</th>'}
+    <th>${daily?'투입 관':'근무요일'}</th>${daily?'':'<th class="num">주근로</th>'}
+    <th class="num">${ym} 근무일</th><th class="num">${daily?'지급액':'단가'}</th><th></th></tr></thead><tbody>
     ${list.map(s=>{
       const st=statusOf(s), wh=(Number(s.hours)||0)*(s.workDays||[]).length, p=calcPay(s,ym);
       const mark=(s.join&&s.join.slice(0,7)===ym)||(s.leave&&s.leave.slice(0,7)===ym);
       const oneDay=s.join&&s.leave&&s.join===s.leave;
-      return `<tr class="${p.work===0?'dim':''}">
-        <td><b style="cursor:pointer;text-decoration:underline;text-decoration-color:#C9C8C0;text-underline-offset:3px"
-        onclick="payDetail('${s.id}')">${esc(s.name)}</b>${s.payee?`<span class="tiny muted"> ▸ ${esc(s.payee)}</span>`:''}
-          ${s.listed===false?' <span class="pill warn tiny">명단없음</span>':''}</td>
+      const idx=monthIndex(ym)[s.name];
+      const where=[...new Set((s.duties||[]).map(d=>{
+        const b=S.buildings.find(x=>gwanKeyOf(x)===d.key); return b? bldgLabel(b):'';
+      }).filter(Boolean))];
+      return `<tr class="${p.work===0&&!daily?'dim':''}">
+        <td>${String(s.name||'').trim()
+            ? `<b>${esc(s.name)}</b>${s.payee?`<span class="tiny muted"> ▸ ${esc(s.payee)}</span>`:''}`
+            : `<b style="color:#B3452F">(이름 없음)</b> <span class="pill warn tiny">확인 필요</span>`}
+          ${s.listed===false&&String(s.name||'').trim()?' <span class="pill warn tiny">명단없음</span>':''}</td>
         <td class="tiny">${esc(s.phone||'—')}</td>
         <td>${esc(s.region)}${s.vendorId?` <span class="pill vend">${esc((S.vendors.find(v=>v.id===s.vendorId)||{}).name||'업체')}</span>`:''}</td>
-        <td>${s.empType==='당일'?`<span class="pill temp">당일${oneDay?' 1일':''}</span>`:`<span class="pill ${s.shift==='주간'?'day':'night'}">${s.shift}</span>`}</td>
+        <td>${daily?`<span class="pill temp">당일${oneDay?' 1일':''}</span>`:`<span class="pill ${s.shift==='주간'?'day':'night'}">${s.shift}</span>`}</td>
         <td><span class="pill ${s.emp==='4대보험'?'b4':'b33'}">${s.emp}</span></td>
-        <td>${badgeStatus(s)}${mark?' <span class="pill warn tiny">변동</span>':''}</td>
-        <td class="tiny">${s.join||'—'}</td>
-        <td class="tiny">${s.leave||'—'}</td>
+        <td>${badgeStatus(s)}${mark&&!daily?' <span class="pill warn tiny">변동</span>':''}</td>
+        ${daily
+          ? `<td class="tiny">${s.join||'—'}${s.leave&&s.leave!==s.join?` ~ ${s.leave.slice(5)}`:''}</td>
+             <td class="num tiny ${idx&&idx.size?'':'muted'}">${idx?idx.size+'일':'미기록'}</td>`
+          : `<td class="tiny">${s.join||'—'}</td><td class="tiny">${s.leave||'—'}</td>`}
         <td>${DOCS.map(([k,l])=>docChip(s,k,l)).join('')}</td>
-        <td>${s.uniformSize? `<span class="tiny muted">${esc(s.uniformSize)}</span> ${docChip(s,'uniformGiven','지급')}`
-             : `<span class="tiny muted">—</span>`}</td>
-        <td class="tiny">${(s.workDays||[]).join('')||'—'}</td>
-        <td class="num">${wh}h${wh<15?' <span class="pill off tiny">15h미만</span>':''}</td>
-        <td class="num">${p.work}<span class="muted tiny">/${p.totalInMonth}</span>${(()=>{
-        const d=dutyDetail(s.name,ym); const n=Object.keys(d.byG).length;
-        return n>1? ` <span class="pill b4 tiny">${n}개 관</span>`:''; })()}</td>
-        <td class="num">${won(s.wage)}</td>
+        ${daily?'':`<td>${s.uniformSize? `<span class="tiny muted">${esc(s.uniformSize)}</span> ${docChip(s,'uniformGiven','지급')}`
+             : `<span class="tiny muted">—</span>`}</td>`}
+        <td class="tiny muted">${daily? esc(where.slice(0,2).join(', ')||'—') : ((s.workDays||[]).join('')||'—')}</td>
+        ${daily?'':`<td class="num">${wh}h${wh<15?' <span class="pill off tiny">15h미만</span>':''}</td>`}
+        <td class="num">${p.work}<span class="muted tiny">/${p.totalInMonth}</span></td>
+        <td class="num">${daily? `<b>${won(p.gross)}</b>` : won(s.wage)}</td>
         <td><button class="btn sm" onclick="editStaff('${s.id}')">수정</button></td></tr>`;
     }).join('')}
+    ${daily? `<tr class="grp"><td colspan="10">합계 ${list.length}명</td>
+      <td class="num">${list.reduce((a,s)=>a+calcPay(s,ym).work,0)}일</td>
+      <td class="num">${won(list.reduce((a,s)=>a+calcPay(s,ym).gross,0))}</td><td></td></tr>`:''}
   </tbody></table></div>`;
 }
-function purgeBlankStaff(){
-  const bad=S.staff.filter(s=>!String(s.name||'').trim());
-  if(!bad.length) return;
-  if(!confirm(`이름이 비어 있는 ${bad.length}건을 삭제합니다. 입력하시던 내용이면 먼저 이름을 채워 주세요. 계속할까요?`)) return;
-  S.staff=S.staff.filter(s=>String(s.name||'').trim());
-  save(); pushNow(); toast('빈 항목을 삭제했습니다'); renderStaff();
+function addDailyStaff(){
+  const today=new Date().toISOString().slice(0,10);
+  const s={id:uid('S'),name:'',region:S.regions[0],shift:'야간',emp:'3.3%',payType:'시급',
+    wage:S.settings.baseWage,hours:5,nightHours:5,mealDaily:null,meal:0,
+    workDays:[DAYS[(new Date(today).getDay()+6)%7]],
+    join:today,leave:today,note:'당일 투입',memo:'',bldgWeek:[],bldgWeekend:[],duties:[],dutyKeys:[],
+    payee:'',phone:'',uniformSize:'',uniformGiven:false,idCopy:false,bankbook:false,contract:false,
+    empType:'당일',site:'시대인재',listed:true,vendorId:''};
+  S.staff.push(s); _draft={kind:'staff',id:s.id}; editStaff(s.id);
 }
+
 function addStaff(){
   const s={id:uid('S'),name:'',region:S.regions[0],shift:'야간',emp:'3.3%',payType:'시급',
     wage:S.settings.baseWage,hours:5,nightHours:5,meal:0,workDays:['월','화','수','목','금'],
@@ -1813,7 +1854,10 @@ function renderPay(){
     const d=dutyDetail(s.name,ym);
     return Object.keys(d.byG).some(g=>g.toLowerCase().includes(q));
   });
-  const rows=list.map(s=>({s,p:calcPay(s,ym)})).filter(x=>x.p.work>0||statusOf(x.s)!=='퇴사');
+  const rows=list.map(s=>({s,p:calcPay(s,ym)}))
+    .filter(x=> x.s.empType==='당일'
+      ? (x.p.work>0 || inMonth(x.s,ym))          /* 당일 근무자는 근무한 달에만 */
+      : (x.p.work>0 || statusOf(x.s)!=='퇴사'));
   rows.sort((a,b)=>a.s.region.localeCompare(b.s.region)||a.s.name.localeCompare(b.s.name));
   const T=rows.reduce((a,x)=>({gross:a.gross+x.p.gross,ded:a.ded+x.p.dedTotal,net:a.net+x.p.net,
     emp:a.emp+x.p.empTotal,cost:a.cost+x.p.cost}),{gross:0,ded:0,net:0,emp:0,cost:0});
