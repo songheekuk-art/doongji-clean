@@ -256,7 +256,7 @@ const DEFAULTS = {
     sev:8.33, freelanceTax:3.3, profit:10
   },
   regions:[...REGIONS_DEFAULT],
-  vendors:[], snapshots:{}, overrides:{}, vendorPay:{}, extras:{}, dutyOv:{}, manualOv:{}, adjust:{},
+  vendors:[], snapshots:{}, overrides:{}, vendorPay:{}, extras:{}, dutyOv:{}, manualOv:{}, adjust:{}, payStatus:{},
   cloud:null,
   payMonth:new Date().toISOString().slice(0,7),
   buildings:[], staff:[]
@@ -286,7 +286,7 @@ function migrate(){
       if(s && !s.vendorId) s.vendorId=arc;
     });
   }
-  S.vendors=S.vendors||[]; S.snapshots=S.snapshots||{}; S.overrides=S.overrides||{}; S.vendorPay=S.vendorPay||{}; S.extras=S.extras||{}; S.dutyOv=S.dutyOv||{}; S.manualOv=S.manualOv||{}; S.adjust=S.adjust||{};
+  S.vendors=S.vendors||[]; S.snapshots=S.snapshots||{}; S.overrides=S.overrides||{}; S.vendorPay=S.vendorPay||{}; S.extras=S.extras||{}; S.dutyOv=S.dutyOv||{}; S.manualOv=S.manualOv||{}; S.adjust=S.adjust||{}; S.payStatus=S.payStatus||{};
   /* 1회: 8월 알바 인원 보충 */
   if(S._alba8!==1){
     S._alba8=1;
@@ -1736,7 +1736,7 @@ function delStaff(id){
 }
 
 /* ============ 4. 급여정산 ============ */
-let PF={region:'',emp:'',scope:'직영만',q:''};
+let PF={region:'',emp:'',scope:'직영만',q:'',pay:''};
 let payTimer=null;
 function paySearch(v){
   PF.q=v; clearTimeout(payTimer);
@@ -1802,6 +1802,8 @@ function payDetail(id){
       ${kpi('관 추가수당',won(p.gwanPay)+'원',p.gwanItems.length?`${p.gwanItems.length}개 관`:'없음')}
       ${kpi('식대',won(p.meal)+'원',p.mealDay?`일 ${won(p.mealDay)}원 × ${p.work}일`:'미적용')}
       ${kpi('추가 근무·수당',won(p.exPay)+'원',p.exCount?`${p.exCount}건 · ${p.exHours}시간`:'없음')}
+      ${(()=>{ const A=adjOfStaff(s.name,ym);
+        return kpi('당일 알바비',won(A.sum)+'원',A.rows.length?`${A.rows.length}건${A.dup?` · 중복 의심 ${A.dup}`:''}`:'없음'); })()}
     </div>
     ${gs.length? `<div class="tw" style="max-height:none;margin-bottom:12px"><table><thead><tr>
       <th>담당 관</th><th class="num">투입 일수</th><th>요일</th></tr></thead><tbody>
@@ -1823,6 +1825,28 @@ function payDetail(id){
         <td class="num">${won(x.amount)}</td></tr>`).join('')}
       <tr class="grp"><td colspan="2">합계</td><td class="num">${won(p.gwanPay)}</td></tr>
     </tbody></table></div>`:''}
+
+    ${(()=>{ const A=adjOfStaff(s.name,ym); if(!A.rows.length) return '';
+      return `<hr class="sep">
+      <div class="sechead"><h2>당일 알바비 지급건</h2>
+        <span class="hint">정산마감 탭에 기록된 별도 지급 ${A.rows.length}건 · ${won(A.sum)}원</span></div>
+      <div class="tw" style="max-height:220px"><table><thead><tr>
+        <th>지급일</th><th class="num">일수</th><th class="num">금액</th><th>지급</th><th>배치 대조</th><th>비고</th>
+      </tr></thead><tbody>
+      ${A.rows.map(r=>{ const c=adjCheck(r,ym);
+        return `<tr><td class="tiny">${esc(r.date||'—')}</td>
+          <td class="num tiny">${r.workDays||(r.days||[]).length||1}</td>
+          <td class="num">${won(adjNet(r))}</td>
+          <td>${r.paid?'<span class="pill ok">완료</span>':'<span class="pill warn">미지급</span>'}</td>
+          <td>${c.perm&&c.filled.length
+            ? `<span class="pill warn">중복 의심 ${c.filled.length}일</span><div class="tiny" style="color:#B3452F">${c.filled.join(',')}일 정규배치</div>`
+            : '<span class="pill ok">중복 없음</span>'}</td>
+          <td class="tiny muted">${esc(r.note||'')}</td></tr>`; }).join('')}
+        <tr class="grp"><td colspan="2">합계</td><td class="num">${won(A.sum)}</td>
+          <td colspan="3">${A.unpaid?`미지급 ${won(A.unpaid)}원`:'전액 지급'}</td></tr>
+      </tbody></table></div>
+      <div class="tiny muted" style="margin-top:7px">
+        <b>중복 의심</b>은 그날 정규 배치가 잡혀 있어 급여와 알바비가 함께 나간 경우입니다. 지급 사유 확인이 필요합니다.</div>`; })()}
 
     <hr class="sep">
     <div class="sechead"><h2>추가 근무 · 수당</h2><span class="hint">고정 근무 외 알바·대타·추가시간</span></div>
@@ -1851,6 +1875,33 @@ function payDetail(id){
      <button class="btn pri" onclick="closeModal();editStaff('${id}')">인원 정보 수정</button>`);
   exRender(id);
 }
+function psAll(v){
+  const ym=S.payMonth;
+  const ids=[...document.querySelectorAll('[data-psid]')].map(e=>e.dataset.psid);
+  if(!ids.length){ toast('대상이 없습니다'); return; }
+  const t=ids.filter(id=>psGet(ym,id).paid!==v);
+  if(!t.length){ toast('바꿀 항목이 없습니다'); return; }
+  if(!confirm(`보이는 ${t.length}명을 ${v?'입금완료':'미입금'}으로 바꿉니다. 계속할까요?`)) return;
+  S.payStatus=S.payStatus||{};
+  t.forEach(id=>{ const c=psGet(ym,id);
+    S.payStatus[psKey(ym,id)]=Object.assign(c,{paid:v,date:v&&!c.date? new Date().toISOString().slice(0,10):c.date}); });
+  save(); pushNow(); toast(`${t.length}명 처리했습니다`); renderPay();
+}
+function psKey(ym,id){ return ym+'|'+id; }
+function psGet(ym,id){ return Object.assign({paid:false,date:'',memo:''},(S.payStatus||{})[psKey(ym,id)]||{}); }
+function psToggle(ym,id){
+  S.payStatus=S.payStatus||{};
+  const c=psGet(ym,id);
+  S.payStatus[psKey(ym,id)]=Object.assign(c,{paid:!c.paid, date:(!c.paid&&!c.date)? new Date().toISOString().slice(0,10):c.date});
+  save(); pushNow(); renderPay();
+}
+/* 이 사람의 당일 알바비 내역 */
+function adjOfStaff(name, ym){
+  const rows=adjRows(ym).filter(r=>r.name===name);
+  return {rows, sum:rows.reduce((a,r)=>a+adjNet(r),0),
+    unpaid:rows.filter(r=>!r.paid).reduce((a,r)=>a+adjNet(r),0),
+    dup:rows.filter(r=>{const c=adjCheck(r,ym); return c.perm&&(c.state==='dup'||c.state==='partial');}).length};
+}
 function billMonth(ym){
   const [y,m]=ym.split('-').map(Number);
   const d=new Date(y,m,1);
@@ -1871,6 +1922,12 @@ function renderPay(){
     .filter(x=> x.s.empType==='당일'
       ? (x.p.work>0 || inMonth(x.s,ym))          /* 당일 근무자는 근무한 달에만 */
       : (x.p.work>0 || statusOf(x.s)!=='퇴사'));
+  let rows2=rows;
+  if(PF.pay==='paid') rows2=rows.filter(x=>psGet(ym,x.s.id).paid);
+  else if(PF.pay==='unpaid') rows2=rows.filter(x=>!psGet(ym,x.s.id).paid);
+  else if(PF.pay==='alba') rows2=rows.filter(x=>adjOfStaff(x.s.name,ym).rows.length);
+  else if(PF.pay==='dup') rows2=rows.filter(x=>adjOfStaff(x.s.name,ym).dup);
+  rows=rows2;
   rows.sort((a,b)=>a.s.region.localeCompare(b.s.region)||a.s.name.localeCompare(b.s.name));
   const T=rows.reduce((a,x)=>({gross:a.gross+x.p.gross,ded:a.ded+x.p.dedTotal,net:a.net+x.p.net,
     emp:a.emp+x.p.empTotal,cost:a.cost+x.p.cost}),{gross:0,ded:0,net:0,emp:0,cost:0});
@@ -1884,10 +1941,17 @@ function renderPay(){
       ${S.regions.map(r=>`<option ${PF.region===r?'selected':''}>${r}</option>`).join('')}</select></label>
     <label class="f">고용형태<select onchange="PF.emp=this.value;renderPay()"><option value="">전체</option>
       <option ${PF.emp==='4대보험'?'selected':''}>4대보험</option><option ${PF.emp==='3.3%'?'selected':''}>3.3%</option></select></label>
+    <label class="f">입금 여부<select onchange="PF.pay=this.value;renderPay()">
+      <option value="">전체</option>
+      <option value="unpaid" ${PF.pay==='unpaid'?'selected':''}>미입금만</option>
+      <option value="paid" ${PF.pay==='paid'?'selected':''}>입금완료만</option>
+      <option value="alba" ${PF.pay==='alba'?'selected':''}>당일 알바비 있는 인원</option>
+      <option value="dup" ${PF.pay==='dup'?'selected':''}>중복 의심 인원</option></select></label>
     <label class="f">대상<select onchange="PF.scope=this.value;renderPay()">
       <option>직영만</option><option ${PF.scope==='전체'?'selected':''}>전체(업체소속 포함)</option></select></label>
     <label class="f grow">이름 · 관 · 연락처 검색<input id="payQ" value="${esc(PF.q)}"
       placeholder="예: 전종칠 · N관 · 태성빌딩" oninput="paySearch(this.value)"></label>
+    <button class="btn" onclick="psAll(true)">보이는 인원 입금완료</button>
     <button class="btn" onclick="window.print()">급여대장 인쇄</button>
     <button class="btn pri" onclick="exportPayCSV()">CSV 내보내기</button>
   </div></div>
@@ -1917,6 +1981,12 @@ function renderPay(){
     ${kpi('사업주 부담',won(T.emp),'보험료+퇴직충당')}
     ${kpi('직영 인건비 원가',won(T.cost),`이윤 ${S.settings.profit}% 적용시 ${won(T.cost+profit)}`)}
     ${kpi('도급비',won(vTotal),`${(S.vendors||[]).length}개 업체`)}
+    ${(()=>{ const paidN=rows.filter(x=>psGet(ym,x.s.id).paid).length;
+      const unpaidAmt=rows.filter(x=>!psGet(ym,x.s.id).paid).reduce((a,x)=>a+x.p.net,0);
+      return kpi('급여 입금',`${paidN}/${rows.length}`,unpaidAmt?`미입금 ${won(unpaidAmt)}원`:'전원 입금 완료'); })()}
+    ${(()=>{ const A=rows.reduce((a,x)=>a+adjOfStaff(x.s.name,ym).sum,0);
+      const U=rows.reduce((a,x)=>a+adjOfStaff(x.s.name,ym).unpaid,0);
+      return kpi('당일 알바비',won(A),U?`미지급 ${won(U)}원`:'전액 지급'); })()}
     ${kpi('총 운영원가',won(T.cost+vTotal),'직영 + 도급')}
   </div>
 
@@ -1924,6 +1994,7 @@ function renderPay(){
     <th>이름</th><th>지점</th><th>고용</th><th>상태</th><th class="num">근무일</th><th class="num">배치일수</th>
     <th class="num">기본급</th><th class="num">야간수당</th><th class="num">주휴수당</th><th class="num">연차수당</th><th class="num">관수당</th><th class="num">식대</th><th class="num">추가</th>
     <th class="num">지급총액</th><th class="num">공제</th><th class="num">실지급</th>
+    <th class="num">당일 알바비</th><th>입금</th>
     <th class="num">사업주부담</th><th class="num">원가</th></tr></thead><tbody>
     ${rows.map(({s,p})=>{
       const st=statusOf(s), part=(s.join&&s.join.slice(0,7)===ym)||(s.leave&&s.leave.slice(0,7)===ym);
@@ -1947,7 +2018,15 @@ function renderPay(){
         ? `<b style="color:${p.exPay<0?'#B3452F':'#1F6E43'}">${won(p.exPay)}</b><span class="tiny muted"> ${p.exCount}건</span>`
         : '—'}</td>
       <td class="num"><b>${won(p.gross)}</b></td><td class="num">${won(p.dedTotal)}</td>
-      <td class="num"><b>${won(p.net)}</b></td><td class="num">${won(p.empTotal)}</td><td class="num">${won(p.cost)}</td></tr>`;
+      <td class="num"><b>${won(p.net)}</b></td>
+      ${(()=>{ const A=adjOfStaff(s.name,ym), ps=psGet(ym,s.id);
+        return `<td class="num">${A.sum
+          ? `<b>${won(A.sum)}</b><div class="tiny ${A.dup?'':'muted'}" style="${A.dup?'color:#B3452F;font-weight:600':''}">${A.rows.length}건${A.dup?` · 중복 ${A.dup}`:''}${A.unpaid?` · 미지급 ${won(A.unpaid)}`:''}</div>`
+          : '—'}</td>
+        <td data-psid="${s.id}"><span class="chip ${ps.paid?'on':''}" onclick="psToggle('${ym}','${s.id}')"
+          style="${ps.paid?'':'color:#B3452F;border-color:#E3C6BD;background:#FBEDE7'}">${ps.paid?'입금완료':'미입금'}</span>
+          ${ps.paid&&ps.date?`<div class="tiny muted">${ps.date.slice(5)}</div>`:''}</td>`; })()}
+      <td class="num">${won(p.empTotal)}</td><td class="num">${won(p.cost)}</td></tr>`;
     }).join('')}
     <tr class="grp"><td colspan="6">합계 ${rows.length}명</td>
       <td class="num">${won(rows.reduce((a,x)=>a+x.p.base,0))}</td>
@@ -2968,10 +3047,13 @@ function exportStaffCSV(){
 }
 function exportPayCSV(){
   const ym=S.payMonth;
-  const rows=[['정산월','이름','실지급대상','연락처','지점','근무구분','시간대','고용형태','상태','입사일','퇴사일','근무일','기본급','야간수당','주휴수당','연차수당','관수당','식대','추가수당','지급총액','공제','실지급','사업주부담','원가']];
+  const rows=[['정산월','이름','실지급대상','연락처','지점','근무구분','시간대','고용형태','상태','입사일','퇴사일','근무일','기본급','야간수당','주휴수당','연차수당','관수당','식대','추가수당','지급총액','공제','실지급','당일알바비','알바비미지급','입금여부','입금일','사업주부담','원가']];
   S.staff.filter(s=>(!PF.region||s.region===PF.region)&&(!PF.emp||s.emp===PF.emp)).forEach(s=>{
     const p=calcPay(s,ym);
-    rows.push([ym,s.name,s.payee||'',s.phone||'',s.region,s.empType||'상시',s.shift,s.emp,statusOf(s),s.join,s.leave,p.work,p.base,p.night,p.weekly,p.annual,p.gwanPay,p.meal,p.exPay,p.gross,p.dedTotal,p.net,p.empTotal,p.cost]);
+    rows.push([ym,s.name,s.payee||'',s.phone||'',s.region,s.empType||'상시',s.shift,s.emp,statusOf(s),s.join,s.leave,p.work,p.base,p.night,p.weekly,p.annual,p.gwanPay,p.meal,p.exPay,p.gross,p.dedTotal,p.net,
+      adjOfStaff(s.name,ym).sum, adjOfStaff(s.name,ym).unpaid,
+      psGet(ym,s.id).paid?'입금완료':'미입금', psGet(ym,s.id).date,
+      p.empTotal,p.cost]);
   });
   dl(`급여대장_${ym}.csv`,csv(rows),'text/csv'); toast('급여대장을 저장했습니다');
 }
