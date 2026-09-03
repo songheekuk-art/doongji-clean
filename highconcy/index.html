@@ -1918,16 +1918,14 @@ function renderPay(){
     const d=dutyDetail(s.name,ym);
     return Object.keys(d.byG).some(g=>g.toLowerCase().includes(q));
   });
-  const rows=list.map(s=>({s,p:calcPay(s,ym)}))
+  let rows=list.map(s=>({s,p:calcPay(s,ym)}))
     .filter(x=> x.s.empType==='당일'
       ? (x.p.work>0 || inMonth(x.s,ym))          /* 당일 근무자는 근무한 달에만 */
       : (x.p.work>0 || statusOf(x.s)!=='퇴사'));
-  let rows2=rows;
-  if(PF.pay==='paid') rows2=rows.filter(x=>psGet(ym,x.s.id).paid);
-  else if(PF.pay==='unpaid') rows2=rows.filter(x=>!psGet(ym,x.s.id).paid);
-  else if(PF.pay==='alba') rows2=rows.filter(x=>adjOfStaff(x.s.name,ym).rows.length);
-  else if(PF.pay==='dup') rows2=rows.filter(x=>adjOfStaff(x.s.name,ym).dup);
-  rows=rows2;
+  if(PF.pay==='paid') rows=rows.filter(x=>psGet(ym,x.s.id).paid);
+  else if(PF.pay==='unpaid') rows=rows.filter(x=>!psGet(ym,x.s.id).paid);
+  else if(PF.pay==='alba') rows=rows.filter(x=>adjOfStaff(x.s.name,ym).rows.length);
+  else if(PF.pay==='dup') rows=rows.filter(x=>adjOfStaff(x.s.name,ym).dup);
   rows.sort((a,b)=>a.s.region.localeCompare(b.s.region)||a.s.name.localeCompare(b.s.name));
   const T=rows.reduce((a,x)=>({gross:a.gross+x.p.gross,ded:a.ded+x.p.dedTotal,net:a.net+x.p.net,
     emp:a.emp+x.p.empTotal,cost:a.cost+x.p.cost}),{gross:0,ded:0,net:0,emp:0,cost:0});
