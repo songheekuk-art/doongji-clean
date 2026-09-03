@@ -759,6 +759,11 @@ function patternDuty(name){
   const names={}; S.buildings.forEach(b=>names[gwanKeyOf(b)]=bldgLabel(b));
   return Object.entries(out).map(([key,set])=>({key, label:names[key]||key, dows:DAYS.filter(d=>set.has(d))}));
 }
+function shiftList(){ return F.shift? [F.shift] : ['주간','야간']; }
+function shiftUsed(b,ym,sh){
+  if(Object.keys(assignOf(b,sh,ym)).length) return true;
+  return monthDates(ym).some(d=>cellAt(b,sh,ym,d.date,d.dow).ov);
+}
 function schedSearch(v){ F.q=v; clearTimeout(schedTimer); schedTimer=setTimeout(renderSchedTable,140); }
 
 function renderSched(){
@@ -771,8 +776,10 @@ function renderSched(){
       <label class="f">보기<select onchange="F.mode=this.value;renderSchedTable()">
         <option ${F.mode==='월간'?'selected':''}>월간</option><option ${F.mode==='요일'?'selected':''}>요일</option></select></label>
       <label class="f">지점<select onchange="F.region=this.value;renderSched()">
+        <option value="" ${!F.region?'selected':''}>전체</option>
         ${S.regions.map(r=>`<option ${F.region===r?'selected':''}>${r}</option>`).join('')}</select></label>
       <label class="f">시간대<select onchange="F.shift=this.value;renderSchedTable()">
+        <option value="" ${!F.shift?'selected':''}>전체</option>
         <option ${F.shift==='주간'?'selected':''}>주간</option><option ${F.shift==='야간'?'selected':''}>야간</option></select></label>
       <label class="f">구분<select onchange="F.gubun=this.value;renderSchedTable()">
         <option value="">전체</option>${gubuns.map(g=>`<option ${F.gubun===g?'selected':''}>${g}</option>`).join('')}</select></label>
@@ -791,8 +798,8 @@ function filteredRows(ym){
   const q=F.q.trim().toLowerCase();
   let rows=S.buildings.filter(b=>(!F.region||b.region===F.region)&&(!F.gubun||b.gubun===F.gubun));
   if(q) rows=rows.filter(b=>{
-    const a=assignOf(b,F.shift,ym);
-    return [b.building,b.gwan,b.floor,b.addr,b.note,...Object.values(a)].join(' ').toLowerCase().includes(q);
+    const vals=shiftList().flatMap(sh=>Object.values(assignOf(b,sh,ym)));
+    return [b.building,b.gwan,b.floor,b.addr,b.note,...vals].join(' ').toLowerCase().includes(q);
   });
   return rows;
 }
@@ -815,22 +822,22 @@ function renderSchedTable(){
 
   let issues=0;
   if(F.mode==='월간'){
-    rows.forEach(b=>dates.forEach(d=>{ const {v}=cellAt(b,F.shift,ym,d.date,d.dow); if(issueOf(v,d.date,d.dow,ym)) issues++; }));
+    rows.forEach(b=>shiftList().forEach(sh=>dates.forEach(d=>{ const {v}=cellAt(b,sh,ym,d.date,d.dow); if(issueOf(v,d.date,d.dow,ym)) issues++; })));
   }else{
-    rows.forEach(b=>DAYS.forEach(d=>{ if(issueOf(assignOf(b,F.shift,ym)[d]||'',null,d,ym)) issues++; }));
+    rows.forEach(b=>shiftList().forEach(sh=>DAYS.forEach(d=>{ if(issueOf(assignOf(b,sh,ym)[d]||'',null,d,ym)) issues++; })));
   }
   if(F.onlyIssue){
-    rows=rows.filter(b=> F.mode==='월간'
-      ? dates.some(d=>{const {v}=cellAt(b,F.shift,ym,d.date,d.dow); return issueOf(v,d.date,d.dow,ym);})
-      : DAYS.some(d=>issueOf(assignOf(b,F.shift,ym)[d]||'',null,d,ym)));
+    rows=rows.filter(b=> shiftList().some(sh=> F.mode==='월간'
+      ? dates.some(d=>{const {v}=cellAt(b,sh,ym,d.date,d.dow); return issueOf(v,d.date,d.dow,ym);})
+      : DAYS.some(d=>issueOf(assignOf(b,sh,ym)[d]||'',null,d,ym))));
   }
-  const names=S.staff.filter(s=>statusOf(s)!=='퇴사'&&(!F.region||s.region===F.region)&&s.shift===F.shift).length;
+  const names=S.staff.filter(s=>statusOf(s)!=='퇴사'&&(!F.region||s.region===F.region)&&(!F.shift||s.shift===F.shift)).length;
   const ovCount=Object.keys(S.overrides||{}).filter(k=>k.startsWith(ym)).length;
 
   let html=`<div class="card pad noprint" style="margin-bottom:10px">
     <div class="row" style="justify-content:space-between">
       <div class="legend">
-        <span><b>${rows.length}</b>개 층·호실 · 배치 가능 인원 <b>${names}</b>명</span>
+        <span><b>${rows.length}</b>개 층·호실 · 배치 가능 인원 <b>${names}</b>명${!F.region?' · 전 지점':''}${!F.shift?' · 주야 전체':''}</span>
         ${F.mode==='월간'? `<span>${ym.replace('-','년 ')}월 1일~${dates.length}일</span>
           <span><span class="dot" style="background:var(--day)"></span>개별 변경 ${ovCount}건</span>`
           : `<span>요일 기본 패턴</span>`}
@@ -857,44 +864,58 @@ function renderSchedTable(){
   if(!rows.length){ wrap.innerHTML=html+`<div class="card"><div class="empty">조건에 맞는 층·호실이 없습니다.</div></div>`; return; }
 
   if(F.mode==='요일'){
+    const multi=shiftList().length>1;
     html+=`<div class="tw"><table class="sched"><thead><tr>
-      <th class="sticky" style="min-width:230px">건물 · 관 · 층</th><th class="num">면적</th><th>구분</th>
+      <th class="sticky" style="min-width:230px">건물 · 관 · 층</th>${multi?'<th>시간대</th>':''}<th class="num">면적</th><th>구분</th>
       ${DAYS.map(d=>`<th style="text-align:center">${d}<div class="tiny muted" style="font-weight:400">${cnt[d]}회</div></th>`).join('')}
       <th>특이사항</th></tr></thead><tbody>`;
     let last='';
     rows.forEach(b=>{
+      const shs=shiftList().filter(sh=>!multi||shiftUsed(b,ym,sh));
+      if(!shs.length) return;
       const key=b.building+'|'+b.gwan;
-      if(key!==last){ last=key; html+=grpRow(b,DAYS.length+4); }
-      const a=assignOf(b,F.shift,ym);
-      html+=`<tr>${headCells(b)}
-        ${DAYS.map(d=>{
-          const v=a[d]||'', iss=issueOf(v,null,d,ym);
-          return cellTd(b.id,'dow',d,v,iss,(d==='토'||d==='일'),false);
-        }).join('')}
-        <td class="tiny muted">${esc(b.note||'')}</td></tr>`;
+      if(key!==last){ last=key; html+=grpRow(b,DAYS.length+4+(multi?1:0)); }
+      shs.forEach((sh,n)=>{
+        const a=assignOf(b,sh,ym);
+        html+=`<tr>${n===0?headCells(b,false,shs.length):''}
+          ${multi?`<td><span class="pill ${sh==='주간'?'day':'night'}">${sh}</span></td>`:''}
+          ${n===0?'':''}
+          ${DAYS.map(d=>{
+            const v=a[d]||'', iss=issueOf(v,null,d,ym);
+            return cellTd(b.id,'dow',d,v,iss,(d==='토'||d==='일'),false,sh);
+          }).join('')}
+          ${n===0?`<td class="tiny muted" rowspan="${shs.length}">${esc(b.note||'')}</td>`:''}</tr>`;
+      });
     });
     html+=`</tbody></table></div>`;
   }else{
     const tot={}; dates.forEach(d=>tot[d.date]=0);
+    const multi=shiftList().length>1;
     html+=`<div class="tw"><table class="sched month"><thead><tr>
-      <th class="sticky" style="min-width:210px">건물 · 관 · 층</th>
+      <th class="sticky" style="min-width:210px">건물 · 관 · 층</th>${multi?'<th>시간대</th>':''}
       ${dates.map(d=>`<th class="${d.dow==='일'?'sun':(d.dow==='토'?'sat':'')}" style="text-align:center">
         ${Number(d.date.slice(8))}<div class="tiny" style="font-weight:400">${d.dow}</div></th>`).join('')}
       <th class="num">일수</th></tr></thead><tbody>`;
     let last='';
     rows.forEach(b=>{
+      const shs=shiftList().filter(sh=>!multi||shiftUsed(b,ym,sh));
+      if(!shs.length) return;
       const key=b.building+'|'+b.gwan;
-      if(key!==last){ last=key; html+=grpRow(b,dates.length+2); }
-      let days=0;
-      const cells=dates.map(d=>{
-        const {v,ov}=cellAt(b,F.shift,ym,d.date,d.dow);
-        const iss=issueOf(v,d.date,d.dow,ym);
-        if(v&&!iss&&v!==SPOT_OFF){ days++; tot[d.date]++; }
-        return cellTd(b.id,'date',d.date,v,iss,(d.dow==='토'||d.dow==='일'),ov);
-      }).join('');
-      html+=`<tr>${headCells(b,true)}${cells}<td class="num">${days}</td></tr>`;
+      if(key!==last){ last=key; html+=grpRow(b,dates.length+2+(multi?1:0)); }
+      shs.forEach((sh,n)=>{
+        let days=0;
+        const cells=dates.map(d=>{
+          const {v,ov}=cellAt(b,sh,ym,d.date,d.dow);
+          const iss=issueOf(v,d.date,d.dow,ym);
+          if(v&&!iss&&v!==SPOT_OFF){ days++; tot[d.date]++; }
+          return cellTd(b.id,'date',d.date,v,iss,(d.dow==='토'||d.dow==='일'),ov,sh);
+        }).join('');
+        html+=`<tr>${n===0?headCells(b,true,shs.length):''}
+          ${multi?`<td><span class="pill ${sh==='주간'?'day':'night'}">${sh}</span></td>`:''}
+          ${cells}<td class="num">${days}</td></tr>`;
+      });
     });
-    html+=`<tr class="grp"><td class="sticky" style="background:#F1F0EA">일자별 투입 건수</td>
+    html+=`<tr class="grp"><td class="sticky" style="background:#F1F0EA">일자별 투입 건수</td>${multi?'<td></td>':''}
       ${dates.map(d=>`<td style="text-align:center">${tot[d.date]||''}</td>`).join('')}
       <td class="num">${Object.values(tot).reduce((a,b)=>a+b,0)}</td></tr>`;
     html+=`</tbody></table></div>`;
@@ -902,7 +923,7 @@ function renderSchedTable(){
     /* 담당자별 근무일수 */
     const idx=monthIndex(ym);
     const people=Object.keys(idx).filter(n=>{
-      const s=staffByName(n); return s && (!F.region||s.region===F.region) && s.shift===F.shift;
+      const s=staffByName(n); return s && (!F.region||s.region===F.region) && (!F.shift||s.shift===F.shift);
     }).sort();
     html+=`<div class="card pad" style="margin-top:14px">
       <div class="sechead"><h2>담당자별 ${ym} 근무일수</h2><span class="hint">배치표에 실제로 들어간 날 기준 · 청구 대조용</span></div>
@@ -911,7 +932,7 @@ function renderSchedTable(){
         </tr></thead><tbody>${people.map(n=>{
           const s=staffByName(n), a=idx[n].size, p=calcPay(s,ym);
           const diff=a-p.totalInMonthActive;
-          const where=S.buildings.filter(b=>dates.some(d=>cellAt(b,F.shift,ym,d.date,d.dow).v===n))
+          const where=S.buildings.filter(b=>shiftList().some(sh=>dates.some(d=>cellAt(b,sh,ym,d.date,d.dow).v===n)))
             .map(b=>bldgLabel(b)+' '+b.floor);
           return `<tr><td><b>${esc(n)}</b></td>
             <td><span class="pill ${s.emp==='4대보험'?'b4':'b33'}">${s.emp}</span></td>
@@ -925,21 +946,22 @@ function renderSchedTable(){
   wrap.innerHTML=html;
 }
 function grpRow(b,span){
-  return `<tr class="grp"><td colspan="${span}"><span class="gl">${esc(bldgLabel(b))}
+  return `<tr class="grp"><td colspan="${span}"><span class="gl">${!F.region?`<span class="tiny" style="color:#7A7A72">${esc(b.region)} · </span>`:''}${esc(bldgLabel(b))}
     <span class="tiny" style="font-weight:400;color:#7A7A72">${esc(b.addr)}${b.area?' · '+won(b.area)+'평':''}</span></span></td></tr>`;
 }
-function headCells(b,compact){
-  const t=`<td class="sticky">
+function headCells(b,compact,span){
+  const rs=span&&span>1? ` rowspan="${span}"`:'';
+  const t=`<td class="sticky"${rs}>
     <span class="fl" onclick="editBuilding('${b.id}')" title="누르면 층 정보 수정·삭제">
       <span class="tiny muted">${esc(b.gwan)}</span> ${esc(b.floor||'(층 미입력)')}</span>
     <button class="btn sm noprint fx" onclick="editBuilding('${b.id}')">⋯</button></td>`;
-  return compact? t : t+`<td class="num">${b.area?won(b.area):''}</td><td class="tiny muted">${esc(b.gubun)}</td>`;
+  return compact? t : t+`<td class="num"${rs}>${b.area?won(b.area):''}</td><td class="tiny muted"${rs}>${esc(b.gubun)}</td>`;
 }
-function cellTd(bid,mode,key,v,iss,weekend,ov){
+function cellTd(bid,mode,key,v,iss,weekend,ov,sh){
   const isVend=v&&vendorByName(v), known=v&&staffByName(v);
   const cls=['cell', v?'has':'empty', weekend?'weekend':'', ov?'ovr':'',
              v===SPOT_OFF?'offday':(iss?'bad':(isVend?'vend':((v&&!known)?'direct':'')))].join(' ');
-  return `<td class="${cls}" data-id="${bid}" data-mode="${mode}" data-k="${key}"
+  return `<td class="${cls}" data-id="${bid}" data-mode="${mode}" data-k="${key}" data-sh="${sh||F.shift||'야간'}"
     title="${iss?esc(v)+' — '+iss:''}" onclick="editCell(this)">${v?esc(v):'·'}${iss?`<div class="tiny" style="font-weight:400">${iss}</div>`:''}</td>`;
 }
 
@@ -997,12 +1019,13 @@ function editCell(td){
   const ym=S.payMonth;
   if(snapOf(ym)){ toast('저장본은 수정할 수 없습니다'); return; }
   const b=S.buildings.find(x=>x.id===td.dataset.id), mode=td.dataset.mode, k=td.dataset.k;
+  const SH=td.dataset.sh||F.shift||'야간';
   const dow = mode==='dow'? k : DAYS[(new Date(k).getDay()+6)%7];
-  const cur = mode==='dow' ? ((b.assign[F.shift]||{})[k]||'') : cellAt(b,F.shift,ym,k,dow).v;
+  const cur = mode==='dow' ? ((b.assign[SH]||{})[k]||'') : cellAt(b,SH,ym,k,dow).v;
 
   const items=[];
   if(mode==='date'){
-    const base=(b.assign[F.shift]||{})[dow]||'';
+    const base=(b.assign[SH]||{})[dow]||'';
     items.push({group:'',label:'원래대로 (요일 패턴)',value:'__RESET__',hint:base||'없음'});
     items.push({group:'공석 처리',label:'휴무 · 미투입',value:SPOT_OFF,hint:'급여 제외'});
     items.push({group:'공석 처리',label:'직수행',value:'직수행',hint:'내부 처리'});
@@ -1016,7 +1039,7 @@ function editCell(td){
     items.push({group:'',label:'— 미배정 —',value:''});
     items.push({group:'',label:'직수행',value:'직수행'});
     (S.vendors||[]).forEach(v=>items.push({group:'도급업체',label:v.name,value:v.name}));
-    S.staff.filter(s=>statusOf(s)!=='퇴사'&&s.shift===F.shift&&s.empType!=='당일'&&activeInMonth(s,ym))
+    S.staff.filter(s=>statusOf(s)!=='퇴사'&&s.shift===SH&&s.empType!=='당일'&&activeInMonth(s,ym))
       .sort((a,c)=>(a.region===F.region?0:1)-(c.region===F.region?0:1)||a.name.localeCompare(c.name))
       .forEach(s=>items.push({group:'직영 담당자',label:s.name,value:s.name,
         hint:[s.region!==F.region?s.region:'', (s.workDays||[]).includes(dow)?'':dow+' 휴무'].filter(Boolean).join(' · ')}));
@@ -1025,13 +1048,13 @@ function editCell(td){
 
   td.classList.add('editing');
   openPicker(td, items, cur, v=>{
-    if(v==='__NEW__'){ newSpotWorker(b.id,F.shift,k); return; }
+    if(v==='__NEW__'){ newSpotWorker(b.id,SH,k); return; }
     if(mode==='dow'){
-      if(!b.assign[F.shift]) b.assign[F.shift]={};
-      if(v && v!=='__RESET__') b.assign[F.shift][k]=v; else delete b.assign[F.shift][k];
+      if(!b.assign[SH]) b.assign[SH]={};
+      if(v && v!=='__RESET__') b.assign[SH][k]=v; else delete b.assign[SH][k];
     }else{
       S.overrides=S.overrides||{}; S.manualOv=S.manualOv||{};
-      const key=ovKey(k,b.id,F.shift);
+      const key=ovKey(k,b.id,SH);
       if(v==='__RESET__'){ delete S.overrides[key]; delete S.manualOv[key]; delete (S.dutyOv||{})[key]; }
       else { S.overrides[key]=v; S.manualOv[key]=1; delete (S.dutyOv||{})[key]; }
     }
@@ -2544,13 +2567,13 @@ function csv(rows){ return rows.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'
 function exportSchedCSV(){
   const rows=[['지점','구분','건물명','관명','층/호실','면적','시간대',...DAYS,'특이사항']];
   S.buildings.filter(b=>!F.region||b.region===F.region).forEach(b=>{
-    ['주간','야간'].forEach(sh=>{
+    shiftList().forEach(sh=>{
       const a=(b.assign&&b.assign[sh])||{};
       if(!Object.keys(a).length) return;
       rows.push([b.region,b.gubun,b.building,b.gwan,b.floor,b.area,sh,...DAYS.map(d=>a[d]||''),b.note||'']);
     });
   });
-  dl(`근무배치_${F.region||'전체'}.csv`,csv(rows),'text/csv'); toast('CSV를 저장했습니다');
+  dl(`근무배치_${F.region||'전지점'}_${F.shift||'주야'}.csv`,csv(rows),'text/csv'); toast('CSV를 저장했습니다');
 }
 function exportStaffCSV(){
   const rows=[['이름','실지급대상','연락처','지점','소속','근무구분','시간대','고용형태','상태','입사일','퇴사일',
