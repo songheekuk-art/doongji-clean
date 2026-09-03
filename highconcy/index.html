@@ -2581,7 +2581,7 @@ function copySQL(){
 }
 
 /* ============ 6. 정산마감 ============ */
-let AF={kind:'', q:'', chk:''};
+let AF={kind:'', q:'', chk:'', paid:''};
 function adjOf(ym){ const a=(S.adjust||{})[ym]; return a? a : {rows:[],misc:[]}; }
 function adjRows(ym){ return adjOf(ym).rows||[]; }
 function adjNet(r){ return Math.max(0,(Number(r.gross)||0)-(Number(r.exclAmount)||0)); }
@@ -2603,6 +2603,8 @@ function adjTotals(ym){
     excl:rows.reduce((a,r)=>a+(Number(r.exclAmount)||0),0),
     exclN:rows.filter(r=>Number(r.exclAmount)>0).length,
     unpaid:rows.filter(r=>!r.paid).reduce((a,r)=>a+adjNet(r),0),
+    paidSum:rows.filter(r=>r.paid).reduce((a,r)=>a+adjNet(r),0),
+    paidN:rows.filter(r=>r.paid).length, unpaidN:rows.filter(r=>!r.paid).length,
     total:sum(rows)
   };
 }
@@ -2653,6 +2655,8 @@ function renderSettle(){
   <div class="kpis">
     ${kpi('대시보드 급여 원가',won(payroll),`재직 ${act.length}명 · 지급 ${won(payrollNet)}`)}
     ${kpi('당일 지급건',won(T.total),`${adjRows(ym).length}건 · ${new Set(adjRows(ym).map(r=>r.name)).size}명`)}
+    ${kpi('지급 완료',won(T.paidSum),`${T.paidN}건`)}
+    ${kpi('미지급',won(T.unpaid),`${T.unpaidN}건`)}
     ${kpi('도급비',won(vend),`${(S.vendors||[]).length}개 업체`)}
     ${(()=>{ const d=adjRows(ym).filter(r=>{const c=adjCheck(r,ym); return c.perm&&(c.state==='dup'||c.state==='partial');});
       return kpi('중복 의심',won(d.reduce((a,r)=>a+adjNet(r),0)),`${d.length}건 · 사유 확인 필요`); })()}
@@ -2702,9 +2706,14 @@ function renderSettle(){
       <option value="perm" ${AF.chk==='perm'?'selected':''}>상시 재직자 지급건</option>
       <option value="none" ${AF.chk==='none'?'selected':''}>일수 미기재</option>
       <option value="ok" ${AF.chk==='ok'?'selected':''}>정상</option></select></label>
+    <label class="f">지급 여부<select onchange="AF.paid=this.value;renderSettle()">
+      <option value="">전체</option>
+      <option value="unpaid" ${AF.paid==='unpaid'?'selected':''}>미지급만</option>
+      <option value="paid" ${AF.paid==='paid'?'selected':''}>지급완료만</option></select></label>
     <label class="f grow">이름 · 비고 검색<input value="${esc(AF.q)}" oninput="AF.q=this.value;clearTimeout(window._at);window._at=setTimeout(renderSettle,160)"></label>
-    <button class="btn" onclick="adjAdd(false)">+ 상시 인원 추가</button>
-    <button class="btn pri" onclick="adjAdd(true)">+ 당일 근무자 추가</button>
+    <button class="btn" onclick="adjPayAll(true)">보이는 건 지급완료</button>
+    <button class="btn" onclick="adjPayAll(false)">보이는 건 미지급</button>
+    <button class="btn pri" onclick="adjAdd(true)">+ 지급건 추가</button>
   </div></div>
 
   <div class="sechead" style="margin:16px 0 8px"><h2>당일 지급건</h2>
@@ -2715,6 +2724,7 @@ function adjTable(ym, daily){
   let rows=adjRows(ym).slice();
   const q=AF.q.trim();
   if(q) rows=rows.filter(r=>(r.name+' '+(r.alias||'')+' '+(r.note||'')).includes(q));
+  if(AF.paid) rows=rows.filter(r=>AF.paid==='paid'? r.paid : !r.paid);
   if(AF.chk) rows=rows.filter(r=>{
     const c=adjCheck(r,ym);
     if(AF.chk==='dup') return c.perm && (c.state==='dup'||c.state==='partial');
@@ -2749,7 +2759,9 @@ function adjTable(ym, daily){
         <td class="num"><input type="number" value="${r.exclAmount||0}" onchange="adjSet(${i},'exclAmount',Number(this.value))"
           style="border:1px solid var(--line);border-radius:5px;padding:3px 6px;font-size:11.5px;width:100px;text-align:right"></td>
         <td class="num"><b>${won(adjNet(r))}</b></td>
-        <td><span class="chip ${r.paid?'on':''}" onclick="adjToggle(${i},'paid')">${r.paid?'완료':'미지급'}</span></td>
+        <td><span class="chip ${r.paid?'on':''}" onclick="adjToggle(${i},'paid')"
+          style="${r.paid?'':'color:#B3452F;border-color:#E3C6BD;background:#FBEDE7'}">${r.paid?'지급완료':'미지급'}</span>
+          ${r.net?`<div class="tiny muted">실 ${won(r.net)}</div>`:''}</td>
         <td class="tiny muted">${r.days&&r.days.length? r.days.join(', ')+'일' : '—'}</td>
         <td>${badge}${(c.perm&&c.filled.length)?`<div class="tiny" style="color:#B3452F">${c.filled.join(',')}일 정규배치</div>`:''}
           ${(!c.perm&&c.empty.length)?`<div class="tiny muted">${c.empty.join(',')}일 배치 없음</div>`:''}</td>
@@ -2761,7 +2773,8 @@ function adjTable(ym, daily){
       <td class="num">${won(rows.reduce((a,r)=>a+(Number(r.gross)||0),0))}</td>
       <td class="num">${won(rows.reduce((a,r)=>a+(Number(r.exclAmount)||0),0))}</td>
       <td class="num">${won(rows.reduce((a,r)=>a+adjNet(r),0))}</td>
-      <td colspan="5"></td></tr>
+      <td>미지급 ${won(rows.filter(r=>!r.paid).reduce((a,r)=>a+adjNet(r),0))}</td>
+      <td colspan="4"></td></tr>
   </tbody></table></div>
   <div class="tiny muted" style="margin-top:7px">${daily
     ? '<b>배치 대조</b> — 당일 근무자는 재직자 대타로 들어가므로 배치표에 이름이 있는 것이 정상입니다. 배치 기록이 없는 날은 근무배치 탭에서 채워 주세요.'
@@ -2776,6 +2789,23 @@ function adjAdd(daily){
   a.rows.push({id:uid('A'),kind:daily?'미등록':'등록',daily:!!daily,name:'',alias:'',cnt:1,gross:0,net:0,paid:false,
     region:'',shift:'',gwan:'',empType:daily?'당일':'상시',phone:'',leave:'',note:'',days:[],exclAmount:0});
   save(); adjEdit(a.rows.length-1);
+}
+function adjPayAll(v){
+  const ym=S.payMonth, all=adjEnsure(ym).rows;
+  const q=AF.q.trim();
+  const target=all.filter(r=>{
+    if(q && !(r.name+' '+(r.alias||'')+' '+(r.note||'')).includes(q)) return false;
+    if(AF.paid && (AF.paid==='paid') !== !!r.paid) return false;
+    if(AF.chk){ const c=adjCheck(r,ym);
+      if(AF.chk==='dup') return c.perm&&(c.state==='dup'||c.state==='partial');
+      if(AF.chk==='perm') return !!c.perm;
+      return c.state===AF.chk; }
+    return true;
+  }).filter(r=>!!r.paid!==v);
+  if(!target.length){ toast('바꿀 항목이 없습니다'); return; }
+  if(!confirm(`현재 조건에 보이는 ${target.length}건을 ${v?'지급완료':'미지급'}으로 바꿉니다. 계속할까요?`)) return;
+  target.forEach(r=>r.paid=v);
+  save(); pushNow(); toast(`${target.length}건 처리했습니다`); renderSettle();
 }
 function adjMove(i){
   const r=adjEnsure(S.payMonth).rows[i];
