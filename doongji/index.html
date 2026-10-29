@@ -380,7 +380,10 @@
     <div class="section">
       <div class="section-header">
         <div class="section-title">건물 관리</div>
-        <button class="btn btn-primary btn-sm" onclick="openBuildingModal()">+ 건물 추가</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" id="importBtn" onclick="importPreloadedBuildings()">📥 엑셀 건물 일괄 등록</button>
+          <button class="btn btn-primary btn-sm" onclick="openBuildingModal()">+ 건물 추가</button>
+        </div>
       </div>
       <div class="section-body">
         <table>
@@ -711,7 +714,1855 @@ async function sbDelete(table, id) {
 let useLocal = false;
 
 // ==================== PRELOADED DATA ====================
-const PRELOADED_BUILDINGS = [];
+const PRELOADED_BUILDINGS = [
+ {
+  "name": "청담빌딩",
+  "address": "서울시 강남구 도산대로 81길 41",
+  "address_base": "서울시 강남구 도산대로 81길 41",
+  "address_detail": "",
+  "contract_amount": 150000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 1회\n투입일: 수 / 야간\n청소 범위: 공용부: 로비·출입구(현관매트 포함), 복도·계단(B1~6층), 화장실(3층만), 승강기, 건물 주변 쓰레기/꽁초 수거, ※ 분리수거 해당 없음 / 비품 사용 없음\n용역업체 납부 ₩150,000 / 건물주 청구 ₩150,000\n비고: 현관: 자체 카드키 사용 · 3층 화장실 비번 없음\n영업담당: 함형수 · 최초계약일: 2022-11-01",
+  "cleaning_days": [
+   "wed"
+  ]
+ },
+ {
+  "name": "봉주르하우스",
+  "address": "서울시 노원구 공릉로 225",
+  "address_base": "서울시 노원구 공릉로 225",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "노원구",
+  "memo": "업체: 여사님 · 건물주 직계약 · 투입: 주 1회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2022-11-14",
+  "cleaning_days": []
+ },
+ {
+  "name": "크라운빌딩",
+  "address": "서울시 서초구 반포대로 22길 104",
+  "address_base": "서울시 서초구 반포대로 22길 104",
+  "address_detail": "",
+  "contract_amount": 1000000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 향인클린 · 둥지 계약\n용역업체 납부 ₩1,000,000 / 건물주 청구 ₩1,000,000\n영업담당: 함형수 · 최초계약일: 2022-12-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "국제빌딩",
+  "address": "서울시 강남구 논현로 828",
+  "address_base": "서울시 강남구 논현로 828",
+  "address_detail": "",
+  "contract_amount": 1400000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 5회\n투입일: 월, 화, 수, 목, 금 / 야간\n청소 범위: [공용부] 로비·출입구(현관매트 포함), 비상계단(1~6층 주 1회 / 7~9층 월 2회), 화장실, 승강기\n※ 분리수거·실외/주차장 해당 없음\n[전용부-6층 국제자산운용] 바닥, 출입문/유리, 현관매트, 분리수거·쓰레기통(봉투 교체·세척), 데스크/가구, 전용 화장실(남: 소변기 3·좌변기 3 / 여: 좌변기 2), 탕비실 씽크대·회의실 탁자\n용역업체 납부 ₩1,400,000 / 건물주 청구 ₩1,400,000\n비고: 출입: 후문 사용 · 비품: 관리사무소 관리(전용부는 둥지 요청) · 비품창고: 1층 창고 · 쓰레기 배출: 후문 주차장 분리수거장\n영업담당: 김하솜 · 최초계약일: 2023-01-01",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "필로미",
+  "address": "서울시 성동구 연무장3길 9-8",
+  "address_base": "서울시 성동구 연무장3길 9-8",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "성동구",
+  "memo": "업체: 업체 · 투입: 주 4회\n영업담당: 김하솜 · 최초계약일: 2023-01-16",
+  "cleaning_days": []
+ },
+ {
+  "name": "쇼파르애비뉴",
+  "address": "서울시 마포구 월드컵북로4길 43",
+  "address_base": "서울시 마포구 월드컵북로4길 43",
+  "address_detail": "",
+  "contract_amount": 1500000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "마포구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 야간\n청소 범위: 공용부: 로비·출입문, 복도·계단(B1~6층), 승강기, 건물 주변·주차장 쓰레기/꽁초 수거, 외부계단(2층~B1) 및 주차장 장애인주차구역 쓸기·물걸레\n※ 화장실·분리수거·현관매트 없음\n용역업체 납부 ₩1,000,000 / 건물주 청구 ₩1,500,000\n비고: 건물 앞 카페·화단 쓰레기/꽁초 수거 · 청소도구/수도: 주차장 쪽 창고 · 쓰레기 배출: 주차장 맞은편\n영업담당: 김하솜 · 최초계약일: 2023-02-06",
+  "cleaning_days": [
+   "mon",
+   "wed",
+   "fri"
+  ]
+ },
+ {
+  "name": "테라빌딩",
+  "address": "서울시 마포구 어울마당로 44",
+  "address_base": "서울시 마포구 어울마당로 44",
+  "address_detail": "",
+  "contract_amount": 480000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "마포구",
+  "memo": "업체: 꼼꼼한 종합클린 · 둥지 계약 · 투입: 주 1회\n투입일: 수 / 야간\n청소 범위: 공용부 전체 (계단, 복도, 창틀, 화장실, 승강기, 난간, 출입문, 출입구 주변, 주차장, 분리수거장 정리 등)\n용역업체 납부 ₩480,000 / 건물주 청구 ₩480,000\n영업담당: 김하솜 · 최초계약일: 2023-02-27 · 미화팀 투입일: 2026-11-01",
+  "cleaning_days": [
+   "wed"
+  ]
+ },
+ {
+  "name": "신라빌딩",
+  "address": "서울시 광진구 아차산로 361",
+  "address_base": "서울시 광진구 아차산로 361",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "광진구",
+  "memo": "업체: 업체 · 건물주 직계약 · 투입: 주 5회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2023-03-24",
+  "cleaning_days": []
+ },
+ {
+  "name": "규영빌딩",
+  "address": "서울시 송파구 석촌호수로 118",
+  "address_base": "서울시 송파구 석촌호수로 118",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "송파구",
+  "memo": "업체: 여사님 · 건물주 직계약 · 투입: 주 6회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2023-03-27",
+  "cleaning_days": []
+ },
+ {
+  "name": "숲길빌딩",
+  "address": "서울시 마포구 백범로10길 26",
+  "address_base": "서울시 마포구 백범로10길 26",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "마포구",
+  "memo": "업체: 업체 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2023-04-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "SJ애비뉴",
+  "address": "서울시 광진구 뚝섬로 590",
+  "address_base": "서울시 광진구 뚝섬로 590",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "광진구",
+  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2023-04-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "리버파크빌라",
+  "address": "서울시 영등포구 국회대로 651-8",
+  "address_base": "서울시 영등포구 국회대로 651-8",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "영등포구",
+  "memo": "업체: 업체 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2023-04-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "하우스앤드성수",
+  "address": "서울시 성동구 성수동2가 284-98",
+  "address_base": "서울시 성동구 성수동2가 284-98",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "성동구",
+  "memo": "업체: 업체\n최초계약일: 2023-04-20",
+  "cleaning_days": []
+ },
+ {
+  "name": "잠뱅이빌딩",
+  "address": "서울시 송파구 양재대로71길 1-18",
+  "address_base": "서울시 송파구 양재대로71길 1-18",
+  "address_detail": "",
+  "contract_amount": 1700000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "송파구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 5회\n투입일: 월~금 / 상주 청소\n청소 범위: 전용부·공용부 (1·3층 전용부 제외)\n용역업체 납부 ₩1,600,000 / 건물주 청구 ₩1,700,000\n영업담당: 김하솜 · 최초계약일: 2023-05-01",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "삼성사원아파트",
+  "address": "서울시 강남구 개포로124길 27",
+  "address_base": "서울시 강남구 개포로124길 27",
+  "address_detail": "",
+  "contract_amount": 800000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 조율 가능\n청소 범위: 공용부\n용역업체 납부 ₩800,000 / 건물주 청구 ₩800,000\n영업담당: 김하솜 · 최초계약일: 2023-05-08",
+  "cleaning_days": [
+   "mon",
+   "wed",
+   "fri"
+  ]
+ },
+ {
+  "name": "온스퀘어",
+  "address": "서울시 영등포구 양평로 144",
+  "address_base": "서울시 영등포구 양평로 144",
+  "address_detail": "",
+  "contract_amount": 400000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "영등포구",
+  "memo": "업체: 업체 · 둥지 계약 · 투입: 주 1회\n용역업체 납부 ₩400,000 / 건물주 청구 ₩400,000\n영업담당: 김하솜 · 최초계약일: 2023-05-08",
+  "cleaning_days": []
+ },
+ {
+  "name": "동인빌딩",
+  "address": "서울시 강남구 선릉로 131길 18",
+  "address_base": "서울시 강남구 선릉로 131길 18",
+  "address_detail": "",
+  "contract_amount": 600000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 오전 6~12시 사이\n청소 범위: 공용부: 로비·출입구(현관매트 포함), 복도·계단(B1~6층), 화장실, 승강기, 건물 주변 쓰레기/꽁초 수거, ※ 휴지통·비품 보충, 분리수거 해당 없음\n용역업체 납부 ₩500,000 / 건물주 청구 ₩600,000\n영업담당: 김하솜 · 최초계약일: 2023-05-15 · 미화팀 투입일: 2026-11-01",
+  "cleaning_days": [
+   "mon",
+   "wed",
+   "fri"
+  ]
+ },
+ {
+  "name": "공명빌딩",
+  "address": "서울시 마포구 서교동 402-19",
+  "address_base": "서울시 마포구 서교동 402-19",
+  "address_detail": "",
+  "contract_amount": 170000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "마포구",
+  "memo": "둥지 계약 · 투입: 2주 1회\n투입일: 조율 가능\n청소 범위: 공용부 전체\n용역업체 납부 ₩120,000 / 건물주 청구 ₩170,000\n영업담당: 김하솜 · 최초계약일: 2023-05-22 · 미화팀 투입일: 2026-11-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "닷웨이브",
+  "address": "서울시 양천구 은행정로 54",
+  "address_base": "서울시 양천구 은행정로 54",
+  "address_detail": "",
+  "contract_amount": 520000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "양천구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 공용부 주 5회,\n전용부 주 3회\n투입일: 월, 화, 수, 목, 금\n월, 수, 금\n새벽 (당일 04시~)\n청소 범위: [공용부] 로비·출입구·안내데스크(현관매트 포함), 복도·계단(B1~5층), 화장실(B1·1층 총 4개, 환기구 포함), 승강기, 분리수거·쓰레기통, 건물 주변·주차장\n[전용부] B1층·2층·1층 외부사무실 바닥/쓰레기, 2층 외부 화장실(남/녀 각 1), 탕비실(씽크대·정수기), 2층 베란다 테이블·의자\n※ 운영: 월·수·금 B1·1·2층 공유오피스 바닥청소 / 월~금 사무실·화장실·쓰레기 배출 / 화·목 전층 공용부(복도·계단·출입구·주차장·승강기)\n용역업체 납부 ₩520,000 / 건물주 청구 ₩520,000\n비고: 214호: 출입 제한 요청 – 내부청소 없이 문 밖 쓰레기통만 비움(25.12.02 요청) · 비품: 둥지 플랫폼 신청 · 쓰레기 배출: 주차장 나가서 오른쪽 화단 앞\n영업담당: 김하솜 · 최초계약일: 2023-05-30",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "실란트로타워",
+  "address": "서울시 서초구 사평대로55길 37",
+  "address_base": "서울시 서초구 사평대로55길 37",
+  "address_detail": "",
+  "contract_amount": 335000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 1회\n투입일: 월 / 야간\n청소 범위: 공용부\n용역업체 납부 ₩335,000 / 건물주 청구 ₩335,000\n영업담당: 함형수 · 최초계약일: 2023-06-05",
+  "cleaning_days": [
+   "mon"
+  ]
+ },
+ {
+  "name": "그레이스빌딩(L)",
+  "address": "서울시 강남구 논현로81길 11",
+  "address_base": "서울시 강남구 논현로81길 11",
+  "address_detail": "",
+  "contract_amount": 3900000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 5회 (1층 상주)\n투입일: 월~금 / 09시 이전 청소 + 09시 이후 점검\n청소 범위: [09시 이전] 대표실, 사무실 바닥, 공용테이블, 유리·창틀, 화장실, 복도·계단·승강기, 쓰레기 분리배출 및 개인휴지통, 탕비실·커피머신, 출입구·주차장\n[09시 이후 점검] 화장실, 회의실, 쓰레기통, 탕비실·커피머신\n※ 소모품 상시 확인 및 교체\n용역업체 납부 ₩3,900,000 / 건물주 청구 ₩3,900,000\n영업담당: 함형수 · 최초계약일: 2023-06-26",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "숲빌딩",
+  "address": "서울시 중구 퇴계로14길 15",
+  "address_base": "서울시 중구 퇴계로14길 15",
+  "address_detail": "",
+  "contract_amount": 800000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "중구",
+  "memo": "건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩800,000\n영업담당: 김하솜 · 최초계약일: 2023-07-17",
+  "cleaning_days": []
+ },
+ {
+  "name": "서초제일빌딩",
+  "address": "서울시 서초구 사임당로 46",
+  "address_base": "서울시 서초구 사임당로 46",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 청소하는호랑이 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2023-07-17",
+  "cleaning_days": []
+ },
+ {
+  "name": "양지빌딩",
+  "address": "서울시 송파구 백제고분로 197",
+  "address_base": "서울시 송파구 백제고분로 197",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "송파구",
+  "memo": "업체: 한국크린청소 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2023-07-17",
+  "cleaning_days": []
+ },
+ {
+  "name": "제이오빌딩",
+  "address": "경기 성남시 수정구 산성대로 75",
+  "address_base": "경기 성남시 수정구 산성대로 75",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "수정구",
+  "memo": "건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2023-07-24",
+  "cleaning_days": []
+ },
+ {
+  "name": "해솜빌딩",
+  "address": "서울시 성동구 상원4길 11",
+  "address_base": "서울시 성동구 상원4길 11",
+  "address_detail": "",
+  "contract_amount": 600000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "성동구",
+  "memo": "업체: 대박클린(관계성) · 둥지 계약 · 투입: 주 5회\n용역업체 납부 ₩600,000 / 건물주 청구 ₩600,000\n영업담당: 김하솜 · 최초계약일: 2023-07-31",
+  "cleaning_days": []
+ },
+ {
+  "name": "코스모타워",
+  "address": "서울 중구 광희동2가 37",
+  "address_base": "서울 중구 광희동2가 37",
+  "address_detail": "",
+  "contract_amount": 1200000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "중구",
+  "memo": "업체: 정기클린 · 둥지 계약\n용역업체 납부 ₩1,200,000 / 건물주 청구 ₩1,200,000\n비고: 청소 정보 없음\n영업담당: 김하솜 · 최초계약일: 2023-07-31",
+  "cleaning_days": []
+ },
+ {
+  "name": "S&J빌딩",
+  "address": "서울시 강남구 영동대로106길 9",
+  "address_base": "서울시 강남구 영동대로106길 9",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 함형수 · 최초계약일: 2023-08-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "수안빌딩",
+  "address": "서울시 관악구 남부순환로 1831",
+  "address_base": "서울시 관악구 남부순환로 1831",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "관악구",
+  "memo": "업체: 빛나는환경 · 건물주 직계약 · 투입: 주 7일(1일 2회)\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2023-08-16",
+  "cleaning_days": []
+ },
+ {
+  "name": "홍영빌딩",
+  "address": "서울시 마포구 어울마당로 46",
+  "address_base": "서울시 마포구 어울마당로 46",
+  "address_detail": "",
+  "contract_amount": 350000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "마포구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 2회\n투입일: 월, 목 / 야간\n청소 범위: 공용부: 로비·출입문, 계단(1~5층), 화장실(2층 남/녀 총 2개, 환기구 포함), 건물 주변·주차장 쓰레기/꽁초 수거, ※ 승강기 해당 없음\n용역업체 납부 ₩300,000 / 건물주 청구 ₩350,000\n비고: 주차장 담배꽁초 중점 관리\n영업담당: 김하솜 · 최초계약일: 2023-08-21 · 미화팀 투입일: 2026-11-01",
+  "cleaning_days": [
+   "mon",
+   "thu"
+  ]
+ },
+ {
+  "name": "용성빌딩",
+  "address": "서울시 강동구 진황도로 190",
+  "address_base": "서울시 강동구 진황도로 190",
+  "address_detail": "",
+  "contract_amount": 1850000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강동구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 5회 (오전·오후 각 1회)\n투입일: 월~금 / 오전 / 오후 2회 투입\n청소 범위: 공용부\n용역업체 납부 ₩1,700,000 / 건물주 청구 ₩1,850,000\n영업담당: 함형수 · 최초계약일: 2023-08-30",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "신정빌딩",
+  "address": "서울시 동작구 남부순환로 2055",
+  "address_base": "서울시 동작구 남부순환로 2055",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "동작구",
+  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2023-09-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "윤영홀딩스",
+  "address": "서울 용산구 한남동 31-17",
+  "address_base": "서울 용산구 한남동 31-17",
+  "address_detail": "",
+  "contract_amount": 550000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "용산구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 1~3층 주 5회 / 5~6층 주 2회\n투입일: 월~금 / 오전 8시~\n청소 범위: 공용부, 계단, 복도, 화장실\n용역업체 납부 ₩450,000 / 건물주 청구 ₩550,000\n최초계약일: 2023-10-06",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "스퀘어논현",
+  "address": "서울시 강남구 언주로 622",
+  "address_base": "서울시 강남구 언주로 622",
+  "address_detail": "",
+  "contract_amount": 620000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 야간 (전날 21시~)\n청소 범위: 공용부: 로비·출입문, 복도·계단(B1~6층), 화장실(2~5층 각 2개소, 총 8개), 승강기, 건물 주변 쓰레기/꽁초 수거\n※ 분리수거 해당 없음\n용역업체 납부 ₩570,000 / 건물주 청구 ₩620,000\n비고: 비품: 입주사 운영(1/13 확인) · 비품 보관: 6층 관리실 · 분리수거장: 기계식 주차장 앞(수거 화·금) · 쓰레기 배출: 카센터 앞 가로수\n영업담당: 김하솜 · 최초계약일: 2023-10-23",
+  "cleaning_days": [
+   "mon",
+   "wed",
+   "fri"
+  ]
+ },
+ {
+  "name": "서울수면센터",
+  "address": "서울시 강남구 논현로 717",
+  "address_base": "서울시 강남구 논현로 717",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 자체진행\n영업담당: 김하솜 · 최초계약일: 2023-11-20",
+  "cleaning_days": []
+ },
+ {
+  "name": "비아비솔루션스",
+  "address": "서울시 금천구 가산동 60-44",
+  "address_base": "서울시 금천구 가산동 60-44",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "금천구",
+  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2023-12-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "진흥빌딩",
+  "address": "서울시 마포구 서교동 468-18",
+  "address_base": "서울시 마포구 서교동 468-18",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "마포구",
+  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2023-12-08",
+  "cleaning_days": []
+ },
+ {
+  "name": "독산동 빌딩",
+  "address": "서울시 금천구 독산동 193-14",
+  "address_base": "서울시 금천구 독산동 193-14",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "금천구",
+  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2023-12-18",
+  "cleaning_days": []
+ },
+ {
+  "name": "아이앤티(강남)",
+  "address": "서울시 강남구 언주로97길 31",
+  "address_base": "서울시 강남구 언주로97길 31",
+  "address_detail": "",
+  "contract_amount": 1200000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 새로 · 둥지 계약 · 투입: 주 3회\n투입일: 일, 화, 목 / \n일: 15~18시 / 화·목: 20~23시\n청소 범위: 전용공간·공용공간 전체: 전층 사무실, 화장실, 계단, 주차장, 쓰레기 배출\n※ 일요일 화단 물주기\n용역업체 납부 ₩1,200,000 / 건물주 청구 ₩1,200,000\n영업담당: 김하솜 · 최초계약일: 2024-02-01",
+  "cleaning_days": [
+   "tue",
+   "thu",
+   "sun"
+  ]
+ },
+ {
+  "name": "유코빌딩",
+  "address": "서울시 강남구 강남대로118길 11",
+  "address_base": "서울시 강남구 강남대로118길 11",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 업체\n최초계약일: 2024-02-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "미진빌딩",
+  "address": "서울시 강남구 도곡로 111",
+  "address_base": "서울시 강남구 도곡로 111",
+  "address_detail": "",
+  "contract_amount": 6100000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 5회\n용역업체 납부 ₩6,100,000 / 건물주 청구 ₩6,100,000\n영업담당: 김하솜 · 최초계약일: 2024-02-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "금문빌딩",
+  "address": "서울시 용산구 한강대로10길 11-18",
+  "address_base": "서울시 용산구 한강대로10길 11-18",
+  "address_detail": "",
+  "contract_amount": 1450000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "용산구",
+  "memo": "업체: 케어넥스 · 건물주 직계약 · 투입: 주 2회\n용역업체 납부 ₩1,450,000 / 건물주 청구 ₩1,450,000\n비고: [확인] 케어넥스 체크리스트 미제출\n[비용 확인] 건물주 직계약인데 금액 기재됨\n영업담당: 김하솜 · 최초계약일: 2024-02-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "태성빌딩",
+  "address": "서울시 중랑구 면목로 480",
+  "address_base": "서울시 중랑구 면목로 480",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "중랑구",
+  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2024-02-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "LCRM빌딩",
+  "address": "서울시 강남구 논현로153길 41",
+  "address_base": "서울시 강남구 논현로153길 41",
+  "address_detail": "",
+  "contract_amount": 100000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 여사님 · 둥지 계약 · 투입: 주 5회\n용역업체 납부 ₩100,000 / 건물주 청구 ₩100,000\n영업담당: 김하솜 · 최초계약일: 2024-04-11",
+  "cleaning_days": []
+ },
+ {
+  "name": "빌딩H2C",
+  "address": "서울시 서초구 서초대로50길 62-11",
+  "address_base": "서울시 서초구 서초대로50길 62-11",
+  "address_detail": "",
+  "contract_amount": 1400000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 2회\n투입일: 화, 목\n청소 범위: 화장실, 복도, 계단, 승강기, 출입구, 건물 주변, 창틀, 분리수거장\n용역업체 납부 ₩1,400,000 / 건물주 청구 ₩1,400,000\n영업담당: 김하솜 · 최초계약일: 2024-04-15",
+  "cleaning_days": [
+   "tue",
+   "thu"
+  ]
+ },
+ {
+  "name": "SJ타워",
+  "address": "서울 마포구 동교동 201-14",
+  "address_base": "서울 마포구 동교동 201-14",
+  "address_detail": "",
+  "contract_amount": 800000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "마포구",
+  "memo": "둥지 계약\n용역업체 납부 ₩800,000 / 건물주 청구 ₩800,000\n비고: 청소 정보 없음\n영업담당: 김하솜 · 최초계약일: 2024-05-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "더퀸빌딩",
+  "address": "서울시 강남구 도산대로70길 16",
+  "address_base": "서울시 강남구 도산대로70길 16",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2024-05-10",
+  "cleaning_days": []
+ },
+ {
+  "name": "아트리트21",
+  "address": "서울시 서초구 효령로 328",
+  "address_base": "서울시 서초구 효령로 328",
+  "address_detail": "",
+  "contract_amount": 1500000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 여사님 · 둥지 계약\n용역업체 납부 ₩1,500,000 / 건물주 청구 ₩1,500,000\n영업담당: 함형수 · 최초계약일: 2024-05-16",
+  "cleaning_days": []
+ },
+ {
+  "name": "투쿨포스쿨",
+  "address": "서울 강남구 신사동 519-23",
+  "address_base": "서울 강남구 신사동 519-23",
+  "address_detail": "",
+  "contract_amount": 2050000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "둥지 계약\n용역업체 납부 ₩2,050,000 / 건물주 청구 ₩2,050,000\n비고: 청소 정보 없음\n영업담당: 김하솜 · 최초계약일: 2024-05-20",
+  "cleaning_days": []
+ },
+ {
+  "name": "예진빌딩",
+  "address": "서울시 강남구 삼성로 743",
+  "address_base": "서울시 강남구 삼성로 743",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 청소하는호랑이 · 건물주 직계약 · 투입: 주 5회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2024-05-22",
+  "cleaning_days": []
+ },
+ {
+  "name": "하얀집",
+  "address": "서울시 강서구 방화동 645-20",
+  "address_base": "서울시 강서구 방화동 645-20",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강서구",
+  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2024-06-10",
+  "cleaning_days": []
+ },
+ {
+  "name": "DH주상복합빌딩",
+  "address": "경기 부천시 오정구 고리울로52번길 29",
+  "address_base": "경기 부천시 오정구 고리울로52번길 29",
+  "address_detail": "",
+  "contract_amount": 950000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "오정구",
+  "memo": "업체: 업체 · 둥지 계약 · 투입: 주 5회\n용역업체 납부 ₩900,000 / 건물주 청구 ₩950,000\n영업담당: 김하솜 · 최초계약일: 2024-06-24",
+  "cleaning_days": []
+ },
+ {
+  "name": "아힐타워",
+  "address": "서울시 마포구 만리재로 133",
+  "address_base": "서울시 마포구 만리재로 133",
+  "address_detail": "",
+  "contract_amount": 800000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "마포구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 새벽 (당일 06시)\n청소 범위: 공용부: 로비·출입문, 복도·계단(B2~7층), 화장실, 승강기, 분리수거(건물 후면 주차장), 건물 주변 쓰레기/꽁초 수거\n용역업체 납부 ₩700,000 / 건물주 청구 ₩800,000\n비고: 건물 보안키: 1층 신한은행 근처 순찰함 박스\n영업담당: 김하솜 · 최초계약일: 2024-06-28",
+  "cleaning_days": [
+   "mon",
+   "wed",
+   "fri"
+  ]
+ },
+ {
+  "name": "유성빌딩",
+  "address": "서울 노원구 상계동 707",
+  "address_base": "서울 노원구 상계동 707",
+  "address_detail": "",
+  "contract_amount": 500000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "노원구",
+  "memo": "둥지 계약\n용역업체 납부 ₩500,000 / 건물주 청구 ₩500,000\n비고: 청소 정보 없음\n영업담당: 김하솜 · 최초계약일: 2024-08-05",
+  "cleaning_days": []
+ },
+ {
+  "name": "천산빌딩",
+  "address": "서울 강남구 삼성로 424",
+  "address_base": "서울 강남구 삼성로 424",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2024-08-12",
+  "cleaning_days": []
+ },
+ {
+  "name": "콜렉티브 논현",
+  "address": "서울 강남구 도산대로24길 19",
+  "address_base": "서울 강남구 도산대로24길 19",
+  "address_detail": "",
+  "contract_amount": 1200000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 업체 · 둥지 계약 · 투입: 주 5회\n용역업체 납부 ₩1,200,000 / 건물주 청구 ₩1,200,000\n영업담당: 김하솜 · 최초계약일: 2024-09-02",
+  "cleaning_days": []
+ },
+ {
+  "name": "핑크원더",
+  "address": "서울시 중구 동호로8나길 69",
+  "address_base": "서울시 중구 동호로8나길 69",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "중구",
+  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2024-09-02",
+  "cleaning_days": []
+ },
+ {
+  "name": "그린오피스텔",
+  "address": "서울시 관악구 봉천로8길 15",
+  "address_base": "서울시 관악구 봉천로8길 15",
+  "address_detail": "",
+  "contract_amount": 240000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "관악구",
+  "memo": "업체: 업체 · 건물주 직계약 · 투입: 주 2회\n용역업체 납부 ₩240,000 / 건물주 청구 ₩240,000\n비고: [비용 확인] 건물주 직계약인데 금액 기재됨\n영업담당: 김하솜 · 최초계약일: 2024-09-02",
+  "cleaning_days": []
+ },
+ {
+  "name": "동문빌딩",
+  "address": "서울시 강동구 풍성로 138",
+  "address_base": "서울시 강동구 풍성로 138",
+  "address_detail": "",
+  "contract_amount": 1120000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강동구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 2회\n투입일: 월, 목 / 야간 (전날 21시~)\n청소 범위: 공용부: 로비·출입구, 복도·계단(B1~6층), 화장실(3~6층 각 1개소, 총 4개), 승강기, 건물 주변·주차장 쓰레기/꽁초 수거\n용역업체 납부 ₩1,120,000 / 건물주 청구 ₩1,120,000\n비고: 주차장 배수구 트렌치 이물질 제거 필요 · 쓰레기 배출: 건물 모서리 홈플러스 앞 대로변 나무\n[비용 확인] 비용표 2건 중복 기재 → 합산(납부 620,000 + 500,000 / 청구 620,000 + 500,000)\n영업담당: 김하솜 · 최초계약일: 2024-09-02",
+  "cleaning_days": [
+   "mon",
+   "thu"
+  ]
+ },
+ {
+  "name": "우성상가",
+  "address": "서울시 양천구 신월동 928-1",
+  "address_base": "서울시 양천구 신월동 928-1",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "양천구",
+  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2024-10-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "희영빌딩",
+  "address": "서울시 강남구 개포로 232",
+  "address_base": "서울시 강남구 개포로 232",
+  "address_detail": "",
+  "contract_amount": 650000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 4회\n투입일: 토(주말), 월, 화, 목 / 야간 (전날 21시~)\n청소 범위: 공용부: 로비·출입구(현관매트 포함), 복도·계단(B1~5층), 화장실, 건물 주변·주차장 쓰레기/꽁초 수거\n※ 승강기 없음 / 분리수거 해당 없음\n용역업체 납부 ₩650,000 / 건물주 청구 ₩650,000\n비고: 지하 화장실·지하/1층 주차장 중점 관리 · 4층 화장실 옆 소복도 정기청소 시 필수 · 5층 주차자리(지하 꽃집 사용) 청결 유지 · 종량제봉투 3층 보관 · 쓰레기 배출: 1층 후문 주차장 왼쪽\n영업담당: 김하솜 · 최초계약일: 2024-10-01",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "thu",
+   "sat"
+  ]
+ },
+ {
+  "name": "래미안 허브리츠",
+  "address": "서울시 동대문구 왕산로26길 35",
+  "address_base": "서울시 동대문구 왕산로26길 35",
+  "address_detail": "",
+  "contract_amount": 650000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "동대문구",
+  "memo": "업체: 두손크린환경 · 둥지 계약 · 투입: 주 2회\n용역업체 납부 ₩650,000 / 건물주 청구 ₩650,000\n영업담당: 김하솜 · 최초계약일: 2024-10-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "KFQ",
+  "address": "서울시 송파구 삼전로 78",
+  "address_base": "서울시 송파구 삼전로 78",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "송파구",
+  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2024-10-23",
+  "cleaning_days": []
+ },
+ {
+  "name": "동화프라자",
+  "address": "경기 고양시 일산서구 탄현동 1491-5",
+  "address_base": "경기 고양시 일산서구 탄현동 1491-5",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "일산서구",
+  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2024-12-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "선즈빌딩",
+  "address": "서울시 성동구 한림말1길 12",
+  "address_base": "서울시 성동구 한림말1길 12",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "성동구",
+  "memo": "업체: 업체 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2024-12-16",
+  "cleaning_days": []
+ },
+ {
+  "name": "메디스타워",
+  "address": "서울시 강서구 방화동 614-34",
+  "address_base": "서울시 강서구 방화동 614-34",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강서구",
+  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2024-12-24",
+  "cleaning_days": []
+ },
+ {
+  "name": "잠원동 23-20",
+  "address": "서울시 서초구 강남대로97길 44",
+  "address_base": "서울시 서초구 강남대로97길 44",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 업체 · 투입: 주 3회\n영업담당: 김하솜 · 최초계약일: 2024-12-24",
+  "cleaning_days": []
+ },
+ {
+  "name": "진영빌딩",
+  "address": "경기 의정부시 용현로105번길 45-19",
+  "address_base": "경기 의정부시 용현로105번길 45-19",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "",
+  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2025-01-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "정원빌딩",
+  "address": "경기 수원시 영통구 영통로 215",
+  "address_base": "경기 수원시 영통구 영통로 215",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "영통구",
+  "memo": "업체: 한결아이에프엠\n영업담당: 김하솜 · 최초계약일: 2025-01-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "파우컴퍼니",
+  "address": "서울시 강남구 언주로135길 28",
+  "address_base": "서울시 강남구 언주로135길 28",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2025-01-06",
+  "cleaning_days": []
+ },
+ {
+  "name": "코모토모",
+  "address": "경기 안양시 만안구 일직로106번길 60",
+  "address_base": "경기 안양시 만안구 일직로106번길 60",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "만안구",
+  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2025-01-10",
+  "cleaning_days": []
+ },
+ {
+  "name": "성수이로 121",
+  "address": "서울시 성동구 성수이로 121",
+  "address_base": "서울시 성동구 성수이로 121",
+  "address_detail": "",
+  "contract_amount": 1080000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "성동구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n[3층 전용부] 주 2회\n투입일: 일(주말), 화, 목 / 오전 (12시 이전)\n[3층 전용부] 일(주말), 수 / 오전 (12시 이전)\n청소 범위: 공용부(121·123 공통): 로비·출입구(현관매트 포함), 복도·계단(B1~4층, 옥상층 계단), 화장실(2·3·4층 남/녀 각 1개, 총 6개), 승강기, 건물 주변 쓰레기/꽁초 수거\n※ 분리수거 해당 없음\n3층 전용부(사무실): 카페트 전용 청소기 건식 청소, 출입문/유리, 현관매트, 휴지통 비우기·정리·배출\n※ 분기별 카페트 청소는 추가 견적으로 별도 진행\n용역업체 납부 ₩1,080,000 / 건물주 청구 ₩1,080,000\n비고: 비품: 둥지 발송(장은영 매니저 사무실로 배송) · 비품창고: A동 5층 · 쓰레기 배출: 건물 앞 나무 밑(20시 이후)\n[3층] 출입: 사무실 출입인증 QR 등록 · 비품: 사무실 담당직원 통해 구매요청\n영업담당: 김하솜 · 최초계약일: 2025-02-24",
+  "cleaning_days": [
+   "tue",
+   "wed",
+   "thu",
+   "sun"
+  ]
+ },
+ {
+  "name": "성수이로 123",
+  "address": "서울시 성동구 성수이로 123",
+  "address_base": "서울시 성동구 성수이로 123",
+  "address_detail": "",
+  "contract_amount": 740000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "성동구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n투입일: 일(주말), 화, 목 / 오전 (12시 이전)\n청소 범위: 공용부(121·123 공통): 로비·출입구(현관매트 포함), 복도·계단(B1~4층, 옥상층 계단), 화장실(2·3·4층 남/녀 각 1개, 총 6개), 승강기, 건물 주변 쓰레기/꽁초 수거\n※ 분리수거 해당 없음\n용역업체 납부 ₩740,000 / 건물주 청구 ₩740,000\n비고: 비품: 둥지 발송(장은영 매니저 사무실로 배송) · 비품창고: A동 5층 · 쓰레기 배출: 건물 앞 나무 밑(20시 이후)\n[확인] \"오전 12시 이전\"이 자정 전인지 정오 전인지 확인 필요\n영업담당: 김하솜 · 최초계약일: 2025-02-24",
+  "cleaning_days": [
+   "tue",
+   "thu",
+   "sun"
+  ]
+ },
+ {
+  "name": "성신빌딩",
+  "address": "서울시 광진구 아차산로 459",
+  "address_base": "서울시 광진구 아차산로 459",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "광진구",
+  "memo": "업체: 업체 · 투입: 주 3회\n영업담당: 김하솜 · 최초계약일: 2025-03-24",
+  "cleaning_days": []
+ },
+ {
+  "name": "보림빌딩",
+  "address": "서울 서초구 명달로 92",
+  "address_base": "서울 서초구 명달로 92",
+  "address_detail": "",
+  "contract_amount": 200000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 업체 · 둥지 계약\n용역업체 납부 ₩200,000 / 건물주 청구 ₩200,000\n영업담당: 김하솜 · 최초계약일: 2025-04-10",
+  "cleaning_days": []
+ },
+ {
+  "name": "S&C타워",
+  "address": "서울시 종로구 율곡로 223-1",
+  "address_base": "서울시 종로구 율곡로 223-1",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "종로구",
+  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2025-04-21",
+  "cleaning_days": []
+ },
+ {
+  "name": "미산빌딩",
+  "address": "서울시 강남구 압구정로71길4",
+  "address_base": "서울시 강남구 압구정로71길4",
+  "address_detail": "",
+  "contract_amount": 800000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 아크멤버스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 야간\n청소 범위: - 공용부 주 3회\n- 지하 1층~6층 계단 및 공용부 전체\n- 건물 외부 주차장 및 분리수거장\n- 6층 사무실 분리수거, 바닥, 집기류\n- 6층 화장실\n용역업체 납부 ₩700,000 / 건물주 청구 ₩800,000\n영업담당: 김하솜 · 최초계약일: 2025-04-21 · 미화팀 투입일: 2026-11-01",
+  "cleaning_days": [
+   "mon",
+   "wed",
+   "fri"
+  ]
+ },
+ {
+  "name": "신독산역 피크원",
+  "address": "서울시 금천구 범안로 1173",
+  "address_base": "서울시 금천구 범안로 1173",
+  "address_detail": "",
+  "contract_amount": 700000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "금천구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 2회\n투입일: 화, 금 / 화: 새벽(05:20~) / 금: 저녁\n청소 범위: 화: 로비·출입구(현관매트 포함), 계단(B1~12층), 승강기, 건물 주변·주차장 + 분리수거\n금: 쓰레기 분리수거만\n※ 화장실 해당 없음\n용역업체 납부 ₩700,000 / 건물주 청구 ₩700,000\n비고: 비품: 둥지 플랫폼 신청 · 비품 보관: 경비실 · 쓰레기 배출: 건물 앞 주차장 쪽(대걸레·수도는 분리수거장 안쪽)\n[확인] 업체 기재 주소: 독산동 332-23\n영업담당: 김하솜 · 최초계약일: 2025-05-23",
+  "cleaning_days": [
+   "tue",
+   "fri"
+  ]
+ },
+ {
+  "name": "대치빌딩",
+  "address": "서울시 강남구 대치동 929-11",
+  "address_base": "서울시 강남구 대치동 929-11",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 업체 · 건물주 직계약 · 투입: 주 5회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2025-06-15",
+  "cleaning_days": []
+ },
+ {
+  "name": "골드넥스 사옥",
+  "address": "서울시 성동구 상원길 62",
+  "address_base": "서울시 성동구 상원길 62",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "성동구",
+  "memo": "업체: 미스터크린 · 건물주 직계약 · 투입: 주 5회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2025-06-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "SWL빌딩",
+  "address": "경기 의정부시 승지로4번길 7-4",
+  "address_base": "경기 의정부시 승지로4번길 7-4",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "",
+  "memo": "업체: 민락동 계단청소업체 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2025-06-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "태현빌딩",
+  "address": "서울시 송파구 벽제고분로 235",
+  "address_base": "서울시 송파구 벽제고분로 235",
+  "address_detail": "",
+  "contract_amount": 800000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "송파구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 5회\n투입일: 일, 월, 화, 수, 목 / 야간 (전날 21시~)\n청소 범위: 공용부: 로비·출입구, 복도·계단(B1~7층), 화장실(1·3·5·6층 각 2개소, 총 8개), 승강기, 옥상·건물 주변 쓰레기/꽁초 수거\n※ 2층·4층 청소 제외\n용역업체 납부 ₩750,000 / 건물주 청구 ₩800,000\n비고: 비품: 점보롤 · 비품창고: 옥상창고 · 쓰레기 배출: 1층 기계식 주차장 우측 전봇대 앞 · 5·6층 화장실 도어락 없음\n영업담당: 김하솜 · 최초계약일: 2025-06-25",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "sun"
+  ]
+ },
+ {
+  "name": "서울빌딩",
+  "address": "서울시 은평구 응암로 264",
+  "address_base": "서울시 은평구 응암로 264",
+  "address_detail": "",
+  "contract_amount": 900000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "은평구",
+  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 5회\n투입일: 월, 화, 수, 목, 금 / 야간 (전날 21시~)\n청소 범위: 공용부: 로비·출입구(출입문/유리, 우편함), 복도·계단(B1~7층: 난간·창틀·바닥·벽/코너·비상구 표시등), 화장실(1~6층 각 2개소, 총 12개), 승강기(바닥·벽/패널·버튼), 건물 주변·주차장 쓰레기/꽁초 수거(지하 1, 지상 2개소)\n※ 5층: 복도·계단만(화장실 제외) / 6층: 계단만(복도·화장실 제외)\nB1층, 1층, 2층 전용부(바닥, 출입문, 현관매트, 분리수거, 책상, 화장실, 탕비실, 씽크대) \n※업체 체크리스트 미기재\n용역업체 납부 ₩800,000 / 건물주 청구 ₩900,000\n비고: 1층 화장실은 이디야/편의점 통해서만 출입(시건 없음) · 비품창고: 관리실 · 쓰레기 배출: 1층 편의점 앞 대로변 나무\n[확인] B1·1·2층 전용부 청소는 업체 체크리스트에 없음 → 실제 수행 여부 확인 필요\n영업담당: 김하솜 · 최초계약일: 2025-06-25",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "로얄빌딩",
+  "address": "경기 성남시 수정구 산성대로269번길 10",
+  "address_base": "경기 성남시 수정구 산성대로269번길 10",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "수정구",
+  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2025-07-15",
+  "cleaning_days": []
+ },
+ {
+  "name": "SLA빌딩",
+  "address": "서울시 강남구 봉은사로43길 6-8",
+  "address_base": "서울시 강남구 봉은사로43길 6-8",
+  "address_detail": "",
+  "contract_amount": 900000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 아크멤버스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 야간\n청소 범위: - 지하 1~5층 공용부: 복도, 계단, 건물 외부, 공용 화장실 4곳\n- 4~5층 전용공간: 쓰레기통 정리 및 바닥 청소(바닥 전용 세제 사용)\n- 사무실 내부 화장실 2곳\n- 5층 사무실 내부 복층 회의실 포함\n용역업체 납부 ₩800,000 / 건물주 청구 ₩900,000\n영업담당: 함형수 · 최초계약일: 2025-07-25 · 미화팀 투입일: 2026-11-01",
+  "cleaning_days": [
+   "mon",
+   "wed",
+   "fri"
+  ]
+ },
+ {
+  "name": "레전드아카데미 반포점",
+  "address": "서울 서초구 반포동 55-7",
+  "address_base": "서울 서초구 반포동 55-7",
+  "address_detail": "",
+  "contract_amount": 650000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 새로 · 둥지 계약 · 투입: 2주 1회\n투입일: 일 / 2시간 작업\n청소 범위: 쓰레기통 비우기, 바닥 카페트 청소기(내부 계단 카페트 포함), 화장실 청소, 샤워실 청소, 외부 계단 청소\n용역업체 납부 ₩550,000 / 건물주 청구 ₩650,000\n비고: 종량제·일반 쓰레기봉투 업체가 구매해 사용 중\n최초계약일: 2025-08-01",
+  "cleaning_days": [
+   "sun"
+  ]
+ },
+ {
+  "name": "아이퀘스트 사옥(L)",
+  "address": "서울시 강남구 도곡로 121",
+  "address_base": "서울시 강남구 도곡로 121",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2025-09-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "해인빌딩",
+  "address": "서울시 서초구 양재동 377",
+  "address_base": "서울시 서초구 양재동 377",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2025-09-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "신현동-1",
+  "address": "경기 광주시 새말길 47",
+  "address_base": "경기 광주시 새말길 47",
+  "address_detail": "",
+  "contract_amount": 200000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 1회\n투입일: 화\n청소 범위: 공용부\n용역업체 납부 ₩200,000 / 건물주 청구 ₩200,000\n영업담당: 함형수 · 최초계약일: 2025-10-25",
+  "cleaning_days": [
+   "tue"
+  ]
+ },
+ {
+  "name": "더하우스",
+  "address": "서울시 강남구 도산대로66길 53",
+  "address_base": "서울시 강남구 도산대로66길 53",
+  "address_detail": "",
+  "contract_amount": 320000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 임철재 · 둥지 계약 · 투입: 주 1회\n투입일: 수 / 오전\n청소 범위: 공용부: 로비·출입구(현관매트 포함), 복도·계단(B2~5층, 건물 왼쪽 지하 연결계단 포함), 화장실(지하 남/녀 각 1개), 승강기, 건물 주변 쓰레기/꽁초 수거\n※ 분리수거 해당 없음\n용역업체 납부 ₩250,000 / 건물주 청구 ₩320,000\n영업담당: 함형수 · 최초계약일: 2025-10-25 · 미화팀 투입일: 투입 중",
+  "cleaning_days": [
+   "wed"
+  ]
+ },
+ {
+  "name": "조엘라빌딩",
+  "address": "서울 강남구 압구정로80길 38",
+  "address_base": "서울 강남구 압구정로80길 38",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 업체 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2025-10-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "정안빌딩(L)",
+  "address": "서울시 관악구 봉천동 852-3",
+  "address_base": "서울시 관악구 봉천동 852-3",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "관악구",
+  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2025-12-15",
+  "cleaning_days": []
+ },
+ {
+  "name": "더퀸빌딩(임차사)",
+  "address": "서울시 강남구 도산대로 70길 16",
+  "address_base": "서울시 강남구 도산대로 70길 16",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 업체\n영업담당: 함형수 · 최초계약일: 2025-12-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "621빌딩",
+  "address": "서울시 강남구 영동대로 621",
+  "address_base": "서울시 강남구 영동대로 621",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 여사님 · 건물주 직계약 · 투입: 주 5회\n투입일: 월~금\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2025-12-25",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "하이스트리트 이탈리아",
+  "address": "서울시 강남구 가로수길 69",
+  "address_base": "서울시 강남구 가로수길 69",
+  "address_detail": "",
+  "contract_amount": 1700000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 1~2층 주 6회 / 3~4층 주 2회\n투입일: 화~일 / 화, 목\n청소 범위: 공용부(계단·복도·화장실) 관리\n- 1~2층 복도 주 6회\n- 3~4층 복도 주 2회\n- 매주 금요일 관수 진행\n용역업체 납부 ₩1,600,000 / 건물주 청구 ₩1,700,000\n영업담당: 김하솜 · 최초계약일: 2026-01-01",
+  "cleaning_days": [
+   "tue",
+   "wed",
+   "thu",
+   "fri",
+   "sat",
+   "sun"
+  ]
+ },
+ {
+  "name": "스탠다드네트웍스",
+  "address": "서울시 강남구 봉은사로18길 84",
+  "address_base": "서울시 강남구 봉은사로18길 84",
+  "address_detail": "",
+  "contract_amount": 1650000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 5회\n투입일: 월~금\n청소 범위: 사무실 바닥 청소, 화장실 관리, 휴지통 비움 및 재활용 배출, 계단·창틀 관리, 출입구 및 유리문 관리\n용역업체 납부 ₩1,550,000 / 건물주 청구 ₩1,650,000\n최초계약일: 2026-01-01",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "역삼동-1",
+  "address": "서울시 강남구 언주로107길 23",
+  "address_base": "서울시 강남구 언주로107길 23",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 여사님 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2026-01-15",
+  "cleaning_days": []
+ },
+ {
+  "name": "엘렌타워",
+  "address": "서울시 서초구 서초중앙로 123",
+  "address_base": "서울시 서초구 서초중앙로 123",
+  "address_detail": "",
+  "contract_amount": 125000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 업체 · 건물주 직계약\n용역업체 납부 ₩125,000 / 건물주 청구 ₩125,000\n비고: [비용 확인] 건물주 직계약인데 금액 기재됨\n영업담당: 함형수 · 최초계약일: 2026-01-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "갓윗어스",
+  "address": "서울시 서초구 서초대로23길 83",
+  "address_base": "서울시 서초구 서초대로23길 83",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 청소싹 하얀나라 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2026-01-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "한희빌딩",
+  "address": "서울시 강서구 양천로67길 15",
+  "address_base": "서울시 강서구 양천로67길 15",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강서구",
+  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 함형수 · 최초계약일: 2026-01-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "라퓨타 레지던스",
+  "address": "서울시 광진구 아차산로49길 37",
+  "address_base": "서울시 광진구 아차산로49길 37",
+  "address_detail": "",
+  "contract_amount": 700000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "광진구",
+  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 1회\n투입일: 월 / 오전\n청소 범위: 정기청소 (세부 범위 업체 미기재)\n용역업체 납부 ₩600,000 / 건물주 청구 ₩700,000\n비고: 입퇴실 청소 : 재실청소(거주청소) 5만원 / 퇴실청소(입주청소) 8만원\n영업담당: 함형수 · 최초계약일: 2026-02-25 · 미화팀 투입일: 2026-11-01",
+  "cleaning_days": [
+   "mon"
+  ]
+ },
+ {
+  "name": "코오롱글로벌(주)AM(플랫폼)",
+  "address": "경기도 과천시 별양동 1-23",
+  "address_base": "경기도 과천시 별양동 1-23",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "",
+  "memo": "비고: 청소 정보 없음\n최초계약일: 2026-03-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "지저스 선교재단",
+  "address": "서울시 도봉구 덕릉로 235",
+  "address_base": "서울시 도봉구 덕릉로 235",
+  "address_detail": "",
+  "contract_amount": 900000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "도봉구",
+  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 공용부 주 3회 / 화장실 주 5회\n투입일: 월, 화, 수, 목, 금 / 야간 (18~23시 사이)\n청소 범위: 공용부 주 3회 + 화장실 주 5회 (화장실 주 2회 추가 투입)\n용역업체 납부 ₩800,000 / 건물주 청구 ₩900,000\n비고: 업체 기재 주소: 창동 578-146\n[확인] 화장실 주 2회 추가분 청소비 포함 여부 확인 필요\n영업담당: 함형수 · 최초계약일: 2026-03-15",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "인피니티타워",
+  "address": "서울시 성동구 서울숲7길 7",
+  "address_base": "서울시 성동구 서울숲7길 7",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "성동구",
+  "memo": "업체: 업체\n영업담당: 함형수 · 최초계약일: 2026-03-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "담원빌딩",
+  "address": "경기 과천시 은행나무길 32-1",
+  "address_base": "경기 과천시 은행나무길 32-1",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "",
+  "memo": "업체: 업체 · 둥지 계약\n용역업체 납부 ₩1,250,000 / 건물주 청구 ₩0\n비고: [비용 확인] 납부금액이 청구금액보다 큼(역마진 1,250,000원)\n영업담당: 함형수 · 최초계약일: 2026-04-15",
+  "cleaning_days": []
+ },
+ {
+  "name": "명건빌딩",
+  "address": "경기 성남시 분당구 판교로 434",
+  "address_base": "경기 성남시 분당구 판교로 434",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "분당구",
+  "memo": "업체: 업체\n영업담당: 함형수 · 최초계약일: 2026-04-15",
+  "cleaning_days": []
+ },
+ {
+  "name": "나라키움역삼A빌딩",
+  "address": "서울시 강남구 역삼동 704-45 (3층, 4층)",
+  "address_base": "서울시 강남구 역삼동 704-45 (3층, 4층)",
+  "address_detail": "",
+  "contract_amount": 800000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 2회\n투입일: 화, 금 / 야간 (21시~06시 이전)\n청소 범위: 3층·4층 (세부 범위 업체 미기재)\n용역업체 납부 ₩550,000 / 건물주 청구 ₩800,000\n비고: 입실 완료 시 주 5회로 변경 예정(현장 측 언급)\n[확인] 주 5회 전환 시 청소비 재협의 필요\n영업담당: 함형수 · 최초계약일: 2026-04-25",
+  "cleaning_days": [
+   "tue",
+   "fri"
+  ]
+ },
+ {
+  "name": "닥터셀빌딩",
+  "address": "경기 수원시 팔달구 효원로265번길 44",
+  "address_base": "경기 수원시 팔달구 효원로265번길 44",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "팔달구",
+  "memo": "업체: 업체\n영업담당: 함형수 · 최초계약일: 2026-04-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "엑스트라스페이스코리아양재 유한회사",
+  "address": "서울 금천구 가산동 493-6",
+  "address_base": "서울 금천구 가산동 493-6",
+  "address_detail": "",
+  "contract_amount": 250000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "금천구",
+  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 1회\n투입일: 목 / 야간 (21시 이후)\n청소 범위: 지점 내부 청소 (바닥 및 창고 문)\n용역업체 납부 ₩150,000 / 건물주 청구 ₩250,000\n비고: 4개 지점(영등포·가산·용산·반포) 같은 날(목) 순회 투입\n영업담당: 함형수 · 최초계약일: 2026-05-25",
+  "cleaning_days": [
+   "thu"
+  ]
+ },
+ {
+  "name": "엑스트라스페이스 영등포점",
+  "address": "서울 영등포구 영등포동7가 203",
+  "address_base": "서울 영등포구 영등포동7가 203",
+  "address_detail": "",
+  "contract_amount": 250000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "영등포구",
+  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 1회\n투입일: 목 / 야간 (21시 이후)\n청소 범위: 지점 내부 청소 (바닥 및 창고 문)\n용역업체 납부 ₩150,000 / 건물주 청구 ₩250,000\n비고: 4개 지점(영등포·가산·용산·반포) 같은 날(목) 순회 투입\n영업담당: 함형수 · 최초계약일: 2026-05-25",
+  "cleaning_days": [
+   "thu"
+  ]
+ },
+ {
+  "name": "엑스트라스페이스 용산",
+  "address": "서울 용산구 효창동 5-116",
+  "address_base": "서울 용산구 효창동 5-116",
+  "address_detail": "",
+  "contract_amount": 250000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "용산구",
+  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 1회\n투입일: 목 / 야간 (21시 이후)\n청소 범위: 지점 내부 청소 (바닥 및 창고 문)\n용역업체 납부 ₩150,000 / 건물주 청구 ₩250,000\n비고: 4개 지점(영등포·가산·용산·반포) 같은 날(목) 순회 투입\n영업담당: 함형수 · 최초계약일: 2026-05-25",
+  "cleaning_days": [
+   "thu"
+  ]
+ },
+ {
+  "name": "엑스트라스페이스 반포점",
+  "address": "서울 서초구 반포동 51-7",
+  "address_base": "서울 서초구 반포동 51-7",
+  "address_detail": "",
+  "contract_amount": 250000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "서초구",
+  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 1회\n투입일: 목 / 야간 (21시 이후)\n청소 범위: 지점 내부 청소 (바닥 및 창고 문)\n용역업체 납부 ₩150,000 / 건물주 청구 ₩250,000\n비고: 4개 지점(영등포·가산·용산·반포) 같은 날(목) 순회 투입\n영업담당: 함형수 · 최초계약일: 2026-05-25",
+  "cleaning_days": [
+   "thu"
+  ]
+ },
+ {
+  "name": "아내뜨 빌딩",
+  "address": "서울시 마포구 서교동 466-19",
+  "address_base": "서울시 마포구 서교동 466-19",
+  "address_detail": "",
+  "contract_amount": 650000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "마포구",
+  "memo": "업체: 클레오 · 둥지 계약 · 투입: 1층 주 5회 / B1·2~3층 2주 3회 / 4~6층 주 1회\n투입일: 월~금\n청소 범위: 공용부\n- 1층 주 5회\n- 지하 1층·2~3층 2주 3회 (화장실 有)\n- 4~6층 주 1회 (화장실 無)\n용역업체 납부 ₩550,000 / 건물주 청구 ₩650,000\n비고: [확인] 기존 \"B1·2~3층 주 3일\" ↔ 업체 \"2주 3회\" 횟수 확인 필요\n영업담당: 함형수 · 최초계약일: 2026-05-25",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "드림타워",
+  "address": "서울시 은평구 응암동 770-5",
+  "address_base": "서울시 은평구 응암동 770-5",
+  "address_detail": "",
+  "contract_amount": 1200000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "은평구",
+  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 5회\n투입일: 월~금 / 야간\n청소 범위: 공용부 청소 (지하주차장 등 공용공간 전체 포함)\n용역업체 납부 ₩1,200,000 / 건물주 청구 ₩1,200,000\n영업담당: 함형수 · 최초계약일: 2026-05-25",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri"
+  ]
+ },
+ {
+  "name": "풍성빌딩",
+  "address": "서울 성동구 성수동1가 656-1693",
+  "address_base": "서울 성동구 성수동1가 656-1693",
+  "address_detail": "",
+  "contract_amount": 1600000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "성동구",
+  "memo": "둥지 계약\n용역업체 납부 ₩1,300,000 / 건물주 청구 ₩1,600,000\n영업담당: 함형수 · 최초계약일: 2026-05-28",
+  "cleaning_days": []
+ },
+ {
+  "name": "용진빌딩",
+  "address": "서울 강남구 신사동 653-12",
+  "address_base": "서울 강남구 신사동 653-12",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "업체: 임대인\n영업담당: 함형수 · 최초계약일: 2026-06-15",
+  "cleaning_days": []
+ },
+ {
+  "name": "옥원빌딩",
+  "address": "서울시 강남구 대치동 896-1",
+  "address_base": "서울시 강남구 대치동 896-1",
+  "address_detail": "",
+  "contract_amount": 1000000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "둥지 계약 · 투입: 주 5회\n투입일: 월, 수, 금, 토, 일\n청소 범위: 지하 1층 - 6층 공용부, 계단, 승강기 1층 주변, 분리수거, 주차장 등 청소 입니다! (화장실 없음)\n용역업체 납부 ₩480,000 / 건물주 청구 ₩1,000,000\n영업담당: 함형수 · 최초계약일: 2026-06-25",
+  "cleaning_days": [
+   "mon",
+   "wed",
+   "fri",
+   "sat",
+   "sun"
+  ]
+ },
+ {
+  "name": "지니어스애비뉴파크어학원",
+  "address": "서울 용산구 한남동 31-17",
+  "address_base": "서울 용산구 한남동 31-17",
+  "address_detail": "",
+  "contract_amount": 1000000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "용산구",
+  "memo": "둥지 계약\n용역업체 납부 ₩850,000 / 건물주 청구 ₩1,000,000\n비고: 청소 정보 없음\n최초계약일: 2026-07-01",
+  "cleaning_days": []
+ },
+ {
+  "name": "스타빌딩 A동 (중부대로 157 )",
+  "address": "경기 수원시 팔달구 우만동 153-20",
+  "address_base": "경기 수원시 팔달구 우만동 153-20",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "팔달구",
+  "memo": "비고: 청소 정보 없음\n최초계약일: 2026-07-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "스타빌딩 B동 (중부대로 161)",
+  "address": "경기 수원시 팔달구 우만동 153-7",
+  "address_base": "경기 수원시 팔달구 우만동 153-7",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강서",
+  "region": "팔달구",
+  "memo": "비고: 청소 정보 없음\n최초계약일: 2026-07-25",
+  "cleaning_days": []
+ },
+ {
+  "name": "오엠케이빌딩",
+  "address": "서울 강남구 역삼동 740-3",
+  "address_base": "서울 강남구 역삼동 740-3",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "강남구",
+  "memo": "건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n비고: 청소 정보 없음\n영업담당: 함형수 · 최초계약일: 2026-09-15",
+  "cleaning_days": []
+ },
+ {
+  "name": "대원빌딩",
+  "address": "",
+  "address_base": "",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "",
+  "memo": "건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n비고: 청소 정보 없음\n영업담당: 함형수 · 최초계약일: 2026-09-15",
+  "cleaning_days": []
+ },
+ {
+  "name": "오블리브의원 서울오리진점",
+  "address": "서울 종로구 관철동 5-13",
+  "address_base": "서울 종로구 관철동 5-13",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "종로구",
+  "memo": "비고: 청소 정보 없음\n최초계약일: 2026-09-30",
+  "cleaning_days": []
+ },
+ {
+  "name": "JS빌",
+  "address": "서울 중구 황학동 1655",
+  "address_base": "서울 중구 황학동 1655",
+  "address_detail": "",
+  "contract_amount": 1350000,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "중구",
+  "memo": "둥지 계약\n용역업체 납부 ₩1,350,000 / 건물주 청구 ₩1,350,000\n비고: 청소 정보 없음\n최초계약일: 2026-10-05",
+  "cleaning_days": []
+ },
+ {
+  "name": "대흥빌딩",
+  "address": "서울 동대문구 장안동 192-75",
+  "address_base": "서울 동대문구 장안동 192-75",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "동대문구",
+  "memo": "건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n비고: 청소 정보 없음\n영업담당: 함형수 · 최초계약일: 2026-10-15",
+  "cleaning_days": []
+ },
+ {
+  "name": "팝콘D성수",
+  "address": "서울 성동구 성수동2가 316-52",
+  "address_base": "서울 성동구 성수동2가 316-52",
+  "address_detail": "",
+  "contract_amount": 0,
+  "cleaning_type": "일상청소",
+  "worker_ids": [],
+  "branch": "강남",
+  "region": "성동구",
+  "memo": "업체: 임철재 · 둥지 계약 · 투입: 7일\n투입일: 월~일 / 19~20시\n청소 범위: 공용부 전체\n용역업체 납부 ₩1,300,000\n영업담당: 함형수 · 최초계약일: 2026-10-25 · 미화팀 투입일: 2026-11-04",
+  "cleaning_days": [
+   "mon",
+   "tue",
+   "wed",
+   "thu",
+   "fri",
+   "sat",
+   "sun"
+  ]
+ }
+];
+
+// 엑셀(2026.10.23 기준) 건물 일괄 등록 — 이미 등록된 건물명은 건너뜀
+const _normName = n => (n || '').replace(/\s+/g, '').toLowerCase();
+async function importPreloadedBuildings() {
+  const existing = new Set(DB.buildings.map(b => _normName(b.name)));
+  const toAdd = PRELOADED_BUILDINGS.filter(b => !existing.has(_normName(b.name)));
+  if (!toAdd.length) { showToast('✅ 엑셀 건물이 모두 이미 등록되어 있어요'); return; }
+  if (!confirm(`엑셀 건물 ${PRELOADED_BUILDINGS.length}개 중 미등록 ${toAdd.length}개를 추가할까요?\n(이미 있는 ${PRELOADED_BUILDINGS.length - toAdd.length}개는 건너뜁니다)`)) return;
+  const btn = document.getElementById('importBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '등록 중...'; }
+  try {
+    if (useLocal) {
+      toAdd.forEach(b => DB.buildings.push({ ...b, id: genId(), created_at: new Date().toISOString() }));
+      saveLocalData();
+    } else {
+      for (let i = 0; i < toAdd.length; i += 50) await sbInsert('buildings', toAdd.slice(i, i + 50));
+      await loadAll();
+    }
+    renderAll();
+    showToast(`✅ ${toAdd.length}개 건물 등록 완료`, 3500);
+  } catch (e) {
+    showToast('❌ 등록 실패: ' + e.message, 5000);
+    await loadAll();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📥 엑셀 건물 일괄 등록'; }
+  }
+}
 
 // ==================== INIT ====================
 window.onload = () => {
