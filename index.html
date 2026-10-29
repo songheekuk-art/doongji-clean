@@ -73,10 +73,10 @@
 
   .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: 1fr;
     gap: 20px;
     width: 100%;
-    max-width: 760px;
+    max-width: 380px;
   }
 
   .dash-card {
@@ -134,9 +134,7 @@
   }
   .card-go:hover { filter: brightness(1.1); }
 
-  .card-eland  { --accent: #3B8CE4; --icon-bg: #EBF3FD; }
   .card-doongji { --accent: #16A34A; --icon-bg: #DCFCE7; }
-  .card-highconcy { --accent: #7C3AED; --icon-bg: #EDE9FE; }
 
   footer {
     text-align: center;
@@ -148,7 +146,6 @@
 
   @media (max-width: 640px) {
     .greeting h2 { font-size: 22px; }
-    .cards { grid-template-columns: 1fr; }
     .dash-card { padding: 24px 20px; }
   }
 </style>
@@ -160,7 +157,7 @@
     <div class="logo-circle">🏢</div>
     <div class="header-text">
       <h1>둥지 운영 플랫폼</h1>
-      <p>업무 대시보드 선택</p>
+      <p>업무 대시보드</p>
     </div>
   </div>
 </header>
@@ -168,21 +165,10 @@
 <main>
   <div class="greeting">
     <h2>어떤 업무를 할까요?</h2>
-    <p>아래에서 담당 대시보드를 선택해주세요</p>
+    <p>아래 대시보드로 이동해주세요</p>
   </div>
 
   <div class="cards">
-
-    <a class="dash-card card-eland" href="./eland/">
-      <div class="card-icon">🏪</div>
-      <div>
-        <div class="card-name">이랜드</div>
-        <div class="card-desc">미화 담당자 스케줄 · 출퇴근 기록 · 노쇼/팀장대체 · 25일 마감 정산</div>
-      </div>
-      <span class="card-go">
-        바로가기 →
-      </span>
-    </a>
 
     <a class="dash-card card-doongji" href="./doongji/">
       <div class="card-icon">🏢</div>
@@ -190,18 +176,7 @@
         <div class="card-name">둥지 건물</div>
         <div class="card-desc">건물별 청소 운영 · 담당자 배정 · 근무기록 · 급여정산 · 건물 지도</div>
       </div>
-      <span class="card-go" style="background:#16A34A;">
-        바로가기 →
-      </span>
-    </a>
-
-    <a class="dash-card card-highconcy" href="./highconcy/">
-      <div class="card-icon">🧹</div>
-      <div>
-        <div class="card-name">하이컨시</div>
-        <div class="card-desc">청소 동선 관리 · 구역별 일정 · 인원 배치 · 작업 현황</div>
-      </div>
-      <span class="card-go" style="background:#7C3AED;">
+      <span class="card-go">
         바로가기 →
       </span>
     </a>
@@ -210,7 +185,7 @@
 </main>
 
 <footer>
-  둥지 운영 플랫폼 · 이랜드 + 둥지 건물 + 하이컨시
+  둥지 운영 플랫폼 · 둥지 건물
 </footer>
 
 </body>
