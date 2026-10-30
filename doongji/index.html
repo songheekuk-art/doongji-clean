@@ -142,6 +142,15 @@
   /* SUMMARY TABLE */
   .summary-positive { color: var(--green); font-weight: 600; }
   .summary-negative { color: var(--red); font-weight: 600; }
+  /* ===== 접고 펼치는 섹션 ===== */
+  .fold-head { cursor:pointer;user-select:none; }
+  .fold-head:hover { background:var(--gray-50); }
+  .fold-summary { display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--gray-500); }
+  .fold-summary b { color:var(--gray-800);font-weight:600; }
+  .fold-btn { font-size:12px;font-weight:600;color:var(--blue);background:var(--blue-light);border-radius:6px;padding:4px 10px;white-space:nowrap; }
+  .fold-body { max-height:480px;overflow:auto; }
+  .fold-body thead th { position:sticky;top:0;z-index:2;background:#fff;box-shadow:0 1px 0 var(--gray-200); }
+  .fold.collapsed .fold-body { display:none; }
   /* ===== 영업이익 탭 ===== */
   .pf-bar { background:#fff;border-radius:var(--radius);padding:14px 20px;margin-bottom:16px;box-shadow:var(--shadow);display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px; }
   .pf-bar label.lbl { font-size:13px;font-weight:600;color:var(--gray-600); }
@@ -280,11 +289,12 @@
     </div>
 
     <!-- 건물별 이윤 현황 -->
-    <div class="section">
-      <div class="section-header">
+    <div class="section fold collapsed" id="foldDashBuilding">
+      <div class="section-header fold-head" onclick="toggleFold('foldDashBuilding')">
         <div class="section-title">건물별 수익 현황</div>
+        <div class="fold-summary"><span id="dashBuildingSummary"></span><span class="fold-btn">펼치기 ▼</span></div>
       </div>
-      <div class="section-body">
+      <div class="section-body fold-body">
         <table>
           <thead>
             <tr>
@@ -343,12 +353,12 @@
     </div>
 
     <!-- 미배정 건물 -->
-    <div class="section" id="unassignedSection" style="margin-top:16px;display:none;">
-      <div class="section-header" style="background:var(--yellow-light);">
+    <div class="section fold collapsed" id="unassignedSection" style="margin-top:16px;display:none;">
+      <div class="section-header fold-head" style="background:var(--yellow-light);" onclick="toggleFold('unassignedSection')">
         <div class="section-title" style="color:var(--yellow);">⚠️ 미배정 건물</div>
-        <div style="font-size:12px;color:var(--yellow);" id="unassignedCount">0개</div>
+        <div class="fold-summary"><span style="color:var(--yellow);font-weight:600;" id="unassignedCount">0개</span><span class="fold-btn">펼치기 ▼</span></div>
       </div>
-      <div class="section-body">
+      <div class="section-body fold-body">
         <table>
           <thead>
             <tr><th>지점</th><th>건물명</th><th>주소</th><th>계약금액</th><th>메모</th></tr>
@@ -2784,6 +2794,7 @@ window.onload = () => {
   document.getElementById('pfMonth').value = ym;
   initProfitControls();
   initBuildingSearch();
+  restoreFolds();
   document.getElementById('lDate').value = now.toISOString().slice(0,10);
 
   // Supabase 자동 연결
@@ -3827,6 +3838,14 @@ function renderDashboard() {
       </tr>`;
     }).join('');
   }
+  // 접힌 상태에서도 보이는 요약
+  const sumEl = document.getElementById('dashBuildingSummary');
+  if (sumEl) {
+    const rows = [...btbody.querySelectorAll('tr')];
+    const lossCnt = rows.filter(r => r.querySelector('.summary-negative')).length;
+    sumEl.innerHTML = `<b>${DB.buildings.length}개</b> 건물 · 청구 <b>${fmtWon(totalRevenue)}</b> · 이윤 <b style="color:${profit >= 0 ? 'var(--green)' : 'var(--red)'};">${fmtWon(profit)}</b>`
+      + (lossCnt ? ` · <b style="color:var(--red);">적자 ${lossCnt}개</b>` : '');
+  }
 
   // Worker table
   const wtbody = document.getElementById('dashWorkerTable');
@@ -4073,6 +4092,24 @@ function exportProfitCsv() {
   a.download = `둥지_건물별_영업이익_${month}.csv`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ==================== 섹션 접기/펼치기 (상태는 이 브라우저에 기억) ====================
+function toggleFold(id, force) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const collapsed = force !== undefined ? force : !el.classList.contains('collapsed');
+  el.classList.toggle('collapsed', collapsed);
+  const btn = el.querySelector('.fold-btn');
+  if (btn) btn.textContent = collapsed ? '펼치기 ▼' : '접기 ▲';
+  if (force === undefined) { try { localStorage.setItem('fold_' + id, collapsed ? '1' : '0'); } catch (e) {} }
+}
+function restoreFolds() {
+  document.querySelectorAll('.fold').forEach(el => {
+    let v = null;
+    try { v = localStorage.getItem('fold_' + el.id); } catch (e) {}
+    toggleFold(el.id, v === null ? true : v === '1');
+  });
 }
 
 function exportSettlement() {
