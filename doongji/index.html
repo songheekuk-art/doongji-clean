@@ -398,8 +398,17 @@
   <div class="tab-content" id="tab-buildings">
     <div class="section">
       <div class="section-header">
-        <div class="section-title">건물 관리</div>
-        <div style="display:flex;gap:8px;">
+        <div class="section-title">건물 관리 <span id="bCount" style="font-size:12px;font-weight:500;color:var(--gray-400);margin-left:6px;"></span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <div style="position:relative;">
+            <input type="search" id="bSearch" placeholder="🔍 건물명·주소·업체 검색" autocomplete="off"
+              style="font-family:inherit;font-size:13px;padding:7px 12px;width:240px;border:1px solid var(--gray-200);border-radius:8px;outline:none;">
+          </div>
+          <select id="bBranchFilter" onchange="renderBuildingTable()" style="font-family:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--gray-200);border-radius:8px;background:#fff;">
+            <option value="all">전체 지점</option>
+            <option value="강남">강남</option>
+            <option value="강서">강서</option>
+          </select>
           <button class="btn btn-ghost btn-sm" id="importBtn" onclick="importPreloadedBuildings()">📥 엑셀 건물 일괄 등록</button>
           <button class="btn btn-primary btn-sm" onclick="openBuildingModal()">+ 건물 추가</button>
         </div>
@@ -2774,6 +2783,7 @@ window.onload = () => {
   document.getElementById('settleMonth').value = ym;
   document.getElementById('pfMonth').value = ym;
   initProfitControls();
+  initBuildingSearch();
   document.getElementById('lDate').value = now.toISOString().slice(0,10);
 
   // Supabase 자동 연결
@@ -3433,20 +3443,59 @@ function toggleBuildingDetail(id) {
   renderBuildingTable();
 }
 
+// 건물 검색 (한글 입력 중에는 조합이 끝난 뒤 검색)
+let _bComposing = false;
+function initBuildingSearch() {
+  const s = document.getElementById('bSearch');
+  s.addEventListener('compositionstart', () => { _bComposing = true; });
+  s.addEventListener('compositionend', () => { _bComposing = false; renderBuildingTable(); });
+  s.addEventListener('input', () => { if (!_bComposing) renderBuildingTable(); });
+  s.addEventListener('keydown', e => { if (e.key === 'Escape') { s.value = ''; renderBuildingTable(); } });
+}
+const _norm = t => (t || '').replace(/\s+/g, '').toLowerCase();
+function filteredBuildings() {
+  const q = _norm(document.getElementById('bSearch')?.value);
+  const br = document.getElementById('bBranchFilter')?.value || 'all';
+  return DB.buildings.filter(b => {
+    if (br !== 'all' && b.branch !== br) return false;
+    if (!q) return true;
+    const workers = (b.worker_ids || []).map(id => DB.workers.find(w => w.id === id)?.name || '').join(' ');
+    return _norm([b.name, b.address, b.region, b.memo, workers].join(' ')).includes(q);
+  });
+}
+function _hl(text) {
+  const q = (document.getElementById('bSearch')?.value || '').trim();
+  if (!q || !text) return text;
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return text;
+  return text.slice(0, i) + '<mark style="background:#FEF08A;padding:0 1px;border-radius:2px;">' + text.slice(i, i + q.length) + '</mark>' + text.slice(i + q.length);
+}
+
 function renderBuildingTable() {
   const tbody = document.getElementById('buildingTable');
+  const cnt = document.getElementById('bCount');
   if (!DB.buildings.length) {
+    if (cnt) cnt.textContent = '';
     tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-icon">🏢</div><p>건물을 추가해주세요</p></div></td></tr>';
     return;
   }
-  tbody.innerHTML = DB.buildings.map(b => {
+  const list = filteredBuildings();
+  const filtering = list.length !== DB.buildings.length;
+  if (cnt) cnt.textContent = filtering ? `${list.length} / ${DB.buildings.length}개` : `${DB.buildings.length}개`;
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-icon">🔍</div><p>검색 결과가 없습니다</p></div></td></tr>';
+    return;
+  }
+  // 결과가 1개면 상세를 자동으로 펼침
+  const autoOpen = list.length === 1 && document.getElementById('bSearch').value.trim() ? list[0].id : null;
+  tbody.innerHTML = list.map(b => {
     const workers = (b.worker_ids || []).map(id => DB.workers.find(w => w.id === id)?.name).filter(Boolean);
-    const isExpanded = _expandedBuildingId === b.id;
+    const isExpanded = _expandedBuildingId === b.id || autoOpen === b.id;
     const memoShort = b.memo ? (b.memo.length > 20 ? b.memo.slice(0,20) + '...' : b.memo) : '-';
 
     const mainRow = `<tr class="building-row-clickable" onclick="toggleBuildingDetail('${b.id}')">
       <td><span class="badge ${b.branch==='강남'?'badge-blue':'badge-green'}">${b.branch||'-'}</span></td>
-      <td><strong>${b.name}</strong> <span style="color:var(--gray-300);font-size:11px;">${isExpanded ? '▲' : '▼'}</span></td>
+      <td><strong>${_hl(b.name)}</strong> <span style="color:var(--gray-300);font-size:11px;">${isExpanded ? '▲' : '▼'}</span></td>
       <td style="font-size:12px;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.address || '-'}</td>
       <td><span class="badge badge-gray">${b.region||'-'}</span></td>
       <td>${fmtWon(b.contract_amount)}</td>
