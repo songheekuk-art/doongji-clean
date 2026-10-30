@@ -142,6 +142,24 @@
   /* SUMMARY TABLE */
   .summary-positive { color: var(--green); font-weight: 600; }
   .summary-negative { color: var(--red); font-weight: 600; }
+  /* ===== 영업이익 탭 ===== */
+  .pf-bar { background:#fff;border-radius:var(--radius);padding:14px 20px;margin-bottom:16px;box-shadow:var(--shadow);display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px; }
+  .pf-bar label.lbl { font-size:13px;font-weight:600;color:var(--gray-600); }
+  .pf-bar select, .pf-bar input[type=month], .pf-bar input[type=search] { font-family:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--gray-200);border-radius:8px;background:#fff; }
+  .pf-bar input[type=search] { width:180px; }
+  .pf-chk { display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gray-600);cursor:pointer; }
+  .pf-table th.sortable { cursor:pointer;user-select:none;white-space:nowrap; }
+  .pf-table th.sortable:hover { color:var(--blue); }
+  .pf-table td.num, .pf-table th.num { text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap; }
+  .pf-table tbody tr { cursor:pointer; }
+  .pf-table tbody tr:hover { background:var(--gray-50); }
+  .pf-table tfoot td { font-weight:700;border-top:2px solid var(--gray-200);background:var(--gray-50); }
+  .pf-margin { display:flex;align-items:center;justify-content:flex-end;gap:8px; }
+  .pf-margin-track { width:60px;height:6px;border-radius:3px;background:var(--gray-100);overflow:hidden; }
+  .pf-margin-fill { height:100%;border-radius:3px; }
+  .pf-missing { color:var(--gray-400);font-size:12px; }
+  .pf-vendor { font-size:11px;color:var(--gray-400);margin-top:2px; }
+  .pf-scroll { overflow-x:auto; }
 
   /* TABS CONTENT */
   .tab-content { display: none; }
@@ -240,6 +258,7 @@
   <div class="nav-tab" onclick="switchTab('buildings', this)">🏢 건물</div>
   <div class="nav-tab" onclick="switchTab('logs', this)">📋 근무기록</div>
   <div class="nav-tab" onclick="switchTab('settlement', this)">💰 급여정산</div>
+  <div class="nav-tab" onclick="switchTab('profit', this)">📈 영업이익</div>
 </nav>
 
 <!-- MAIN -->
@@ -478,6 +497,54 @@
     </div>
   </div>
 
+  <!-- ============ PROFIT TAB ============ -->
+  <div class="tab-content" id="tab-profit">
+    <div class="pf-bar">
+      <label class="lbl">기준 월</label>
+      <input type="month" id="pfMonth" onchange="renderProfit()">
+      <select id="pfBranch" onchange="renderProfit()">
+        <option value="all">전체 지점</option>
+        <option value="강남">강남지점</option>
+        <option value="강서">강서지점</option>
+      </select>
+      <input type="search" id="pfSearch" placeholder="건물명·업체 검색">
+      <label class="pf-chk"><input type="checkbox" id="pfHideZero" checked onchange="renderProfit()"> 청구 0원 건물 제외</label>
+      <div style="flex:1;"></div>
+      <button class="btn btn-green btn-sm" onclick="exportProfitCsv()">📥 CSV 내보내기</button>
+    </div>
+
+    <div class="cards-row" id="pfCards"></div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">건물별 영업이익</div>
+        <div style="font-size:12px;color:var(--gray-400);">행을 누르면 청구·투입금액을 수정할 수 있어요</div>
+      </div>
+      <div class="section-body pf-scroll">
+        <table class="pf-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-k="branch">지점</th>
+              <th class="sortable" data-k="name">건물명 / 업체</th>
+              <th class="sortable num" data-k="revenue">건물주 청구</th>
+              <th class="sortable num" data-k="vendor">용역업체 납부</th>
+              <th class="sortable num" data-k="labor">둥지 인건비</th>
+              <th class="sortable num" data-k="cost">투입 합계</th>
+              <th class="sortable num" data-k="profit">영업이익</th>
+              <th class="sortable num" data-k="margin">이익률</th>
+            </tr>
+          </thead>
+          <tbody id="pfTable"></tbody>
+          <tfoot id="pfFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--gray-400);margin-top:10px;line-height:1.7;">
+      · 투입 합계 = 용역업체 납부금액(월 고정) + 둥지 인건비(선택한 월의 근무기록 기준, 급여정산 탭과 같은 계산)<br>
+      · 영업이익 = 건물주 청구 − 투입 합계 · 이익률 30% 이상 양호 / 10% 이상 주의 / 그 미만 위험
+    </div>
+  </div>
+
 </div><!-- /main -->
 
 <!-- TOAST -->
@@ -572,6 +639,13 @@
         <input class="form-input" id="bContract" type="number" placeholder="1500000">
         <div class="form-hint">임대인에게 청구하는 고정 금액</div>
       </div>
+      <div class="form-group">
+        <label class="form-label">월 투입금액 (원)</label>
+        <input class="form-input" id="bVendorCost" type="number" placeholder="용역업체 납부금액">
+        <div class="form-hint">용역업체에 지급하는 월 금액 (영업이익 계산용)</div>
+      </div>
+    </div>
+    <div class="form-row">
       <div class="form-group">
         <label class="form-label">청소 유형</label>
         <select class="form-select" id="bType">
@@ -721,6 +795,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 도산대로 81길 41",
   "address_detail": "",
   "contract_amount": 150000,
+  "vendor_cost": 150000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -736,6 +811,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 노원구 공릉로 225",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -749,6 +825,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 서초구 반포대로 22길 104",
   "address_detail": "",
   "contract_amount": 1000000,
+  "vendor_cost": 1000000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -762,6 +839,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 논현로 828",
   "address_detail": "",
   "contract_amount": 1400000,
+  "vendor_cost": 1400000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -781,6 +859,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 성동구 연무장3길 9-8",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -794,6 +873,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 마포구 월드컵북로4길 43",
   "address_detail": "",
   "contract_amount": 1500000,
+  "vendor_cost": 1000000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -811,6 +891,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 마포구 어울마당로 44",
   "address_detail": "",
   "contract_amount": 480000,
+  "vendor_cost": 480000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -826,6 +907,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 광진구 아차산로 361",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -839,6 +921,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 송파구 석촌호수로 118",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -852,6 +935,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 마포구 백범로10길 26",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -865,6 +949,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 광진구 뚝섬로 590",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -878,6 +963,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 영등포구 국회대로 651-8",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -891,6 +977,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 성동구 성수동2가 284-98",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -904,6 +991,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 송파구 양재대로71길 1-18",
   "address_detail": "",
   "contract_amount": 1700000,
+  "vendor_cost": 1600000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -923,6 +1011,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 개포로124길 27",
   "address_detail": "",
   "contract_amount": 800000,
+  "vendor_cost": 800000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -940,6 +1029,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 영등포구 양평로 144",
   "address_detail": "",
   "contract_amount": 400000,
+  "vendor_cost": 400000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -953,6 +1043,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 선릉로 131길 18",
   "address_detail": "",
   "contract_amount": 600000,
+  "vendor_cost": 500000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -970,6 +1061,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 마포구 서교동 402-19",
   "address_detail": "",
   "contract_amount": 170000,
+  "vendor_cost": 120000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -983,6 +1075,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 양천구 은행정로 54",
   "address_detail": "",
   "contract_amount": 520000,
+  "vendor_cost": 520000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1002,6 +1095,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 서초구 사평대로55길 37",
   "address_detail": "",
   "contract_amount": 335000,
+  "vendor_cost": 335000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1017,6 +1111,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 논현로81길 11",
   "address_detail": "",
   "contract_amount": 3900000,
+  "vendor_cost": 3900000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1036,6 +1131,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 중구 퇴계로14길 15",
   "address_detail": "",
   "contract_amount": 800000,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1049,6 +1145,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 서초구 사임당로 46",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1062,6 +1159,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 송파구 백제고분로 197",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1075,6 +1173,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 성남시 수정구 산성대로 75",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -1088,6 +1187,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 성동구 상원4길 11",
   "address_detail": "",
   "contract_amount": 600000,
+  "vendor_cost": 600000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1101,6 +1201,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 중구 광희동2가 37",
   "address_detail": "",
   "contract_amount": 1200000,
+  "vendor_cost": 1200000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1114,6 +1215,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 영동대로106길 9",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1127,6 +1229,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 관악구 남부순환로 1831",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1140,6 +1243,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 마포구 어울마당로 46",
   "address_detail": "",
   "contract_amount": 350000,
+  "vendor_cost": 300000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1156,6 +1260,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강동구 진황도로 190",
   "address_detail": "",
   "contract_amount": 1850000,
+  "vendor_cost": 1700000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1175,6 +1280,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 동작구 남부순환로 2055",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1188,6 +1294,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 용산구 한남동 31-17",
   "address_detail": "",
   "contract_amount": 550000,
+  "vendor_cost": 450000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1207,6 +1314,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 언주로 622",
   "address_detail": "",
   "contract_amount": 620000,
+  "vendor_cost": 570000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1224,6 +1332,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 논현로 717",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1237,6 +1346,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 금천구 가산동 60-44",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1250,6 +1360,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 마포구 서교동 468-18",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1263,6 +1374,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 금천구 독산동 193-14",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1276,6 +1388,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 언주로97길 31",
   "address_detail": "",
   "contract_amount": 1200000,
+  "vendor_cost": 1200000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1293,6 +1406,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 강남대로118길 11",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1306,6 +1420,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 도곡로 111",
   "address_detail": "",
   "contract_amount": 6100000,
+  "vendor_cost": 6100000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1319,6 +1434,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 용산구 한강대로10길 11-18",
   "address_detail": "",
   "contract_amount": 1450000,
+  "vendor_cost": 1450000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1332,6 +1448,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 중랑구 면목로 480",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1345,6 +1462,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 논현로153길 41",
   "address_detail": "",
   "contract_amount": 100000,
+  "vendor_cost": 100000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1358,6 +1476,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 서초구 서초대로50길 62-11",
   "address_detail": "",
   "contract_amount": 1400000,
+  "vendor_cost": 1400000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1374,6 +1493,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 마포구 동교동 201-14",
   "address_detail": "",
   "contract_amount": 800000,
+  "vendor_cost": 800000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1387,6 +1507,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 도산대로70길 16",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1400,6 +1521,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 서초구 효령로 328",
   "address_detail": "",
   "contract_amount": 1500000,
+  "vendor_cost": 1500000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1413,6 +1535,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 강남구 신사동 519-23",
   "address_detail": "",
   "contract_amount": 2050000,
+  "vendor_cost": 2050000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1426,6 +1549,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 삼성로 743",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1439,6 +1563,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강서구 방화동 645-20",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1452,6 +1577,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 부천시 오정구 고리울로52번길 29",
   "address_detail": "",
   "contract_amount": 950000,
+  "vendor_cost": 900000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -1465,6 +1591,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 마포구 만리재로 133",
   "address_detail": "",
   "contract_amount": 800000,
+  "vendor_cost": 700000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1482,6 +1609,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 노원구 상계동 707",
   "address_detail": "",
   "contract_amount": 500000,
+  "vendor_cost": 500000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1495,6 +1623,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 강남구 삼성로 424",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1508,6 +1637,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 강남구 도산대로24길 19",
   "address_detail": "",
   "contract_amount": 1200000,
+  "vendor_cost": 1200000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1521,6 +1651,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 중구 동호로8나길 69",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1534,6 +1665,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 관악구 봉천로8길 15",
   "address_detail": "",
   "contract_amount": 240000,
+  "vendor_cost": 240000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1547,6 +1679,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강동구 풍성로 138",
   "address_detail": "",
   "contract_amount": 1120000,
+  "vendor_cost": 1120000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1563,6 +1696,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 양천구 신월동 928-1",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1576,6 +1710,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 개포로 232",
   "address_detail": "",
   "contract_amount": 650000,
+  "vendor_cost": 650000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1594,6 +1729,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 동대문구 왕산로26길 35",
   "address_detail": "",
   "contract_amount": 650000,
+  "vendor_cost": 650000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1607,6 +1743,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 송파구 삼전로 78",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1620,6 +1757,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 고양시 일산서구 탄현동 1491-5",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -1633,6 +1771,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 성동구 한림말1길 12",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1646,6 +1785,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강서구 방화동 614-34",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1659,6 +1799,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 서초구 강남대로97길 44",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1672,6 +1813,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 의정부시 용현로105번길 45-19",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -1685,6 +1827,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 수원시 영통구 영통로 215",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -1698,6 +1841,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 언주로135길 28",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1711,6 +1855,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 안양시 만안구 일직로106번길 60",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -1724,6 +1869,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 성동구 성수이로 121",
   "address_detail": "",
   "contract_amount": 1080000,
+  "vendor_cost": 1080000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1742,6 +1888,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 성동구 성수이로 123",
   "address_detail": "",
   "contract_amount": 740000,
+  "vendor_cost": 740000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1759,6 +1906,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 광진구 아차산로 459",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1772,6 +1920,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 서초구 명달로 92",
   "address_detail": "",
   "contract_amount": 200000,
+  "vendor_cost": 200000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1785,6 +1934,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 종로구 율곡로 223-1",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1798,6 +1948,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 압구정로71길4",
   "address_detail": "",
   "contract_amount": 800000,
+  "vendor_cost": 700000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1815,6 +1966,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 금천구 범안로 1173",
   "address_detail": "",
   "contract_amount": 700000,
+  "vendor_cost": 700000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1831,6 +1983,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 대치동 929-11",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1844,6 +1997,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 성동구 상원길 62",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1857,6 +2011,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 의정부시 승지로4번길 7-4",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -1870,6 +2025,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 송파구 벽제고분로 235",
   "address_detail": "",
   "contract_amount": 800000,
+  "vendor_cost": 750000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1889,6 +2045,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 은평구 응암로 264",
   "address_detail": "",
   "contract_amount": 900000,
+  "vendor_cost": 800000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1908,6 +2065,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 성남시 수정구 산성대로269번길 10",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -1921,6 +2079,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 봉은사로43길 6-8",
   "address_detail": "",
   "contract_amount": 900000,
+  "vendor_cost": 800000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1938,6 +2097,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 서초구 반포동 55-7",
   "address_detail": "",
   "contract_amount": 650000,
+  "vendor_cost": 550000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1953,6 +2113,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 도곡로 121",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1966,6 +2127,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 서초구 양재동 377",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -1979,6 +2141,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 광주시 새말길 47",
   "address_detail": "",
   "contract_amount": 200000,
+  "vendor_cost": 200000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -1994,6 +2157,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 도산대로66길 53",
   "address_detail": "",
   "contract_amount": 320000,
+  "vendor_cost": 250000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2009,6 +2173,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 강남구 압구정로80길 38",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2022,6 +2187,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 관악구 봉천동 852-3",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2035,6 +2201,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 도산대로 70길 16",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2048,6 +2215,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 영동대로 621",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2067,6 +2235,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 가로수길 69",
   "address_detail": "",
   "contract_amount": 1700000,
+  "vendor_cost": 1600000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2087,6 +2256,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 봉은사로18길 84",
   "address_detail": "",
   "contract_amount": 1650000,
+  "vendor_cost": 1550000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2106,6 +2276,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 언주로107길 23",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2119,6 +2290,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 서초구 서초중앙로 123",
   "address_detail": "",
   "contract_amount": 125000,
+  "vendor_cost": 125000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2132,6 +2304,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 서초구 서초대로23길 83",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2145,6 +2318,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강서구 양천로67길 15",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2158,6 +2332,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 광진구 아차산로49길 37",
   "address_detail": "",
   "contract_amount": 700000,
+  "vendor_cost": 600000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2173,6 +2348,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기도 과천시 별양동 1-23",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -2186,6 +2362,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 도봉구 덕릉로 235",
   "address_detail": "",
   "contract_amount": 900000,
+  "vendor_cost": 800000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2205,6 +2382,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 성동구 서울숲7길 7",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2218,6 +2396,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 과천시 은행나무길 32-1",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 1250000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -2231,6 +2410,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 성남시 분당구 판교로 434",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -2244,6 +2424,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 역삼동 704-45 (3층, 4층)",
   "address_detail": "",
   "contract_amount": 800000,
+  "vendor_cost": 550000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2260,6 +2441,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 수원시 팔달구 효원로265번길 44",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -2273,6 +2455,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 금천구 가산동 493-6",
   "address_detail": "",
   "contract_amount": 250000,
+  "vendor_cost": 150000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2288,6 +2471,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 영등포구 영등포동7가 203",
   "address_detail": "",
   "contract_amount": 250000,
+  "vendor_cost": 150000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2303,6 +2487,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 용산구 효창동 5-116",
   "address_detail": "",
   "contract_amount": 250000,
+  "vendor_cost": 150000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2318,6 +2503,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 서초구 반포동 51-7",
   "address_detail": "",
   "contract_amount": 250000,
+  "vendor_cost": 150000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2333,6 +2519,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 마포구 서교동 466-19",
   "address_detail": "",
   "contract_amount": 650000,
+  "vendor_cost": 550000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2352,6 +2539,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 은평구 응암동 770-5",
   "address_detail": "",
   "contract_amount": 1200000,
+  "vendor_cost": 1200000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2371,6 +2559,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 성동구 성수동1가 656-1693",
   "address_detail": "",
   "contract_amount": 1600000,
+  "vendor_cost": 1300000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2384,6 +2573,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 강남구 신사동 653-12",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2397,6 +2587,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울시 강남구 대치동 896-1",
   "address_detail": "",
   "contract_amount": 1000000,
+  "vendor_cost": 480000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2416,6 +2607,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 용산구 한남동 31-17",
   "address_detail": "",
   "contract_amount": 1000000,
+  "vendor_cost": 850000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2429,6 +2621,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 수원시 팔달구 우만동 153-20",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -2442,6 +2635,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "경기 수원시 팔달구 우만동 153-7",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강서",
@@ -2455,6 +2649,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 강남구 역삼동 740-3",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2468,6 +2663,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2481,6 +2677,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 종로구 관철동 5-13",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": null,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2494,6 +2691,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 중구 황학동 1655",
   "address_detail": "",
   "contract_amount": 1350000,
+  "vendor_cost": 1350000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2507,6 +2705,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 동대문구 장안동 192-75",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 0,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2520,6 +2719,7 @@ const PRELOADED_BUILDINGS = [
   "address_base": "서울 성동구 성수동2가 316-52",
   "address_detail": "",
   "contract_amount": 0,
+  "vendor_cost": 1300000,
   "cleaning_type": "일상청소",
   "worker_ids": [],
   "branch": "강남",
@@ -2551,7 +2751,8 @@ async function importPreloadedBuildings() {
       toAdd.forEach(b => DB.buildings.push({ ...b, id: genId(), created_at: new Date().toISOString() }));
       saveLocalData();
     } else {
-      for (let i = 0; i < toAdd.length; i += 50) await sbInsert('buildings', toAdd.slice(i, i + 50));
+      const rows = toAdd.map(b => { const r = { ...b }; if (!HAS_VENDOR_COL) delete r.vendor_cost; return r; });
+      for (let i = 0; i < rows.length; i += 50) await sbInsert('buildings', rows.slice(i, i + 50));
       await loadAll();
     }
     renderAll();
@@ -2571,6 +2772,8 @@ window.onload = () => {
   document.getElementById('dashMonth').value = ym;
   document.getElementById('logMonth').value = ym;
   document.getElementById('settleMonth').value = ym;
+  document.getElementById('pfMonth').value = ym;
+  initProfitControls();
   document.getElementById('lDate').value = now.toISOString().slice(0,10);
 
   // Supabase 자동 연결
@@ -2597,8 +2800,21 @@ function saveLocalData() {
   localStorage.setItem('db_logs', JSON.stringify(DB.logs));
 }
 
+// buildings 테이블에 vendor_cost 칸이 있는지 1회 확인 (없으면 메모 기반으로 동작)
+let HAS_VENDOR_COL = false;
+let _vendorColChecked = false;
+async function checkVendorCol() {
+  if (_vendorColChecked) return;
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/buildings?select=vendor_cost&limit=1`, { headers: SB_HEAD() });
+    HAS_VENDOR_COL = res.ok;
+    _vendorColChecked = true;
+  } catch (e) {}
+}
+
 async function loadAll() {
   if (useLocal) { loadLocalData(); return; }
+  await checkVendorCol();
   try {
     const [workers, buildings, logs] = await Promise.all([
       sbGet('workers', 'created_at'),
@@ -2641,6 +2857,7 @@ function renderAll() {
   renderLogs();
   renderDashboard();
   renderSettlement();
+  renderProfit();
 }
 
 // ==================== TAB ====================
@@ -2651,6 +2868,7 @@ function switchTab(name, el) {
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'dashboard') renderDashboard();
   if (name === 'settlement') renderSettlement();
+  if (name === 'profit') renderProfit();
   // Invalidate map size when switching back to dashboard
   if (name === 'dashboard') setTimeout(() => initDashMap(), 100);
 }
@@ -3134,6 +3352,8 @@ function openBuildingModal(id = null) {
     if (b.address) { selEl2.textContent = '📍 ' + (b.address_base || b.address); selEl2.style.display = 'block'; } else { selEl2.style.display = 'none'; }
     document.getElementById('bAddressDetail').value = b.address_detail || '';
     document.getElementById('bContract').value = b.contract_amount;
+    const vc = vendorCostOf(b);
+    document.getElementById('bVendorCost').value = vc == null ? '' : vc;
     document.getElementById('bType').value = b.cleaning_type || '일상청소';
     document.getElementById('bBranch').value = b.branch || '강남';
     document.getElementById('bRegion').value = b.region || '';
@@ -3144,7 +3364,7 @@ function openBuildingModal(id = null) {
       btn.classList.toggle('on', savedDays.includes(btn.dataset.day));
     });
   } else {
-    ['bName','bAddress','bAddrQuery','bAddressDetail','bContract','bMemo','bRegion'].forEach(i => document.getElementById(i).value = '');
+    ['bName','bAddress','bAddrQuery','bAddressDetail','bContract','bVendorCost','bMemo','bRegion'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('addrSelected').style.display = 'none';
     hideAddrResults();
     document.querySelectorAll('#bDayPicker .day-btn').forEach(btn => btn.classList.remove('on'));
@@ -3175,6 +3395,11 @@ async function saveBuilding() {
     memo: document.getElementById('bMemo').value,
     cleaning_days: [...document.querySelectorAll('#bDayPicker .day-btn.on')].map(b => b.dataset.day)
   };
+  // 월 투입금액: DB 칸(vendor_cost)이 있으면 그곳에, 없으면 메모의 '용역업체 납부' 줄에 저장
+  const vcRaw = document.getElementById('bVendorCost').value.trim();
+  const vcVal = vcRaw === '' ? null : (parseInt(vcRaw) || 0);
+  if (HAS_VENDOR_COL) data.vendor_cost = vcVal;
+  if (!HAS_VENDOR_COL || /용역업체 납부/.test(data.memo)) data.memo = setMemoVendorCost(data.memo, vcVal);
   // Clear geocode cache for this address so map re-geocodes
   if (geocodeCache[fullAddress]) delete geocodeCache[fullAddress];
 
@@ -3644,6 +3869,161 @@ function renderSettlement() {
       </tr>`;
     }).join('');
   }
+}
+
+// ==================== PROFIT (영업이익) ====================
+// 투입금액: vendor_cost 칸 값 → 없으면 메모의 '용역업체 납부 ₩…' → 둘 다 없으면 null(미입력)
+function vendorCostOf(b) {
+  if (b.vendor_cost !== undefined && b.vendor_cost !== null) return Number(b.vendor_cost) || 0;
+  const m = (b.memo || '').match(/용역업체 납부\s*₩\s*([\d,]+)/);
+  return m ? parseInt(m[1].replace(/,/g, '')) : null;
+}
+function setMemoVendorCost(memo, val) {
+  memo = memo || '';
+  const re = /용역업체 납부\s*₩\s*[\d,]+/;
+  if (val === null) return memo.replace(/용역업체 납부\s*₩\s*[\d,]+\s*(\/\s*)?/, '').replace(/\n{2,}/g, '\n').trim();
+  const txt = '용역업체 납부 ₩' + val.toLocaleString('ko-KR');
+  if (re.test(memo)) return memo.replace(re, txt);
+  return memo ? memo + '\n' + txt : txt;
+}
+function memoField(b, key) {
+  const m = (b.memo || '').match(new RegExp(key + ':\\s*([^·\\n]+)'));
+  return m ? m[1].trim() : '';
+}
+// 급여정산 탭과 같은 방식의 건물별 월 인건비(+기타비용)
+function buildingLaborCost(b, month) {
+  const bLogs = DB.logs.filter(l => l.building_id === b.id && l.date && l.date.startsWith(month));
+  let labor = 0;
+  bLogs.forEach(l => {
+    const w = DB.workers.find(x => x.id === l.worker_id);
+    if (w && w.type === 'hourly') labor += (w.wage || 0) * (l.hours || 0);
+  });
+  const extra = bLogs.reduce((s, l) => s + (l.extra_cost || 0), 0);
+  const mw = new Set(bLogs.filter(l => DB.workers.find(x => x.id === l.worker_id)?.type === 'monthly').map(l => l.worker_id));
+  mw.forEach(wid => {
+    const w = DB.workers.find(x => x.id === wid);
+    if (!w) return;
+    const bCount = DB.buildings.filter(b2 => (b2.worker_ids || []).includes(wid) && DB.logs.some(l => l.building_id === b2.id && l.worker_id === wid && l.date && l.date.startsWith(month))).length;
+    labor += bCount > 0 ? w.wage / bCount : 0;
+  });
+  return Math.round(labor) + extra;
+}
+
+let _pfSort = { k: 'profit', dir: -1 };
+let _pfComposing = false;
+function initProfitControls() {
+  const s = document.getElementById('pfSearch');
+  s.addEventListener('compositionstart', () => { _pfComposing = true; });
+  s.addEventListener('compositionend', () => { _pfComposing = false; renderProfit(); });
+  s.addEventListener('input', () => { if (!_pfComposing) renderProfit(); });
+  document.querySelectorAll('.pf-table th.sortable').forEach(th => th.addEventListener('click', () => {
+    const k = th.dataset.k;
+    _pfSort = _pfSort.k === k ? { k, dir: -_pfSort.dir } : { k, dir: (k === 'name' || k === 'branch') ? 1 : -1 };
+    renderProfit();
+  }));
+}
+
+function profitRows() {
+  const month = document.getElementById('pfMonth').value;
+  const branch = document.getElementById('pfBranch').value;
+  const q = document.getElementById('pfSearch').value.trim().replace(/\s+/g, '').toLowerCase();
+  const hideZero = document.getElementById('pfHideZero').checked;
+  return DB.buildings.map(b => {
+    const revenue = b.contract_amount || 0;
+    const vendorRaw = vendorCostOf(b);
+    const vendor = vendorRaw || 0;
+    const labor = buildingLaborCost(b, month);
+    const cost = vendor + labor;
+    const profit = revenue - cost;
+    const margin = revenue ? profit / revenue * 100 : null;
+    return { b, id: b.id, name: b.name, branch: b.branch || '', vendorName: memoField(b, '업체'),
+             revenue, vendor, vendorMissing: vendorRaw === null && labor === 0, labor, cost, profit, margin };
+  }).filter(r => {
+    if (branch !== 'all' && r.branch !== branch) return false;
+    if (hideZero && !r.revenue) return false;
+    if (q && !(r.name + r.vendorName).replace(/\s+/g, '').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function marginStatus(m) {
+  if (m === null) return { color: 'var(--gray-300)', label: '-' };
+  if (m < 0) return { color: '#DC2626', label: '적자' };
+  if (m < 10) return { color: '#EA580C', label: '위험' };
+  if (m < 30) return { color: '#CA8A04', label: '주의' };
+  return { color: '#16A34A', label: '양호' };
+}
+
+function renderProfit() {
+  const tbody = document.getElementById('pfTable');
+  if (!tbody) return;
+  const rows = profitRows();
+  const { k, dir } = _pfSort;
+  rows.sort((a, b) => {
+    const va = a[k], vb = b[k];
+    if (va === null) return 1; if (vb === null) return -1;
+    if (typeof va === 'string') return va.localeCompare(vb, 'ko') * dir;
+    return (va - vb) * dir;
+  });
+  document.querySelectorAll('.pf-table th.sortable').forEach(th => {
+    th.textContent = th.textContent.replace(/ [▲▼]$/, '') + (th.dataset.k === k ? (dir > 0 ? ' ▲' : ' ▼') : '');
+  });
+
+  const sum = f => rows.reduce((s, r) => s + r[f], 0);
+  const tRev = sum('revenue'), tVen = sum('vendor'), tLab = sum('labor'), tCost = sum('cost'), tProfit = sum('profit');
+  const tMargin = tRev ? tProfit / tRev * 100 : null;
+  const loss = rows.filter(r => r.profit < 0).length;
+  const missing = rows.filter(r => r.vendorMissing).length;
+  const ms = marginStatus(tMargin);
+  document.getElementById('pfCards').innerHTML = `
+    <div class="card"><div class="card-label">월 건물주 청구</div><div class="card-value">${fmtWon(tRev)}</div><div class="card-sub">${rows.length}개 건물</div></div>
+    <div class="card"><div class="card-label">월 투입 합계</div><div class="card-value">${fmtWon(tCost)}</div><div class="card-sub">용역업체 ${fmtWon(tVen)} · 둥지 인건비 ${fmtWon(tLab)}</div></div>
+    <div class="card"><div class="card-label">월 영업이익</div><div class="card-value" style="color:${tProfit < 0 ? '#DC2626' : '#16A34A'};">${fmtWon(tProfit)}</div><div class="card-sub">이익률 <strong style="color:${ms.color};">${tMargin === null ? '-' : tMargin.toFixed(1) + '%'}</strong></div></div>
+    <div class="card"><div class="card-label">점검 필요</div><div class="card-value">${loss}<span style="font-size:14px;color:var(--gray-400);font-weight:500;"> 적자</span></div><div class="card-sub">투입금액 미입력 ${missing}개</div></div>`;
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">📈</div><p>조건에 맞는 건물이 없습니다</p></div></td></tr>';
+    document.getElementById('pfFoot').innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const st = marginStatus(r.margin);
+    const w = r.margin === null ? 0 : Math.max(0, Math.min(100, Math.abs(r.margin)));
+    return `<tr onclick="openBuildingModal('${r.id}')">
+      <td><span class="badge ${r.branch === '강남' ? 'badge-blue' : 'badge-green'}">${r.branch || '-'}</span></td>
+      <td><strong>${r.name}</strong>${r.vendorName ? `<div class="pf-vendor">${r.vendorName}</div>` : ''}</td>
+      <td class="num">${fmtWon(r.revenue)}</td>
+      <td class="num">${r.vendorMissing ? '<span class="pf-missing">미입력</span>' : fmtWon(r.vendor)}</td>
+      <td class="num">${r.labor ? fmtWon(r.labor) : '<span class="pf-missing">-</span>'}</td>
+      <td class="num">${fmtWon(r.cost)}</td>
+      <td class="num ${r.profit >= 0 ? 'summary-positive' : 'summary-negative'}">${fmtWon(r.profit)}</td>
+      <td class="num"><div class="pf-margin">
+        <span style="color:${st.color};font-weight:600;">${r.margin === null ? '-' : r.margin.toFixed(1) + '%'}</span>
+        <div class="pf-margin-track"><div class="pf-margin-fill" style="width:${w}%;background:${st.color};"></div></div>
+      </div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('pfFoot').innerHTML = `<tr>
+    <td colspan="2">합계 (${rows.length}개)</td>
+    <td class="num">${fmtWon(tRev)}</td><td class="num">${fmtWon(tVen)}</td><td class="num">${fmtWon(tLab)}</td>
+    <td class="num">${fmtWon(tCost)}</td>
+    <td class="num ${tProfit >= 0 ? 'summary-positive' : 'summary-negative'}">${fmtWon(tProfit)}</td>
+    <td class="num" style="color:${ms.color};">${tMargin === null ? '-' : tMargin.toFixed(1) + '%'}</td>
+  </tr>`;
+}
+
+function exportProfitCsv() {
+  const rows = profitRows();
+  const month = document.getElementById('pfMonth').value;
+  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [['지점','건물명','업체','건물주 청구','용역업체 납부','둥지 인건비','투입 합계','영업이익','이익률(%)'].map(esc).join(',')];
+  rows.forEach(r => lines.push([r.branch, r.name, r.vendorName, r.revenue, r.vendorMissing ? '' : r.vendor, r.labor, r.cost, r.profit, r.margin === null ? '' : r.margin.toFixed(1)].map(esc).join(',')));
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `둥지_건물별_영업이익_${month}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 function exportSettlement() {
