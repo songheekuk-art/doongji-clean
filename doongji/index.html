@@ -312,7 +312,8 @@
   <div class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard', this)">📊 대시보드</div>
   <div class="nav-tab" data-tab="workers" onclick="switchTab('workers', this)">👤 담당자</div>
   <div class="nav-tab" data-tab="buildings" onclick="switchTab('buildings', this)">🏢 건물</div>
-  <div class="nav-tab" data-tab="logs" onclick="switchTab('logs', this)">📋 근무기록</div>
+  <!-- 근무기록 탭: 월급제라 사용 안 함 (다시 쓰려면 아래 줄 주석 해제) -->
+  <!-- <div class="nav-tab" data-tab="logs" onclick="switchTab('logs', this)">📋 근무기록</div> -->
   <div class="nav-tab" data-tab="settlement" onclick="switchTab('settlement', this)">💰 급여정산</div>
   <div class="nav-tab" data-tab="profit" onclick="switchTab('profit', this)">📈 영업이익</div>
   <div class="nav-tab" data-tab="direct" onclick="switchTab('direct', this)">🧽 직수행 현황</div>
@@ -1056,7 +1057,7 @@ function logout() {
 }
 
 // 역할별 화면: 영업팀은 보기 전용 5개 탭, 직수행 건물 금액은 직수행 견적만
-const SALES_TABS = ['dashboard', 'workers', 'buildings', 'logs', 'profit'];
+const SALES_TABS = ['dashboard', 'workers', 'buildings', 'profit'];
 function applyRoleUI() {
   const full = isFull();
   document.body.classList.toggle('role-sales', !full);
