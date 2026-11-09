@@ -152,6 +152,7 @@
   .dc-input:focus { outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-light); }
   .dc-input.saved { border-color:#16A34A; }
   .dc-input.empty { background:#FFFBEB;border-color:#FCD34D; }
+  body.role-sales .staff-only { display:none !important; }
   /* ===== 로그인 ===== */
   #loginScreen { position:fixed;inset:0;z-index:1000;background:linear-gradient(135deg,#EFF6FF,#F8FAFC);display:flex;align-items:center;justify-content:center;padding:16px; }
   .login-card { background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(15,23,42,.12);padding:32px 28px;width:380px;max-width:100%; }
@@ -331,12 +332,12 @@
       <div class="card"><div class="card-label">관리 건물</div><div class="card-value blue" id="dc-buildings">-</div></div>
       <div class="card"><div class="card-label">소속 담당자</div><div class="card-value" id="dc-workers">-</div></div>
       <div class="card"><div class="card-label">이번달 청구액</div><div class="card-value green" id="dc-revenue">-</div></div>
-      <div class="card"><div class="card-label">이번달 인건비</div><div class="card-value red" id="dc-cost">-</div></div>
-      <div class="card"><div class="card-label">이번달 이윤</div><div class="card-value" id="dc-profit">-</div><div class="card-sub" id="dc-margin">-</div></div>
+      <div class="card staff-only"><div class="card-label">이번달 인건비</div><div class="card-value red" id="dc-cost">-</div></div>
+      <div class="card staff-only"><div class="card-label">이번달 이윤</div><div class="card-value" id="dc-profit">-</div><div class="card-sub" id="dc-margin">-</div></div>
     </div>
 
     <!-- 건물별 이윤 현황 -->
-    <div class="section fold collapsed" id="foldDashBuilding">
+    <div class="section fold collapsed staff-only" id="foldDashBuilding">
       <div class="section-header fold-head" onclick="toggleFold('foldDashBuilding')">
         <div class="section-title">건물별 수익 현황</div>
         <div class="fold-summary"><span id="dashBuildingSummary"></span><span class="fold-btn">펼치기 ▼</span></div>
@@ -387,7 +388,7 @@
               <th>담당자</th>
               <th>유형</th>
               <th>담당 건물</th>
-              <th>이번달 급여</th>
+              <th class="staff-only">이번달 급여</th>
               <th>근무일수</th>
               <th>총 근무시간</th>
             </tr>
@@ -424,7 +425,7 @@
         <button class="btn btn-ghost btn-sm worker-filter-btn" onclick="filterWorkers('강남',this)">강남지점</button>
         <button class="btn btn-ghost btn-sm worker-filter-btn" onclick="filterWorkers('강서',this)">강서지점</button>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="openWorkerModal()">+ 담당자 추가</button>
+      <button class="btn btn-primary btn-sm staff-only" onclick="openWorkerModal()">+ 담당자 추가</button>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr;gap:16px;" id="workerLayout">
@@ -474,7 +475,7 @@
             <option value="none">미지정</option>
           </select>
           <button class="btn btn-ghost btn-sm staff-only" id="importBtn" onclick="importBuildingsFromExcel()">📥 엑셀 건물 일괄 등록</button>
-          <button class="btn btn-primary btn-sm staff-only" onclick="openBuildingModal()">+ 건물 추가</button>
+          <button class="btn btn-primary btn-sm" onclick="openBuildingModal()">+ 건물 추가</button>
         </div>
       </div>
       <div class="section-body">
@@ -486,12 +487,12 @@
               <th>주소</th>
               <th>지역</th>
               <th>수행방식</th>
-              <th class="staff-only">계약금액(월)</th>
+              <th>계약금액(월)</th>
               <th>직수행 견적</th>
               <th>담당자</th>
               <th>청소 요일</th>
               <th>메모</th>
-              <th class="staff-only">관리</th>
+              <th>관리</th>
             </tr>
           </thead>
           <tbody id="buildingTable">
@@ -509,7 +510,7 @@
         <span style="font-size:13px;font-weight:600;color:var(--gray-600);">기준 월</span>
         <input type="month" id="logMonth" onchange="renderLogs()">
       </div>
-      <button class="btn btn-primary btn-sm" onclick="openLogModal()">+ 근무기록 추가</button>
+      <button class="btn btn-primary btn-sm staff-only" onclick="openLogModal()">+ 근무기록 추가</button>
     </div>
     <div id="logList">
       <div class="empty"><div class="empty-icon">📋</div><p>근무기록이 없습니다</p></div>
@@ -617,14 +618,18 @@
   </div>
 
   <!-- ============ PROFIT TAB ============ -->
+  <!-- 영업 기준 영업이익: 건물주 청구 − (외주 수행비 또는 둥지 견적비). 실제 수행비·둥지 인건비는 직수행 현황(미화팀) 탭에서 -->
   <div class="tab-content" id="tab-profit">
     <div class="pf-bar">
-      <label class="lbl">기준 월</label>
-      <input type="month" id="pfMonth" onchange="renderProfit()">
       <select id="pfBranch" onchange="renderProfit()">
         <option value="all">전체 지점</option>
         <option value="강남">강남지점</option>
         <option value="강서">강서지점</option>
+      </select>
+      <select id="pfExec" onchange="renderProfit()">
+        <option value="all">전체 수행방식</option>
+        <option value="direct">직수행</option>
+        <option value="outsource">외주 (업체·인건비·미지정)</option>
       </select>
       <input type="search" id="pfSearch" placeholder="건물명·업체 검색">
       <label class="pf-chk"><input type="checkbox" id="pfHideZero" checked onchange="renderProfit()"> 청구 0원 건물 제외</label>
@@ -636,8 +641,8 @@
 
     <div class="section">
       <div class="section-header">
-        <div class="section-title">건물별 영업이익</div>
-        <div style="font-size:12px;color:var(--gray-400);">행을 누르면 청구·투입금액을 수정할 수 있어요</div>
+        <div class="section-title">건물별 영업이익 (월)</div>
+        <div style="font-size:12px;color:var(--gray-400);">행을 누르면 청구·외주 수행비를 수정할 수 있어요</div>
       </div>
       <div class="section-body pf-scroll">
         <table class="pf-table">
@@ -645,10 +650,10 @@
             <tr>
               <th class="sortable" data-k="branch">지점</th>
               <th class="sortable" data-k="name">건물명 / 업체</th>
+              <th class="sortable" data-k="exec">수행방식</th>
               <th class="sortable num" data-k="revenue">건물주 청구</th>
-              <th class="sortable num" data-k="vendor">외주·수행비</th>
-              <th class="sortable num" data-k="labor">둥지 인건비</th>
-              <th class="sortable num" data-k="cost">투입 합계</th>
+              <th class="sortable num" data-k="vendor">외주 수행비</th>
+              <th class="sortable num" data-k="quote">둥지 견적비</th>
               <th class="sortable num" data-k="profit">영업이익</th>
               <th class="sortable num" data-k="margin">이익률</th>
             </tr>
@@ -659,9 +664,8 @@
       </div>
     </div>
     <div style="font-size:12px;color:var(--gray-400);margin-top:10px;line-height:1.7;">
-      · 투입 합계 = 외주·수행비 + 둥지 인건비(선택한 월의 근무기록 기준, 급여정산 탭과 같은 계산)<br>
-      · 외주·수행비 = 용역업체 납부금액(월 고정), 직수행 건물은 직수행 현황 탭에 입력한 그 달의 실제 수행비<br>
-      · 영업이익 = 건물주 청구 − 투입 합계 · 이익률 30% 이상 양호 / 10% 이상 주의 / 그 미만 위험
+      · 영업이익 = 건물주 청구 − 수행원가 · 수행원가는 외주 건물은 <b>외주 수행비</b>, 직수행 건물은 <b>둥지 견적비</b>(미화팀 견적)<br>
+      · 이익률 30% 이상 양호 / 10% 이상 주의 / 그 미만 위험 · 둥지 견적비는 미화팀이 입력해요
     </div>
   </div>
 
@@ -676,7 +680,9 @@
   <div class="modal" style="width:640px;">
     <h2>👥 권한 관리</h2>
     <div style="font-size:12px;color:var(--gray-500);line-height:1.7;margin:6px 0 14px;">
-      · <b>관리자</b>·<b>미화팀</b>: 모든 탭과 금액 · <b>영업팀</b>: 건물 탭만, 금액은 직수행 견적만 · <b>승인 대기</b>: 아무것도 못 봐요<br>
+      · <b>관리자</b>·<b>미화팀</b>: 모든 탭과 금액, 수정 가능<br>
+      · <b>영업팀</b>: 건물 등록·청구/외주 수행비 수정, 영업이익(청구 − 외주 수행비·둥지 견적비) 보기 · 둥지 인건비·실제 수행비는 못 봐요<br>
+      · <b>승인 대기</b>: 아무것도 못 봐요<br>
       · 새 직원 계정은 Supabase → Authentication → Users → <b>Add user</b>에서 만든 뒤, 여기서 권한을 지정해주세요.
     </div>
     <table>
@@ -786,9 +792,9 @@
         <div class="form-hint">임대인에게 청구하는 고정 금액</div>
       </div>
       <div class="form-group">
-        <label class="form-label">월 투입금액 (원)</label>
-        <input class="form-input" id="bVendorCost" type="number" placeholder="용역업체 납부금액">
-        <div class="form-hint">용역업체에 지급하는 월 금액 (영업이익 계산용)</div>
+        <label class="form-label">외주 수행비 (월, 원)</label>
+        <input class="form-input" id="bVendorCost" type="number" placeholder="용역업체·인건비 지급액">
+        <div class="form-hint">외주 건물의 월 수행원가 (영업이익 계산용)</div>
       </div>
     </div>
     <div class="form-row">
@@ -804,7 +810,7 @@
       <div class="form-group" id="bQuoteGroup">
         <label class="form-label">직수행 견적 (월, 원)</label>
         <input class="form-input" id="bQuote" type="number" placeholder="미화팀 견적 금액">
-        <div class="form-hint">영업팀도 볼 수 있는 금액이에요</div>
+        <div class="form-hint" id="bQuoteHint">영업이익 계산에 쓰여요 (미화팀이 입력)</div>
       </div>
     </div>
     <div class="form-row">
@@ -1049,16 +1055,19 @@ function logout() {
   showLogin('로그아웃했어요.');
 }
 
-// 역할별 화면: 영업팀은 건물 탭만, 금액은 직수행 견적만
+// 역할별 화면: 영업팀은 보기 전용 5개 탭, 직수행 건물 금액은 직수행 견적만
+const SALES_TABS = ['dashboard', 'workers', 'buildings', 'logs', 'profit'];
 function applyRoleUI() {
   const full = isFull();
   document.body.classList.toggle('role-sales', !full);
   document.querySelectorAll('.nav-tab[data-tab]').forEach(t => {
-    t.style.display = (full || t.dataset.tab === 'buildings') ? '' : 'none';
+    t.style.display = (full || SALES_TABS.includes(t.dataset.tab)) ? '' : 'none';
   });
   document.querySelectorAll('.staff-only').forEach(e => e.style.display = full ? '' : 'none');
+  document.querySelectorAll('.sales-only').forEach(e => e.style.display = full ? 'none' : '');
   document.querySelectorAll('.admin-only').forEach(e => e.style.display = isAdmin() ? '' : 'none');
-  if (!full) switchTab('buildings', document.querySelector('.nav-tab[data-tab="buildings"]'));
+  const cur = document.querySelector('.nav-tab.active');
+  if (!full && (!cur || !SALES_TABS.includes(cur.dataset.tab))) switchTab('dashboard', document.querySelector('.nav-tab[data-tab="dashboard"]'));
 }
 
 // ==================== 비밀번호 변경 ====================
@@ -1206,7 +1215,6 @@ window.onload = () => {
   document.getElementById('dashMonth').value = ym;
   document.getElementById('logMonth').value = ym;
   document.getElementById('settleMonth').value = ym;
-  document.getElementById('pfMonth').value = ym;
   document.getElementById('dcMonth').value = ym;
   initProfitControls();
   initBuildingSearch();
@@ -1246,7 +1254,7 @@ function saveLocalData() {
 let HAS_VENDOR_COL = false;
 let _vendorColChecked = false;
 async function checkVendorCol() {
-  if (_vendorColChecked || !isFull()) return;
+  if (_vendorColChecked || !ME) return;
   try {
     await ensureSession();
     const res = await fetch(`${SB_URL}/rest/v1/buildings?select=vendor_cost&limit=1`, { headers: SB_HEAD() });
@@ -1273,10 +1281,17 @@ async function loadAll() {
       DB.directCosts = directCosts || [];
       renderAll();
     } else {
-      // 영업팀: 금액이 빠진 건물 목록(buildings_sales 뷰)만 받음
-      DB.buildings = (await sbGet('buildings_sales', 'created_at')) || [];
-      DB.workers = []; DB.logs = []; DB.directCosts = [];
-      renderBuildingTable();
+      // 영업팀: 건물 + 급여를 뺀 담당자 + 추가비용을 뺀 근무기록(직수행 건물 제외)
+      const [buildings, workers, logs] = await Promise.all([
+        sbGet('buildings', 'created_at'),
+        sbGet('workers_sales', 'created_at'),
+        sbGet('logs_sales', 'date')
+      ]);
+      DB.buildings = buildings || [];
+      DB.workers = (workers || []).map(x => x.r);
+      DB.logs = (logs || []).map(x => x.r);
+      DB.directCosts = [];
+      renderAll();
     }
     updateSyncTime();
   } catch(e) {
@@ -1309,7 +1324,7 @@ function renderAll() {
   renderBuildingTable();
   renderLogs();
   renderDashboard();
-  renderSettlement();
+  if (isFull()) renderSettlement();
   renderProfit();
   renderDirect();
 }
@@ -1441,11 +1456,11 @@ function renderWorkerTable() {
         ${bCount === 0 ? '<span style="font-size:12px;color:var(--gray-300);">배정 건물 없음</span>' : ''}
       </div>
       <div class="worker-card-footer">
-        <div style="font-size:13px;font-weight:600;">${fmtWon(w.wage)}<span style="font-size:11px;font-weight:400;color:var(--gray-400);">${w.type==='monthly'?'/월':'/시간'}</span></div>
+        <div class="staff-only" style="font-size:13px;font-weight:600;">${fmtWon(w.wage)}<span style="font-size:11px;font-weight:400;color:var(--gray-400);">${w.type==='monthly'?'/월':'/시간'}</span></div>
         <div style="display:flex;gap:6px;align-items:center;" onclick="event.stopPropagation()">
           ${bCount>0 ? `<button class="map-btn" onclick="openMapPanel('${w.id}')">🗺️ 지도 보기</button>` : ''}
-          <button class="btn btn-ghost btn-sm" onclick="openWorkerModal('${w.id}')">수정</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteWorker('${w.id}')">삭제</button>
+          <button class="btn btn-ghost btn-sm staff-only" onclick="openWorkerModal('${w.id}')">수정</button>
+          <button class="btn btn-danger btn-sm staff-only" onclick="deleteWorker('${w.id}')">삭제</button>
         </div>
       </div>
     </div>`;
@@ -1833,6 +1848,9 @@ function openBuildingModal(id = null) {
 }
 function toggleQuoteField() {
   document.getElementById('bQuoteGroup').style.visibility = document.getElementById('bExec').value === '직수행' ? 'visible' : 'hidden';
+  // 둥지 견적비는 미화팀·관리자만 입력 (영업팀은 보기만)
+  document.getElementById('bQuote').disabled = !isFull();
+  document.getElementById('bQuoteHint').textContent = isFull() ? '영업이익 계산에 쓰여요 (영업팀은 보기만 가능)' : '미화팀이 입력하는 금액이에요';
 }
 
 async function saveBuilding() {
@@ -1858,6 +1876,7 @@ async function saveBuilding() {
     exec_type: document.getElementById('bExec').value || null,
     direct_quote: document.getElementById('bQuote').value.trim() === '' ? null : (parseInt(document.getElementById('bQuote').value) || 0)
   };
+  if (!isFull()) delete data.direct_quote;
   // 월 투입금액: DB 칸(vendor_cost)이 있으면 그곳에, 없으면 메모의 '용역업체 납부' 줄에 저장
   const vcRaw = document.getElementById('bVendorCost').value.trim();
   const vcVal = vcRaw === '' ? null : (parseInt(vcRaw) || 0);
@@ -1939,7 +1958,7 @@ function renderBuildingTable() {
   const tbody = document.getElementById('buildingTable');
   const cnt = document.getElementById('bCount');
   const full = isFull();
-  const COLS = full ? 12 : 10;
+  const COLS = 12;
   if (!DB.buildings.length) {
     if (cnt) cnt.textContent = '';
     tbody.innerHTML = `<tr><td colspan="${COLS}"><div class="empty"><div class="empty-icon">🏢</div><p>${full ? '건물을 추가해주세요' : '등록된 건물이 없어요'}</p></div></td></tr>`;
@@ -1966,15 +1985,15 @@ function renderBuildingTable() {
       <td style="font-size:12px;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.address || '-'}</td>
       <td><span class="badge badge-gray">${b.region||'-'}</span></td>
       <td>${execBadge(b.exec_type)}</td>
-      ${full ? `<td>${fmtWon(b.contract_amount)}</td>` : ''}
+      <td>${fmtWon(b.contract_amount)}</td>
       <td style="white-space:nowrap;">${quote}</td>
       <td><div class="assign-tags">${workers.length ? workers.map(n => `<span class="assign-tag">${n}</span>`).join('') : '<span class="badge badge-gray">미배정</span>'}</div></td>
       <td><div class="day-chips">${renderDayChips(b.cleaning_days)}</div></td>
       <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${memoShort}</td>
-      ${full ? `<td onclick="event.stopPropagation()">
+      <td onclick="event.stopPropagation()">
         <button class="btn btn-ghost btn-sm" onclick="openBuildingModal('${b.id}')">수정</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteBuilding('${b.id}')">삭제</button>
-      </td>` : ''}
+        ${full ? `<button class="btn btn-danger btn-sm" onclick="deleteBuilding('${b.id}')">삭제</button>` : ''}
+      </td>
     </tr>`;
 
     const detailRow = isExpanded ? `<tr class="building-detail-row">
@@ -1984,10 +2003,10 @@ function renderBuildingTable() {
             <label>📍 주소</label>
             <div class="val">${b.address || '-'}${b.address_detail ? ' ' + b.address_detail : ''}</div>
           </div>
-          ${full ? `<div class="building-detail-item">
+          <div class="building-detail-item">
             <label>💰 월 계약금액</label>
             <div class="val">${fmtWon(b.contract_amount)}</div>
-          </div>` : ''}
+          </div>
           <div class="building-detail-item">
             <label>🧽 수행 방식</label>
             <div class="val">${execBadge(b.exec_type)}${b.exec_type === '직수행' ? ` &nbsp;견적 <b>${b.direct_quote != null ? fmtWon(b.direct_quote) : '미입력'}</b>` : ''}</div>
@@ -2152,7 +2171,7 @@ function renderLogs() {
           <div class="log-building-name">🏢 ${building?.name || '(삭제된 건물)'}</div>
           <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">총 ${bLogs.length}회 · ${totalHours.toFixed(1)}시간${totalExtra ? ' · 추가비용 ' + fmtWon(totalExtra) : ''}</div>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="openLogModal()">+ 추가</button>
+        <button class="btn btn-ghost btn-sm staff-only" onclick="openLogModal()">+ 추가</button>
       </div>
       <div style="overflow-x:auto;">
         <table>
@@ -2161,9 +2180,9 @@ function renderLogs() {
               <th>날짜</th>
               <th>담당자</th>
               <th>근무시간</th>
-              <th>추가비용</th>
+              <th class="staff-only">추가비용</th>
               <th>메모</th>
-              <th>관리</th>
+              <th class="staff-only">관리</th>
             </tr>
           </thead>
           <tbody>
@@ -2173,9 +2192,9 @@ function renderLogs() {
                 <td>${l.date}</td>
                 <td>${w?.name || '-'}</td>
                 <td>${l.start_time || ''} ~ ${l.end_time || ''} <span style="color:var(--gray-400)">(${(l.hours||0).toFixed(1)}h)</span></td>
-                <td>${l.extra_cost ? fmtWon(l.extra_cost) : '-'}</td>
+                <td class="staff-only">${l.extra_cost ? fmtWon(l.extra_cost) : '-'}</td>
                 <td>${l.memo || '-'}</td>
-                <td>
+                <td class="staff-only">
                   <button class="btn btn-ghost btn-sm" onclick="openLogModal('${l.id}')">수정</button>
                   <button class="btn btn-danger btn-sm" onclick="deleteLog('${l.id}')">삭제</button>
                 </td>
@@ -2204,7 +2223,10 @@ async function deleteLog(id) {
 // ==================== DASHBOARD ====================
 function renderDashboard() {
   const month = document.getElementById('dashMonth').value;
-  const logs = DB.logs.filter(l => l.date && l.date.startsWith(month));
+  // 영업팀은 직수행 건물의 매출·비용을 계산에서 뺌
+  const hiddenIds = new Set();
+  const moneyBuildings = DB.buildings.filter(b => !hiddenIds.has(b.id));
+  const logs = DB.logs.filter(l => l.date && l.date.startsWith(month) && !hiddenIds.has(l.building_id));
 
   document.getElementById('dc-buildings').textContent = DB.buildings.length;
   document.getElementById('dc-workers').textContent = DB.workers.length;
@@ -2229,7 +2251,7 @@ function renderDashboard() {
     </tr>`).join('');
   }
 
-  const totalRevenue = DB.buildings.reduce((s, b) => s + (b.contract_amount || 0), 0);
+  const totalRevenue = moneyBuildings.reduce((s, b) => s + (b.contract_amount || 0), 0);
   document.getElementById('dc-revenue').textContent = fmtWon(totalRevenue);
 
   // Calc labor cost from logs
@@ -2262,10 +2284,10 @@ function renderDashboard() {
 
   // Building table
   const btbody = document.getElementById('dashBuildingTable');
-  if (!DB.buildings.length) {
+  if (!moneyBuildings.length) {
     btbody.innerHTML = '<tr><td colspan="7" class="empty">데이터 없음</td></tr>';
   } else {
-    btbody.innerHTML = DB.buildings.map(b => {
+    btbody.innerHTML = moneyBuildings.map(b => {
       const bLogs = logs.filter(l => l.building_id === b.id);
       const workers = (b.worker_ids || []).map(id => DB.workers.find(w => w.id === id)?.name).filter(Boolean);
       let laborCost = 0;
@@ -2305,7 +2327,7 @@ function renderDashboard() {
   if (sumEl) {
     const rows = [...btbody.querySelectorAll('tr')];
     const lossCnt = rows.filter(r => r.querySelector('.summary-negative')).length;
-    sumEl.innerHTML = `<b>${DB.buildings.length}개</b> 건물 · 청구 <b>${fmtWon(totalRevenue)}</b> · 이윤 <b style="color:${profit >= 0 ? 'var(--green)' : 'var(--red)'};">${fmtWon(profit)}</b>`
+    sumEl.innerHTML = `<b>${moneyBuildings.length}개</b> 건물${hiddenIds.size ? ` (직수행 ${hiddenIds.size}개 제외)` : ''} · 청구 <b>${fmtWon(totalRevenue)}</b> · 이윤 <b style="color:${profit >= 0 ? 'var(--green)' : 'var(--red)'};">${fmtWon(profit)}</b>`
       + (lossCnt ? ` · <b style="color:var(--red);">적자 ${lossCnt}개</b>` : '');
   }
 
@@ -2324,7 +2346,7 @@ function renderDashboard() {
         <td><strong>${w.name}</strong> <span style="font-size:10px;color:var(--gray-400);">🗺️</span></td>
         <td><span class="badge ${w.type === 'monthly' ? 'badge-blue' : 'badge-yellow'}">${w.type === 'monthly' ? '월급제' : '시급제'}</span></td>
         <td><span class="badge badge-gray">${bCount}개</span></td>
-        <td class="summary-positive">${fmtWon(pay)}</td>
+        <td class="summary-positive staff-only">${fmtWon(pay)}</td>
         <td>${days}일</td>
         <td>${hours.toFixed(1)}h</td>
       </tr>`;
@@ -2539,25 +2561,28 @@ function initProfitControls() {
   }));
 }
 
+// 영업 기준 수행원가: 직수행 → 둥지 견적비, 그 외 → 외주 수행비
 function profitRows() {
-  const month = document.getElementById('pfMonth').value;
   const branch = document.getElementById('pfBranch').value;
+  const ex = document.getElementById('pfExec').value;
   const q = document.getElementById('pfSearch').value.trim().replace(/\s+/g, '').toLowerCase();
   const hideZero = document.getElementById('pfHideZero').checked;
   return DB.buildings.map(b => {
+    const direct = b.exec_type === '직수행';
     const revenue = b.contract_amount || 0;
-    // 직수행 건물은 그 달에 입력한 실제 수행비를 투입금액으로 사용
-    const dRec = b.exec_type === '직수행' ? directCostRec(b.id, month) : null;
-    const vendorRaw = b.exec_type === '직수행' ? (dRec ? dRec.amount : null) : vendorCostOf(b);
-    const vendor = vendorRaw || 0;
-    const labor = buildingLaborCost(b, month);
-    const cost = vendor + labor;
+    const vendorRaw = direct ? null : vendorCostOf(b);
+    const quoteRaw = direct ? (b.direct_quote == null ? null : Number(b.direct_quote)) : null;
+    const costRaw = direct ? quoteRaw : vendorRaw;
+    const cost = costRaw || 0;
     const profit = revenue - cost;
     const margin = revenue ? profit / revenue * 100 : null;
-    return { b, id: b.id, name: b.name, branch: b.branch || '', vendorName: b.exec_type === '직수행' ? '직수행 · 실제 수행비 기준' : memoField(b, '업체'),
-             revenue, vendor, vendorMissing: vendorRaw === null && labor === 0, labor, cost, profit, margin };
+    return { b, id: b.id, name: b.name, branch: b.branch || '', exec: EXEC_LABEL[b.exec_type] || '미지정', direct,
+             vendorName: memoField(b, '업체'), revenue, vendor: vendorRaw, quote: quoteRaw, cost,
+             missing: costRaw === null, profit, margin };
   }).filter(r => {
     if (branch !== 'all' && r.branch !== branch) return false;
+    if (ex === 'direct' && !r.direct) return false;
+    if (ex === 'outsource' && r.direct) return false;
     if (hideZero && !r.revenue) return false;
     if (q && !(r.name + r.vendorName).replace(/\s+/g, '').toLowerCase().includes(q)) return false;
     return true;
@@ -2579,7 +2604,7 @@ function renderProfit() {
   const { k, dir } = _pfSort;
   rows.sort((a, b) => {
     const va = a[k], vb = b[k];
-    if (va === null) return 1; if (vb === null) return -1;
+    if (va === null || va === undefined) return 1; if (vb === null || vb === undefined) return -1;
     if (typeof va === 'string') return va.localeCompare(vb, 'ko') * dir;
     return (va - vb) * dir;
   });
@@ -2587,33 +2612,34 @@ function renderProfit() {
     th.textContent = th.textContent.replace(/ [▲▼]$/, '') + (th.dataset.k === k ? (dir > 0 ? ' ▲' : ' ▼') : '');
   });
 
-  const sum = f => rows.reduce((s, r) => s + r[f], 0);
-  const tRev = sum('revenue'), tVen = sum('vendor'), tLab = sum('labor'), tCost = sum('cost'), tProfit = sum('profit');
+  const sum = f => rows.reduce((s, r) => s + (r[f] || 0), 0);
+  const tRev = sum('revenue'), tVen = sum('vendor'), tQuote = sum('quote'), tCost = tVen + tQuote, tProfit = tRev - tCost;
   const tMargin = tRev ? tProfit / tRev * 100 : null;
   const loss = rows.filter(r => r.profit < 0).length;
-  const missing = rows.filter(r => r.vendorMissing).length;
+  const missing = rows.filter(r => r.missing).length;
   const ms = marginStatus(tMargin);
   document.getElementById('pfCards').innerHTML = `
     <div class="card"><div class="card-label">월 건물주 청구</div><div class="card-value">${fmtWon(tRev)}</div><div class="card-sub">${rows.length}개 건물</div></div>
-    <div class="card"><div class="card-label">월 투입 합계</div><div class="card-value">${fmtWon(tCost)}</div><div class="card-sub">용역업체 ${fmtWon(tVen)} · 둥지 인건비 ${fmtWon(tLab)}</div></div>
+    <div class="card"><div class="card-label">월 수행원가</div><div class="card-value">${fmtWon(tCost)}</div><div class="card-sub">외주 ${fmtWon(tVen)} · 둥지 견적 ${fmtWon(tQuote)}</div></div>
     <div class="card"><div class="card-label">월 영업이익</div><div class="card-value" style="color:${tProfit < 0 ? '#DC2626' : '#16A34A'};">${fmtWon(tProfit)}</div><div class="card-sub">이익률 <strong style="color:${ms.color};">${tMargin === null ? '-' : tMargin.toFixed(1) + '%'}</strong></div></div>
-    <div class="card"><div class="card-label">점검 필요</div><div class="card-value">${loss}<span style="font-size:14px;color:var(--gray-400);font-weight:500;"> 적자</span></div><div class="card-sub">투입금액 미입력 ${missing}개</div></div>`;
+    <div class="card"><div class="card-label">점검 필요</div><div class="card-value">${loss}<span style="font-size:14px;color:var(--gray-400);font-weight:500;"> 적자</span></div><div class="card-sub">수행원가 미입력 ${missing}개</div></div>`;
 
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">📈</div><p>조건에 맞는 건물이 없습니다</p></div></td></tr>';
     document.getElementById('pfFoot').innerHTML = '';
     return;
   }
+  const dash = '<span class="pf-missing">-</span>', miss = '<span class="pf-missing">미입력</span>';
   tbody.innerHTML = rows.map(r => {
     const st = marginStatus(r.margin);
     const w = r.margin === null ? 0 : Math.max(0, Math.min(100, Math.abs(r.margin)));
     return `<tr onclick="openBuildingModal('${r.id}')">
       <td><span class="badge ${r.branch === '강남' ? 'badge-blue' : 'badge-green'}">${r.branch || '-'}</span></td>
       <td><strong>${r.name}</strong>${r.vendorName ? `<div class="pf-vendor">${r.vendorName}</div>` : ''}</td>
+      <td>${execBadge(r.b.exec_type)}</td>
       <td class="num">${fmtWon(r.revenue)}</td>
-      <td class="num">${r.vendorMissing ? '<span class="pf-missing">미입력</span>' : fmtWon(r.vendor)}</td>
-      <td class="num">${r.labor ? fmtWon(r.labor) : '<span class="pf-missing">-</span>'}</td>
-      <td class="num">${fmtWon(r.cost)}</td>
+      <td class="num">${r.direct ? dash : (r.vendor === null ? miss : fmtWon(r.vendor))}</td>
+      <td class="num">${r.direct ? (r.quote === null ? miss : fmtWon(r.quote)) : dash}</td>
       <td class="num ${r.profit >= 0 ? 'summary-positive' : 'summary-negative'}">${fmtWon(r.profit)}</td>
       <td class="num"><div class="pf-margin">
         <span style="color:${st.color};font-weight:600;">${r.margin === null ? '-' : r.margin.toFixed(1) + '%'}</span>
@@ -2622,9 +2648,8 @@ function renderProfit() {
     </tr>`;
   }).join('');
   document.getElementById('pfFoot').innerHTML = `<tr>
-    <td colspan="2">합계 (${rows.length}개)</td>
-    <td class="num">${fmtWon(tRev)}</td><td class="num">${fmtWon(tVen)}</td><td class="num">${fmtWon(tLab)}</td>
-    <td class="num">${fmtWon(tCost)}</td>
+    <td colspan="3">합계 (${rows.length}개)</td>
+    <td class="num">${fmtWon(tRev)}</td><td class="num">${fmtWon(tVen)}</td><td class="num">${fmtWon(tQuote)}</td>
     <td class="num ${tProfit >= 0 ? 'summary-positive' : 'summary-negative'}">${fmtWon(tProfit)}</td>
     <td class="num" style="color:${ms.color};">${tMargin === null ? '-' : tMargin.toFixed(1) + '%'}</td>
   </tr>`;
@@ -2632,14 +2657,13 @@ function renderProfit() {
 
 function exportProfitCsv() {
   const rows = profitRows();
-  const month = document.getElementById('pfMonth').value;
   const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const lines = [['지점','건물명','업체','건물주 청구','외주·수행비','둥지 인건비','투입 합계','영업이익','이익률(%)'].map(esc).join(',')];
-  rows.forEach(r => lines.push([r.branch, r.name, r.vendorName, r.revenue, r.vendorMissing ? '' : r.vendor, r.labor, r.cost, r.profit, r.margin === null ? '' : r.margin.toFixed(1)].map(esc).join(',')));
+  const lines = [['지점','건물명','업체','수행방식','건물주 청구','외주 수행비','둥지 견적비','영업이익','이익률(%)'].map(esc).join(',')];
+  rows.forEach(r => lines.push([r.branch, r.name, r.vendorName, r.exec, r.revenue, r.vendor ?? '', r.quote ?? '', r.profit, r.margin === null ? '' : r.margin.toFixed(1)].map(esc).join(',')));
   const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `둥지_건물별_영업이익_${month}.csv`;
+  a.download = `둥지_건물별_영업이익_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
@@ -2690,7 +2714,7 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 });
 </script>
 
-<!-- DB 설정: 둥지_권한설정.sql 참고 (로그인 권한 · RLS · 영업팀용 buildings_sales 뷰 · direct_costs) -->
+<!-- DB 설정: 둥지_권한설정.sql 참고 (로그인 권한 · RLS · 영업팀용 workers_sales·logs_sales 뷰 · direct_costs) -->
 
 </body>
 </html>
