@@ -142,6 +142,23 @@
   /* SUMMARY TABLE */
   .summary-positive { color: var(--green); font-weight: 600; }
   .summary-negative { color: var(--red); font-weight: 600; }
+  /* ===== 수행방식 / 직수행 ===== */
+  .exec-badge { display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap; }
+  .exec-직수행 { background:#EDE9FE;color:#6D28D9; }
+  .exec-업체 { background:#E0F2FE;color:#0369A1; }
+  .exec-인건비 { background:#FEF3C7;color:#B45309; }
+  .exec-none { background:var(--gray-100);color:var(--gray-400); }
+  .dc-input { width:130px;text-align:right;font-family:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--gray-200);border-radius:7px;font-variant-numeric:tabular-nums; }
+  .dc-input:focus { outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-light); }
+  .dc-input.saved { border-color:#16A34A; }
+  .dc-input.empty { background:#FFFBEB;border-color:#FCD34D; }
+  /* ===== 로그인 ===== */
+  #loginScreen { position:fixed;inset:0;z-index:1000;background:linear-gradient(135deg,#EFF6FF,#F8FAFC);display:flex;align-items:center;justify-content:center;padding:16px; }
+  .login-card { background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(15,23,42,.12);padding:32px 28px;width:380px;max-width:100%; }
+  .login-logo { font-size:17px;font-weight:700;margin-bottom:22px;text-align:center; }
+  .login-logo span { color:var(--blue); }
+  .login-msg { color:var(--red);font-size:13px;margin-top:12px;min-height:18px;text-align:center; }
+  .login-hint { color:var(--gray-400);font-size:12px;text-align:center;margin-top:6px; }
   /* ===== 접고 펼치는 섹션 ===== */
   .fold-head { cursor:pointer;user-select:none; }
   .fold-head:hover { background:var(--gray-50); }
@@ -244,6 +261,28 @@
 </head>
 <body>
 
+<!-- LOGIN -->
+<div id="loginScreen" style="display:none;">
+  <div class="login-card">
+    <div class="login-logo">🏢 <span>둥지</span> 청소운영 대시보드</div>
+    <form id="loginForm" onsubmit="return doLogin(event)">
+      <label class="form-label">이메일</label>
+      <input class="form-input" id="loginEmail" type="email" autocomplete="username" placeholder="name@company.com">
+      <label class="form-label" style="margin-top:12px;">비밀번호</label>
+      <input class="form-input" id="loginPw" type="password" autocomplete="current-password">
+      <button class="btn btn-primary" id="loginBtn" type="submit" style="width:100%;justify-content:center;margin-top:18px;padding:11px;">로그인</button>
+      <div id="loginMsg" class="login-msg"></div>
+      <div class="login-hint">계정이 없으면 관리자에게 요청해주세요.</div>
+    </form>
+    <div id="loginPending" style="display:none;text-align:center;">
+      <div style="font-size:36px;margin-bottom:8px;">⏳</div>
+      <div style="font-weight:700;margin-bottom:6px;">권한 승인 대기 중이에요</div>
+      <div style="font-size:13px;color:var(--gray-500);line-height:1.6;"><span id="pendingEmail"></span> 계정으로 로그인했어요.<br>관리자가 권한(미화팀/영업팀)을 지정하면 볼 수 있어요.</div>
+      <button class="btn btn-ghost" style="margin-top:18px;" onclick="logout()">다른 계정으로 로그인</button>
+    </div>
+  </div>
+</div>
+
 <!-- HEADER -->
 <div class="header">
   <div class="header-logo">
@@ -255,6 +294,13 @@
       <span id="dbStatusText" style="font-size:12px;color:var(--gray-600);font-weight:500;">연결 중...</span>
       <span id="dbSyncTime" style="font-size:11px;color:var(--gray-400);"></span>
     </div>
+    <div id="userChip" style="display:none;align-items:center;gap:8px;">
+      <span style="font-size:13px;font-weight:600;" id="userName"></span>
+      <span class="badge badge-blue" id="userRole"></span>
+      <button class="btn btn-ghost btn-sm admin-only" onclick="openRoleModal()">👥 권한 관리</button>
+      <button class="btn btn-ghost btn-sm" onclick="openPwModal()">비밀번호</button>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">로그아웃</button>
+    </div>
   </div>
 </div>
 
@@ -262,12 +308,13 @@
 
 <!-- NAV -->
 <nav class="nav">
-  <div class="nav-tab active" onclick="switchTab('dashboard', this)">📊 대시보드</div>
-  <div class="nav-tab" onclick="switchTab('workers', this)">👤 담당자</div>
-  <div class="nav-tab" onclick="switchTab('buildings', this)">🏢 건물</div>
-  <div class="nav-tab" onclick="switchTab('logs', this)">📋 근무기록</div>
-  <div class="nav-tab" onclick="switchTab('settlement', this)">💰 급여정산</div>
-  <div class="nav-tab" onclick="switchTab('profit', this)">📈 영업이익</div>
+  <div class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard', this)">📊 대시보드</div>
+  <div class="nav-tab" data-tab="workers" onclick="switchTab('workers', this)">👤 담당자</div>
+  <div class="nav-tab" data-tab="buildings" onclick="switchTab('buildings', this)">🏢 건물</div>
+  <div class="nav-tab" data-tab="logs" onclick="switchTab('logs', this)">📋 근무기록</div>
+  <div class="nav-tab" data-tab="settlement" onclick="switchTab('settlement', this)">💰 급여정산</div>
+  <div class="nav-tab" data-tab="profit" onclick="switchTab('profit', this)">📈 영업이익</div>
+  <div class="nav-tab" data-tab="direct" onclick="switchTab('direct', this)">🧽 직수행 현황</div>
 </nav>
 
 <!-- MAIN -->
@@ -419,8 +466,15 @@
             <option value="강남">강남</option>
             <option value="강서">강서</option>
           </select>
-          <button class="btn btn-ghost btn-sm" id="importBtn" onclick="importPreloadedBuildings()">📥 엑셀 건물 일괄 등록</button>
-          <button class="btn btn-primary btn-sm" onclick="openBuildingModal()">+ 건물 추가</button>
+          <select id="bExecFilter" onchange="renderBuildingTable()" style="font-family:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--gray-200);border-radius:8px;background:#fff;">
+            <option value="all">전체 수행방식</option>
+            <option value="직수행">직수행</option>
+            <option value="업체">업체 위탁</option>
+            <option value="인건비">인건비 투입</option>
+            <option value="none">미지정</option>
+          </select>
+          <button class="btn btn-ghost btn-sm staff-only" id="importBtn" onclick="importBuildingsFromExcel()">📥 엑셀 건물 일괄 등록</button>
+          <button class="btn btn-primary btn-sm staff-only" onclick="openBuildingModal()">+ 건물 추가</button>
         </div>
       </div>
       <div class="section-body">
@@ -431,11 +485,13 @@
               <th>건물명</th>
               <th>주소</th>
               <th>지역</th>
-              <th>계약금액(월)</th>
+              <th>수행방식</th>
+              <th class="staff-only">계약금액(월)</th>
+              <th>직수행 견적</th>
               <th>담당자</th>
               <th>청소 요일</th>
               <th>메모</th>
-              <th>관리</th>
+              <th class="staff-only">관리</th>
             </tr>
           </thead>
           <tbody id="buildingTable">
@@ -516,6 +572,50 @@
     </div>
   </div>
 
+  <!-- ============ DIRECT TAB (미화팀·관리자 전용) ============ -->
+  <div class="tab-content" id="tab-direct">
+    <div class="pf-bar">
+      <label class="lbl">기준 월</label>
+      <input type="month" id="dcMonth" onchange="renderDirect(true)">
+      <select id="dcBranch" onchange="renderDirect(true)">
+        <option value="all">전체 지점</option>
+        <option value="강남">강남지점</option>
+        <option value="강서">강서지점</option>
+      </select>
+      <div style="flex:1;"></div>
+      <span style="font-size:12px;color:var(--gray-400);">실제 수행비 칸에 금액을 넣고 Enter 또는 칸을 벗어나면 저장돼요</span>
+    </div>
+    <div class="cards-row" id="dcCards"></div>
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">직수행 건물별 영업이익</div>
+        <div style="font-size:12px;color:var(--gray-400);">건물 탭에서 수행방식을 '직수행'으로 지정한 건물만 나와요</div>
+      </div>
+      <div class="section-body pf-scroll">
+        <table class="pf-table">
+          <thead>
+            <tr>
+              <th>지점</th>
+              <th>건물명</th>
+              <th class="num">매출 (건물주 청구)</th>
+              <th class="num">직수행 견적</th>
+              <th class="num">실제 수행비</th>
+              <th class="num">영업이익</th>
+              <th class="num">이익률</th>
+              <th class="num">견적 대비</th>
+            </tr>
+          </thead>
+          <tbody id="dcTable"></tbody>
+          <tfoot id="dcFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--gray-400);margin-top:10px;line-height:1.7;">
+      · 영업이익 = 매출 − 실제 수행비 · 견적 대비 = 직수행 견적 − 실제 수행비 (＋면 견적보다 적게 씀, −면 초과)<br>
+      · 합계와 이익률은 실제 수행비를 입력한 건물만 계산해요 · 매출·견적은 건물 탭의 수정 화면에서 바꿀 수 있어요
+    </div>
+  </div>
+
   <!-- ============ PROFIT TAB ============ -->
   <div class="tab-content" id="tab-profit">
     <div class="pf-bar">
@@ -546,7 +646,7 @@
               <th class="sortable" data-k="branch">지점</th>
               <th class="sortable" data-k="name">건물명 / 업체</th>
               <th class="sortable num" data-k="revenue">건물주 청구</th>
-              <th class="sortable num" data-k="vendor">용역업체 납부</th>
+              <th class="sortable num" data-k="vendor">외주·수행비</th>
               <th class="sortable num" data-k="labor">둥지 인건비</th>
               <th class="sortable num" data-k="cost">투입 합계</th>
               <th class="sortable num" data-k="profit">영업이익</th>
@@ -559,7 +659,8 @@
       </div>
     </div>
     <div style="font-size:12px;color:var(--gray-400);margin-top:10px;line-height:1.7;">
-      · 투입 합계 = 용역업체 납부금액(월 고정) + 둥지 인건비(선택한 월의 근무기록 기준, 급여정산 탭과 같은 계산)<br>
+      · 투입 합계 = 외주·수행비 + 둥지 인건비(선택한 월의 근무기록 기준, 급여정산 탭과 같은 계산)<br>
+      · 외주·수행비 = 용역업체 납부금액(월 고정), 직수행 건물은 직수행 현황 탭에 입력한 그 달의 실제 수행비<br>
       · 영업이익 = 건물주 청구 − 투입 합계 · 이익률 30% 이상 양호 / 10% 이상 주의 / 그 미만 위험
     </div>
   </div>
@@ -570,6 +671,32 @@
 <div class="toast" id="toast"></div>
 
 <!-- MODAL: WORKER -->
+<!-- 권한 관리 -->
+<div class="modal-overlay" id="roleModal" style="display:none;">
+  <div class="modal" style="width:640px;">
+    <h2>👥 권한 관리</h2>
+    <div style="font-size:12px;color:var(--gray-500);line-height:1.7;margin:6px 0 14px;">
+      · <b>관리자</b>·<b>미화팀</b>: 모든 탭과 금액 · <b>영업팀</b>: 건물 탭만, 금액은 직수행 견적만 · <b>승인 대기</b>: 아무것도 못 봐요<br>
+      · 새 직원 계정은 Supabase → Authentication → Users → <b>Add user</b>에서 만든 뒤, 여기서 권한을 지정해주세요.
+    </div>
+    <table>
+      <thead><tr><th>이메일</th><th>이름</th><th>권한</th><th></th></tr></thead>
+      <tbody id="roleTable"></tbody>
+    </table>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('roleModal')">닫기</button></div>
+  </div>
+</div>
+
+<!-- 비밀번호 변경 -->
+<div class="modal-overlay" id="pwModal" style="display:none;">
+  <div class="modal" style="width:380px;">
+    <h2>비밀번호 변경</h2>
+    <div class="form-group"><label class="form-label">새 비밀번호 (8자 이상)</label><input class="form-input" id="pwNew" type="password" autocomplete="new-password"></div>
+    <div class="form-group"><label class="form-label">새 비밀번호 확인</label><input class="form-input" id="pwNew2" type="password" autocomplete="new-password"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('pwModal')">취소</button><button class="btn btn-primary" onclick="savePassword()">변경</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="workerModal" style="display:none;">
   <div class="modal">
     <h2 id="workerModalTitle">담당자 추가</h2>
@@ -662,6 +789,22 @@
         <label class="form-label">월 투입금액 (원)</label>
         <input class="form-input" id="bVendorCost" type="number" placeholder="용역업체 납부금액">
         <div class="form-hint">용역업체에 지급하는 월 금액 (영업이익 계산용)</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">수행 방식</label>
+        <select class="form-select" id="bExec" onchange="toggleQuoteField()">
+          <option value="">미지정</option>
+          <option value="직수행">직수행 (둥지 미화팀이 직접)</option>
+          <option value="업체">업체 위탁</option>
+          <option value="인건비">인건비 투입</option>
+        </select>
+      </div>
+      <div class="form-group" id="bQuoteGroup">
+        <label class="form-label">직수행 견적 (월, 원)</label>
+        <input class="form-input" id="bQuote" type="number" placeholder="미화팀 견적 금액">
+        <div class="form-hint">영업팀도 볼 수 있는 금액이에요</div>
       </div>
     </div>
     <div class="form-row">
@@ -776,2009 +919,281 @@
 let DB = {
   workers: [],
   buildings: [],
-  logs: []
+  logs: [],
+  directCosts: []
 };
 
 // ==================== SUPABASE CONFIG ====================
 const SB_URL = 'https://wzoueltggehrtkiyuzcs.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6b3VlbHRnZ2VocnRraXl1emNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDI3NDAsImV4cCI6MjA5NzA3ODc0MH0.agVBVC08qtWx9i6FNjJ2YGLHMD5UilbchyA-MG8s1Uw';
-const SB_HEAD = () => ({'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation'});
+// ==================== 로그인 세션 ====================
+// 모든 데이터 요청은 로그인한 사용자의 토큰으로 보내고, 무엇을 볼 수 있는지는 DB 권한(RLS)이 결정
+let SESSION = null;   // { access_token, refresh_token, expires_at, user }
+let ME = null;        // profiles 행: { id, email, name, role }
+const ROLE_LABEL = { admin: '관리자', cleaning: '미화팀', sales: '영업팀', pending: '승인 대기' };
+const isFull = () => ME && (ME.role === 'admin' || ME.role === 'cleaning');
+const isAdmin = () => ME && ME.role === 'admin';
+
+const SB_HEAD = () => ({'apikey': SB_KEY, 'Authorization': 'Bearer ' + (SESSION ? SESSION.access_token : SB_KEY), 'Content-Type': 'application/json', 'Prefer': 'return=representation'});
+
+function setSession(d) {
+  SESSION = { access_token: d.access_token, refresh_token: d.refresh_token,
+    expires_at: d.expires_at || Math.floor(Date.now() / 1000) + (d.expires_in || 3600), user: d.user || (SESSION && SESSION.user) };
+  try { localStorage.setItem('dj_session', JSON.stringify(SESSION)); } catch (e) {}
+}
+function clearSession() {
+  SESSION = null; ME = null;
+  try { localStorage.removeItem('dj_session'); } catch (e) {}
+}
+let _refreshing = null;
+async function refreshSession() {
+  if (!SESSION) throw new Error('로그인이 필요해요');
+  if (!_refreshing) _refreshing = (async () => {
+    const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: SESSION.refresh_token }) });
+    if (!res.ok) { clearSession(); showLogin('로그인이 만료되었어요. 다시 로그인해주세요.'); throw new Error('로그인이 만료되었어요'); }
+    setSession(await res.json());
+  })().finally(() => { _refreshing = null; });
+  return _refreshing;
+}
+async function ensureSession() {
+  if (!SESSION) { showLogin(); throw new Error('로그인이 필요해요'); }
+  if (Date.now() / 1000 > SESSION.expires_at - 60) await refreshSession();
+}
+async function sbFetch(path, opts = {}) {
+  await ensureSession();
+  const go = () => fetch(SB_URL + path, { ...opts, headers: { ...SB_HEAD(), ...(opts.headers || {}) } });
+  let res = await go();
+  if (res.status === 401) { await refreshSession(); res = await go(); }
+  if (!res.ok) throw new Error(await res.text());
+  return res;
+}
 
 async function sbGet(table, order = 'created_at') {
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?order=${order}`, { headers: SB_HEAD() });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return (await sbFetch(`/rest/v1/${table}?order=${order}`)).json();
 }
 async function sbInsert(table, data) {
-  const res = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: SB_HEAD(), body: JSON.stringify(data) });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return (await sbFetch(`/rest/v1/${table}`, { method: 'POST', body: JSON.stringify(data) })).json();
 }
 async function sbUpdate(table, id, data) {
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'PATCH', headers: SB_HEAD(), body: JSON.stringify(data) });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return (await sbFetch(`/rest/v1/${table}?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(data) })).json();
 }
 async function sbDelete(table, id) {
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'DELETE', headers: SB_HEAD() });
-  if (!res.ok) throw new Error(await res.text());
+  await sbFetch(`/rest/v1/${table}?id=eq.${id}`, { method: 'DELETE' });
+}
+async function sbUpsert(table, data, onConflict) {
+  return (await sbFetch(`/rest/v1/${table}?on_conflict=${onConflict}`, { method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' }, body: JSON.stringify(data) })).json();
+}
+
+// ==================== 로그인 화면 ====================
+function showLogin(msg) {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginForm').style.display = 'block';
+  document.getElementById('loginPending').style.display = 'none';
+  document.getElementById('loginMsg').textContent = msg || '';
+  document.getElementById('userChip').style.display = 'none';
+}
+async function doLogin(ev) {
+  if (ev) ev.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw = document.getElementById('loginPw').value;
+  const msg = document.getElementById('loginMsg');
+  const btn = document.getElementById('loginBtn');
+  if (!email || !pw) { msg.textContent = '이메일과 비밀번호를 입력해주세요.'; return false; }
+  btn.disabled = true; btn.textContent = '로그인 중...'; msg.textContent = '';
+  try {
+    const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pw }) });
+    if (!res.ok) { msg.textContent = '이메일 또는 비밀번호가 맞지 않아요.'; return false; }
+    setSession(await res.json());
+    document.getElementById('loginPw').value = '';
+    await afterLogin();
+  } catch (e) {
+    msg.textContent = '로그인 중 오류가 났어요: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '로그인';
+  }
+  return false;
+}
+async function loadMe() {
+  try {
+    const arr = await (await sbFetch(`/rest/v1/profiles?id=eq.${SESSION.user.id}&select=*`)).json();
+    ME = arr[0] || null;
+  } catch (e) {
+    if (/profiles/.test(e.message)) throw new Error('DB 권한 설정(SQL)이 아직 적용되지 않았어요. 관리자에게 문의해주세요.');
+    throw e;
+  }
+}
+async function afterLogin() {
+  await loadMe();
+  if (!ME || !ROLE_LABEL[ME.role] || ME.role === 'pending') {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('loginPending').style.display = 'block';
+    document.getElementById('pendingEmail').textContent = SESSION.user.email;
+    return;
+  }
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('userChip').style.display = 'flex';
+  document.getElementById('userName').textContent = ME.name || SESSION.user.email;
+  document.getElementById('userRole').textContent = ROLE_LABEL[ME.role];
+  applyRoleUI();
+  await loadAll();
+}
+function logout() {
+  clearSession();
+  DB = { workers: [], buildings: [], logs: [], directCosts: [] };
+  renderBuildingTable();
+  showLogin('로그아웃했어요.');
+}
+
+// 역할별 화면: 영업팀은 건물 탭만, 금액은 직수행 견적만
+function applyRoleUI() {
+  const full = isFull();
+  document.body.classList.toggle('role-sales', !full);
+  document.querySelectorAll('.nav-tab[data-tab]').forEach(t => {
+    t.style.display = (full || t.dataset.tab === 'buildings') ? '' : 'none';
+  });
+  document.querySelectorAll('.staff-only').forEach(e => e.style.display = full ? '' : 'none');
+  document.querySelectorAll('.admin-only').forEach(e => e.style.display = isAdmin() ? '' : 'none');
+  if (!full) switchTab('buildings', document.querySelector('.nav-tab[data-tab="buildings"]'));
+}
+
+// ==================== 비밀번호 변경 ====================
+function openPwModal() {
+  ['pwNew', 'pwNew2'].forEach(i => document.getElementById(i).value = '');
+  document.getElementById('pwModal').style.display = 'flex';
+}
+async function savePassword() {
+  const a = document.getElementById('pwNew').value, b = document.getElementById('pwNew2').value;
+  if (a.length < 8) { showToast('비밀번호는 8자 이상으로 해주세요'); return; }
+  if (a !== b) { showToast('두 비밀번호가 달라요'); return; }
+  try {
+    await sbFetch('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ password: a }) });
+    closeModal('pwModal');
+    showToast('✅ 비밀번호를 바꿨어요');
+  } catch (e) { showToast('❌ 변경 실패: ' + e.message, 4000); }
+}
+
+// ==================== 권한 관리 (관리자) ====================
+let _profiles = [];
+async function openRoleModal() {
+  document.getElementById('roleModal').style.display = 'flex';
+  const body = document.getElementById('roleTable');
+  body.innerHTML = '<tr><td colspan="4" style="color:var(--gray-400);">불러오는 중...</td></tr>';
+  try {
+    _profiles = await sbGet('profiles', 'created_at');
+    body.innerHTML = _profiles.map(p => {
+      const self = p.id === ME.id;
+      return `<tr>
+        <td style="font-size:12px;">${p.email || '-'}</td>
+        <td><input class="form-input" id="rn_${p.id}" value="${(p.name || '').replace(/"/g, '&quot;')}" style="padding:6px 8px;font-size:13px;"></td>
+        <td><select class="form-select" id="rr_${p.id}" ${self ? 'disabled title="본인 권한은 바꿀 수 없어요"' : ''} style="padding:6px 8px;font-size:13px;">
+          ${['pending', 'sales', 'cleaning', 'admin'].map(r => `<option value="${r}" ${p.role === r ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}
+        </select></td>
+        <td><button class="btn btn-primary btn-sm" onclick="saveRole('${p.id}')">저장</button></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="4">계정이 없어요</td></tr>';
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="4" style="color:var(--red);">불러오기 실패: ${e.message}</td></tr>`;
+  }
+}
+async function saveRole(id) {
+  const data = { name: document.getElementById('rn_' + id).value.trim() };
+  if (id !== ME.id) data.role = document.getElementById('rr_' + id).value;
+  try {
+    await sbUpdate('profiles', id, data);
+    showToast('✅ 저장했어요');
+    if (id === ME.id) { ME.name = data.name; document.getElementById('userName').textContent = data.name || SESSION.user.email; }
+  } catch (e) { showToast('❌ 저장 실패: ' + e.message, 4000); }
 }
 
 let useLocal = false;
 
-// ==================== PRELOADED DATA ====================
-const PRELOADED_BUILDINGS = [
- {
-  "name": "청담빌딩",
-  "address": "서울시 강남구 도산대로 81길 41",
-  "address_base": "서울시 강남구 도산대로 81길 41",
-  "address_detail": "",
-  "contract_amount": 150000,
-  "vendor_cost": 150000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 1회\n투입일: 수 / 야간\n청소 범위: 공용부: 로비·출입구(현관매트 포함), 복도·계단(B1~6층), 화장실(3층만), 승강기, 건물 주변 쓰레기/꽁초 수거, ※ 분리수거 해당 없음 / 비품 사용 없음\n용역업체 납부 ₩150,000 / 건물주 청구 ₩150,000\n비고: 현관: 자체 카드키 사용 · 3층 화장실 비번 없음\n영업담당: 함형수 · 최초계약일: 2022-11-01",
-  "cleaning_days": [
-   "wed"
-  ]
- },
- {
-  "name": "봉주르하우스",
-  "address": "서울시 노원구 공릉로 225",
-  "address_base": "서울시 노원구 공릉로 225",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "노원구",
-  "memo": "업체: 여사님 · 건물주 직계약 · 투입: 주 1회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2022-11-14",
-  "cleaning_days": []
- },
- {
-  "name": "크라운빌딩",
-  "address": "서울시 서초구 반포대로 22길 104",
-  "address_base": "서울시 서초구 반포대로 22길 104",
-  "address_detail": "",
-  "contract_amount": 1000000,
-  "vendor_cost": 1000000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 향인클린 · 둥지 계약\n용역업체 납부 ₩1,000,000 / 건물주 청구 ₩1,000,000\n영업담당: 함형수 · 최초계약일: 2022-12-01",
-  "cleaning_days": []
- },
- {
-  "name": "국제빌딩",
-  "address": "서울시 강남구 논현로 828",
-  "address_base": "서울시 강남구 논현로 828",
-  "address_detail": "",
-  "contract_amount": 1400000,
-  "vendor_cost": 1400000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 5회\n투입일: 월, 화, 수, 목, 금 / 야간\n청소 범위: [공용부] 로비·출입구(현관매트 포함), 비상계단(1~6층 주 1회 / 7~9층 월 2회), 화장실, 승강기\n※ 분리수거·실외/주차장 해당 없음\n[전용부-6층 국제자산운용] 바닥, 출입문/유리, 현관매트, 분리수거·쓰레기통(봉투 교체·세척), 데스크/가구, 전용 화장실(남: 소변기 3·좌변기 3 / 여: 좌변기 2), 탕비실 씽크대·회의실 탁자\n용역업체 납부 ₩1,400,000 / 건물주 청구 ₩1,400,000\n비고: 출입: 후문 사용 · 비품: 관리사무소 관리(전용부는 둥지 요청) · 비품창고: 1층 창고 · 쓰레기 배출: 후문 주차장 분리수거장\n영업담당: 김하솜 · 최초계약일: 2023-01-01",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "필로미",
-  "address": "서울시 성동구 연무장3길 9-8",
-  "address_base": "서울시 성동구 연무장3길 9-8",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "성동구",
-  "memo": "업체: 업체 · 투입: 주 4회\n영업담당: 김하솜 · 최초계약일: 2023-01-16",
-  "cleaning_days": []
- },
- {
-  "name": "쇼파르애비뉴",
-  "address": "서울시 마포구 월드컵북로4길 43",
-  "address_base": "서울시 마포구 월드컵북로4길 43",
-  "address_detail": "",
-  "contract_amount": 1500000,
-  "vendor_cost": 1000000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "마포구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 야간\n청소 범위: 공용부: 로비·출입문, 복도·계단(B1~6층), 승강기, 건물 주변·주차장 쓰레기/꽁초 수거, 외부계단(2층~B1) 및 주차장 장애인주차구역 쓸기·물걸레\n※ 화장실·분리수거·현관매트 없음\n용역업체 납부 ₩1,000,000 / 건물주 청구 ₩1,500,000\n비고: 건물 앞 카페·화단 쓰레기/꽁초 수거 · 청소도구/수도: 주차장 쪽 창고 · 쓰레기 배출: 주차장 맞은편\n영업담당: 김하솜 · 최초계약일: 2023-02-06",
-  "cleaning_days": [
-   "mon",
-   "wed",
-   "fri"
-  ]
- },
- {
-  "name": "테라빌딩",
-  "address": "서울시 마포구 어울마당로 44",
-  "address_base": "서울시 마포구 어울마당로 44",
-  "address_detail": "",
-  "contract_amount": 480000,
-  "vendor_cost": 480000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "마포구",
-  "memo": "업체: 꼼꼼한 종합클린 · 둥지 계약 · 투입: 주 1회\n투입일: 수 / 야간\n청소 범위: 공용부 전체 (계단, 복도, 창틀, 화장실, 승강기, 난간, 출입문, 출입구 주변, 주차장, 분리수거장 정리 등)\n용역업체 납부 ₩480,000 / 건물주 청구 ₩480,000\n영업담당: 김하솜 · 최초계약일: 2023-02-27 · 미화팀 투입일: 2026-11-01",
-  "cleaning_days": [
-   "wed"
-  ]
- },
- {
-  "name": "신라빌딩",
-  "address": "서울시 광진구 아차산로 361",
-  "address_base": "서울시 광진구 아차산로 361",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "광진구",
-  "memo": "업체: 업체 · 건물주 직계약 · 투입: 주 5회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2023-03-24",
-  "cleaning_days": []
- },
- {
-  "name": "규영빌딩",
-  "address": "서울시 송파구 석촌호수로 118",
-  "address_base": "서울시 송파구 석촌호수로 118",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "송파구",
-  "memo": "업체: 여사님 · 건물주 직계약 · 투입: 주 6회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2023-03-27",
-  "cleaning_days": []
- },
- {
-  "name": "숲길빌딩",
-  "address": "서울시 마포구 백범로10길 26",
-  "address_base": "서울시 마포구 백범로10길 26",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "마포구",
-  "memo": "업체: 업체 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2023-04-01",
-  "cleaning_days": []
- },
- {
-  "name": "SJ애비뉴",
-  "address": "서울시 광진구 뚝섬로 590",
-  "address_base": "서울시 광진구 뚝섬로 590",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "광진구",
-  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2023-04-01",
-  "cleaning_days": []
- },
- {
-  "name": "리버파크빌라",
-  "address": "서울시 영등포구 국회대로 651-8",
-  "address_base": "서울시 영등포구 국회대로 651-8",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "영등포구",
-  "memo": "업체: 업체 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2023-04-01",
-  "cleaning_days": []
- },
- {
-  "name": "하우스앤드성수",
-  "address": "서울시 성동구 성수동2가 284-98",
-  "address_base": "서울시 성동구 성수동2가 284-98",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "성동구",
-  "memo": "업체: 업체\n최초계약일: 2023-04-20",
-  "cleaning_days": []
- },
- {
-  "name": "잠뱅이빌딩",
-  "address": "서울시 송파구 양재대로71길 1-18",
-  "address_base": "서울시 송파구 양재대로71길 1-18",
-  "address_detail": "",
-  "contract_amount": 1700000,
-  "vendor_cost": 1600000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "송파구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 5회\n투입일: 월~금 / 상주 청소\n청소 범위: 전용부·공용부 (1·3층 전용부 제외)\n용역업체 납부 ₩1,600,000 / 건물주 청구 ₩1,700,000\n영업담당: 김하솜 · 최초계약일: 2023-05-01",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "삼성사원아파트",
-  "address": "서울시 강남구 개포로124길 27",
-  "address_base": "서울시 강남구 개포로124길 27",
-  "address_detail": "",
-  "contract_amount": 800000,
-  "vendor_cost": 800000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 조율 가능\n청소 범위: 공용부\n용역업체 납부 ₩800,000 / 건물주 청구 ₩800,000\n영업담당: 김하솜 · 최초계약일: 2023-05-08",
-  "cleaning_days": [
-   "mon",
-   "wed",
-   "fri"
-  ]
- },
- {
-  "name": "온스퀘어",
-  "address": "서울시 영등포구 양평로 144",
-  "address_base": "서울시 영등포구 양평로 144",
-  "address_detail": "",
-  "contract_amount": 400000,
-  "vendor_cost": 400000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "영등포구",
-  "memo": "업체: 업체 · 둥지 계약 · 투입: 주 1회\n용역업체 납부 ₩400,000 / 건물주 청구 ₩400,000\n영업담당: 김하솜 · 최초계약일: 2023-05-08",
-  "cleaning_days": []
- },
- {
-  "name": "동인빌딩",
-  "address": "서울시 강남구 선릉로 131길 18",
-  "address_base": "서울시 강남구 선릉로 131길 18",
-  "address_detail": "",
-  "contract_amount": 600000,
-  "vendor_cost": 500000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 오전 6~12시 사이\n청소 범위: 공용부: 로비·출입구(현관매트 포함), 복도·계단(B1~6층), 화장실, 승강기, 건물 주변 쓰레기/꽁초 수거, ※ 휴지통·비품 보충, 분리수거 해당 없음\n용역업체 납부 ₩500,000 / 건물주 청구 ₩600,000\n영업담당: 김하솜 · 최초계약일: 2023-05-15 · 미화팀 투입일: 2026-11-01",
-  "cleaning_days": [
-   "mon",
-   "wed",
-   "fri"
-  ]
- },
- {
-  "name": "공명빌딩",
-  "address": "서울시 마포구 서교동 402-19",
-  "address_base": "서울시 마포구 서교동 402-19",
-  "address_detail": "",
-  "contract_amount": 170000,
-  "vendor_cost": 120000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "마포구",
-  "memo": "둥지 계약 · 투입: 2주 1회\n투입일: 조율 가능\n청소 범위: 공용부 전체\n용역업체 납부 ₩120,000 / 건물주 청구 ₩170,000\n영업담당: 김하솜 · 최초계약일: 2023-05-22 · 미화팀 투입일: 2026-11-01",
-  "cleaning_days": []
- },
- {
-  "name": "닷웨이브",
-  "address": "서울시 양천구 은행정로 54",
-  "address_base": "서울시 양천구 은행정로 54",
-  "address_detail": "",
-  "contract_amount": 520000,
-  "vendor_cost": 520000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "양천구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 공용부 주 5회,\n전용부 주 3회\n투입일: 월, 화, 수, 목, 금\n월, 수, 금\n새벽 (당일 04시~)\n청소 범위: [공용부] 로비·출입구·안내데스크(현관매트 포함), 복도·계단(B1~5층), 화장실(B1·1층 총 4개, 환기구 포함), 승강기, 분리수거·쓰레기통, 건물 주변·주차장\n[전용부] B1층·2층·1층 외부사무실 바닥/쓰레기, 2층 외부 화장실(남/녀 각 1), 탕비실(씽크대·정수기), 2층 베란다 테이블·의자\n※ 운영: 월·수·금 B1·1·2층 공유오피스 바닥청소 / 월~금 사무실·화장실·쓰레기 배출 / 화·목 전층 공용부(복도·계단·출입구·주차장·승강기)\n용역업체 납부 ₩520,000 / 건물주 청구 ₩520,000\n비고: 214호: 출입 제한 요청 – 내부청소 없이 문 밖 쓰레기통만 비움(25.12.02 요청) · 비품: 둥지 플랫폼 신청 · 쓰레기 배출: 주차장 나가서 오른쪽 화단 앞\n영업담당: 김하솜 · 최초계약일: 2023-05-30",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "실란트로타워",
-  "address": "서울시 서초구 사평대로55길 37",
-  "address_base": "서울시 서초구 사평대로55길 37",
-  "address_detail": "",
-  "contract_amount": 335000,
-  "vendor_cost": 335000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 1회\n투입일: 월 / 야간\n청소 범위: 공용부\n용역업체 납부 ₩335,000 / 건물주 청구 ₩335,000\n영업담당: 함형수 · 최초계약일: 2023-06-05",
-  "cleaning_days": [
-   "mon"
-  ]
- },
- {
-  "name": "그레이스빌딩(L)",
-  "address": "서울시 강남구 논현로81길 11",
-  "address_base": "서울시 강남구 논현로81길 11",
-  "address_detail": "",
-  "contract_amount": 3900000,
-  "vendor_cost": 3900000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 5회 (1층 상주)\n투입일: 월~금 / 09시 이전 청소 + 09시 이후 점검\n청소 범위: [09시 이전] 대표실, 사무실 바닥, 공용테이블, 유리·창틀, 화장실, 복도·계단·승강기, 쓰레기 분리배출 및 개인휴지통, 탕비실·커피머신, 출입구·주차장\n[09시 이후 점검] 화장실, 회의실, 쓰레기통, 탕비실·커피머신\n※ 소모품 상시 확인 및 교체\n용역업체 납부 ₩3,900,000 / 건물주 청구 ₩3,900,000\n영업담당: 함형수 · 최초계약일: 2023-06-26",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "숲빌딩",
-  "address": "서울시 중구 퇴계로14길 15",
-  "address_base": "서울시 중구 퇴계로14길 15",
-  "address_detail": "",
-  "contract_amount": 800000,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "중구",
-  "memo": "건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩800,000\n영업담당: 김하솜 · 최초계약일: 2023-07-17",
-  "cleaning_days": []
- },
- {
-  "name": "서초제일빌딩",
-  "address": "서울시 서초구 사임당로 46",
-  "address_base": "서울시 서초구 사임당로 46",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 청소하는호랑이 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2023-07-17",
-  "cleaning_days": []
- },
- {
-  "name": "양지빌딩",
-  "address": "서울시 송파구 백제고분로 197",
-  "address_base": "서울시 송파구 백제고분로 197",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "송파구",
-  "memo": "업체: 한국크린청소 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2023-07-17",
-  "cleaning_days": []
- },
- {
-  "name": "제이오빌딩",
-  "address": "경기 성남시 수정구 산성대로 75",
-  "address_base": "경기 성남시 수정구 산성대로 75",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "수정구",
-  "memo": "건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2023-07-24",
-  "cleaning_days": []
- },
- {
-  "name": "해솜빌딩",
-  "address": "서울시 성동구 상원4길 11",
-  "address_base": "서울시 성동구 상원4길 11",
-  "address_detail": "",
-  "contract_amount": 600000,
-  "vendor_cost": 600000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "성동구",
-  "memo": "업체: 대박클린(관계성) · 둥지 계약 · 투입: 주 5회\n용역업체 납부 ₩600,000 / 건물주 청구 ₩600,000\n영업담당: 김하솜 · 최초계약일: 2023-07-31",
-  "cleaning_days": []
- },
- {
-  "name": "코스모타워",
-  "address": "서울 중구 광희동2가 37",
-  "address_base": "서울 중구 광희동2가 37",
-  "address_detail": "",
-  "contract_amount": 1200000,
-  "vendor_cost": 1200000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "중구",
-  "memo": "업체: 정기클린 · 둥지 계약\n용역업체 납부 ₩1,200,000 / 건물주 청구 ₩1,200,000\n비고: 청소 정보 없음\n영업담당: 김하솜 · 최초계약일: 2023-07-31",
-  "cleaning_days": []
- },
- {
-  "name": "S&J빌딩",
-  "address": "서울시 강남구 영동대로106길 9",
-  "address_base": "서울시 강남구 영동대로106길 9",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 함형수 · 최초계약일: 2023-08-01",
-  "cleaning_days": []
- },
- {
-  "name": "수안빌딩",
-  "address": "서울시 관악구 남부순환로 1831",
-  "address_base": "서울시 관악구 남부순환로 1831",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "관악구",
-  "memo": "업체: 빛나는환경 · 건물주 직계약 · 투입: 주 7일(1일 2회)\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2023-08-16",
-  "cleaning_days": []
- },
- {
-  "name": "홍영빌딩",
-  "address": "서울시 마포구 어울마당로 46",
-  "address_base": "서울시 마포구 어울마당로 46",
-  "address_detail": "",
-  "contract_amount": 350000,
-  "vendor_cost": 300000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "마포구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 2회\n투입일: 월, 목 / 야간\n청소 범위: 공용부: 로비·출입문, 계단(1~5층), 화장실(2층 남/녀 총 2개, 환기구 포함), 건물 주변·주차장 쓰레기/꽁초 수거, ※ 승강기 해당 없음\n용역업체 납부 ₩300,000 / 건물주 청구 ₩350,000\n비고: 주차장 담배꽁초 중점 관리\n영업담당: 김하솜 · 최초계약일: 2023-08-21 · 미화팀 투입일: 2026-11-01",
-  "cleaning_days": [
-   "mon",
-   "thu"
-  ]
- },
- {
-  "name": "용성빌딩",
-  "address": "서울시 강동구 진황도로 190",
-  "address_base": "서울시 강동구 진황도로 190",
-  "address_detail": "",
-  "contract_amount": 1850000,
-  "vendor_cost": 1700000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강동구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 5회 (오전·오후 각 1회)\n투입일: 월~금 / 오전 / 오후 2회 투입\n청소 범위: 공용부\n용역업체 납부 ₩1,700,000 / 건물주 청구 ₩1,850,000\n영업담당: 함형수 · 최초계약일: 2023-08-30",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "신정빌딩",
-  "address": "서울시 동작구 남부순환로 2055",
-  "address_base": "서울시 동작구 남부순환로 2055",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "동작구",
-  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2023-09-25",
-  "cleaning_days": []
- },
- {
-  "name": "윤영홀딩스",
-  "address": "서울 용산구 한남동 31-17",
-  "address_base": "서울 용산구 한남동 31-17",
-  "address_detail": "",
-  "contract_amount": 550000,
-  "vendor_cost": 450000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "용산구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 1~3층 주 5회 / 5~6층 주 2회\n투입일: 월~금 / 오전 8시~\n청소 범위: 공용부, 계단, 복도, 화장실\n용역업체 납부 ₩450,000 / 건물주 청구 ₩550,000\n최초계약일: 2023-10-06",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "스퀘어논현",
-  "address": "서울시 강남구 언주로 622",
-  "address_base": "서울시 강남구 언주로 622",
-  "address_detail": "",
-  "contract_amount": 620000,
-  "vendor_cost": 570000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 야간 (전날 21시~)\n청소 범위: 공용부: 로비·출입문, 복도·계단(B1~6층), 화장실(2~5층 각 2개소, 총 8개), 승강기, 건물 주변 쓰레기/꽁초 수거\n※ 분리수거 해당 없음\n용역업체 납부 ₩570,000 / 건물주 청구 ₩620,000\n비고: 비품: 입주사 운영(1/13 확인) · 비품 보관: 6층 관리실 · 분리수거장: 기계식 주차장 앞(수거 화·금) · 쓰레기 배출: 카센터 앞 가로수\n영업담당: 김하솜 · 최초계약일: 2023-10-23",
-  "cleaning_days": [
-   "mon",
-   "wed",
-   "fri"
-  ]
- },
- {
-  "name": "서울수면센터",
-  "address": "서울시 강남구 논현로 717",
-  "address_base": "서울시 강남구 논현로 717",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 자체진행\n영업담당: 김하솜 · 최초계약일: 2023-11-20",
-  "cleaning_days": []
- },
- {
-  "name": "비아비솔루션스",
-  "address": "서울시 금천구 가산동 60-44",
-  "address_base": "서울시 금천구 가산동 60-44",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "금천구",
-  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2023-12-01",
-  "cleaning_days": []
- },
- {
-  "name": "진흥빌딩",
-  "address": "서울시 마포구 서교동 468-18",
-  "address_base": "서울시 마포구 서교동 468-18",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "마포구",
-  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2023-12-08",
-  "cleaning_days": []
- },
- {
-  "name": "독산동 빌딩",
-  "address": "서울시 금천구 독산동 193-14",
-  "address_base": "서울시 금천구 독산동 193-14",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "금천구",
-  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2023-12-18",
-  "cleaning_days": []
- },
- {
-  "name": "아이앤티(강남)",
-  "address": "서울시 강남구 언주로97길 31",
-  "address_base": "서울시 강남구 언주로97길 31",
-  "address_detail": "",
-  "contract_amount": 1200000,
-  "vendor_cost": 1200000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 새로 · 둥지 계약 · 투입: 주 3회\n투입일: 일, 화, 목 / \n일: 15~18시 / 화·목: 20~23시\n청소 범위: 전용공간·공용공간 전체: 전층 사무실, 화장실, 계단, 주차장, 쓰레기 배출\n※ 일요일 화단 물주기\n용역업체 납부 ₩1,200,000 / 건물주 청구 ₩1,200,000\n영업담당: 김하솜 · 최초계약일: 2024-02-01",
-  "cleaning_days": [
-   "tue",
-   "thu",
-   "sun"
-  ]
- },
- {
-  "name": "유코빌딩",
-  "address": "서울시 강남구 강남대로118길 11",
-  "address_base": "서울시 강남구 강남대로118길 11",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 업체\n최초계약일: 2024-02-01",
-  "cleaning_days": []
- },
- {
-  "name": "미진빌딩",
-  "address": "서울시 강남구 도곡로 111",
-  "address_base": "서울시 강남구 도곡로 111",
-  "address_detail": "",
-  "contract_amount": 6100000,
-  "vendor_cost": 6100000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 5회\n용역업체 납부 ₩6,100,000 / 건물주 청구 ₩6,100,000\n영업담당: 김하솜 · 최초계약일: 2024-02-01",
-  "cleaning_days": []
- },
- {
-  "name": "금문빌딩",
-  "address": "서울시 용산구 한강대로10길 11-18",
-  "address_base": "서울시 용산구 한강대로10길 11-18",
-  "address_detail": "",
-  "contract_amount": 1450000,
-  "vendor_cost": 1450000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "용산구",
-  "memo": "업체: 케어넥스 · 건물주 직계약 · 투입: 주 2회\n용역업체 납부 ₩1,450,000 / 건물주 청구 ₩1,450,000\n비고: [확인] 케어넥스 체크리스트 미제출\n[비용 확인] 건물주 직계약인데 금액 기재됨\n영업담당: 김하솜 · 최초계약일: 2024-02-01",
-  "cleaning_days": []
- },
- {
-  "name": "태성빌딩",
-  "address": "서울시 중랑구 면목로 480",
-  "address_base": "서울시 중랑구 면목로 480",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "중랑구",
-  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2024-02-01",
-  "cleaning_days": []
- },
- {
-  "name": "LCRM빌딩",
-  "address": "서울시 강남구 논현로153길 41",
-  "address_base": "서울시 강남구 논현로153길 41",
-  "address_detail": "",
-  "contract_amount": 100000,
-  "vendor_cost": 100000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 여사님 · 둥지 계약 · 투입: 주 5회\n용역업체 납부 ₩100,000 / 건물주 청구 ₩100,000\n영업담당: 김하솜 · 최초계약일: 2024-04-11",
-  "cleaning_days": []
- },
- {
-  "name": "빌딩H2C",
-  "address": "서울시 서초구 서초대로50길 62-11",
-  "address_base": "서울시 서초구 서초대로50길 62-11",
-  "address_detail": "",
-  "contract_amount": 1400000,
-  "vendor_cost": 1400000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 2회\n투입일: 화, 목\n청소 범위: 화장실, 복도, 계단, 승강기, 출입구, 건물 주변, 창틀, 분리수거장\n용역업체 납부 ₩1,400,000 / 건물주 청구 ₩1,400,000\n영업담당: 김하솜 · 최초계약일: 2024-04-15",
-  "cleaning_days": [
-   "tue",
-   "thu"
-  ]
- },
- {
-  "name": "SJ타워",
-  "address": "서울 마포구 동교동 201-14",
-  "address_base": "서울 마포구 동교동 201-14",
-  "address_detail": "",
-  "contract_amount": 800000,
-  "vendor_cost": 800000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "마포구",
-  "memo": "둥지 계약\n용역업체 납부 ₩800,000 / 건물주 청구 ₩800,000\n비고: 청소 정보 없음\n영업담당: 김하솜 · 최초계약일: 2024-05-01",
-  "cleaning_days": []
- },
- {
-  "name": "더퀸빌딩",
-  "address": "서울시 강남구 도산대로70길 16",
-  "address_base": "서울시 강남구 도산대로70길 16",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2024-05-10",
-  "cleaning_days": []
- },
- {
-  "name": "아트리트21",
-  "address": "서울시 서초구 효령로 328",
-  "address_base": "서울시 서초구 효령로 328",
-  "address_detail": "",
-  "contract_amount": 1500000,
-  "vendor_cost": 1500000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 여사님 · 둥지 계약\n용역업체 납부 ₩1,500,000 / 건물주 청구 ₩1,500,000\n영업담당: 함형수 · 최초계약일: 2024-05-16",
-  "cleaning_days": []
- },
- {
-  "name": "투쿨포스쿨",
-  "address": "서울 강남구 신사동 519-23",
-  "address_base": "서울 강남구 신사동 519-23",
-  "address_detail": "",
-  "contract_amount": 2050000,
-  "vendor_cost": 2050000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "둥지 계약\n용역업체 납부 ₩2,050,000 / 건물주 청구 ₩2,050,000\n비고: 청소 정보 없음\n영업담당: 김하솜 · 최초계약일: 2024-05-20",
-  "cleaning_days": []
- },
- {
-  "name": "예진빌딩",
-  "address": "서울시 강남구 삼성로 743",
-  "address_base": "서울시 강남구 삼성로 743",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 청소하는호랑이 · 건물주 직계약 · 투입: 주 5회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2024-05-22",
-  "cleaning_days": []
- },
- {
-  "name": "하얀집",
-  "address": "서울시 강서구 방화동 645-20",
-  "address_base": "서울시 강서구 방화동 645-20",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강서구",
-  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2024-06-10",
-  "cleaning_days": []
- },
- {
-  "name": "DH주상복합빌딩",
-  "address": "경기 부천시 오정구 고리울로52번길 29",
-  "address_base": "경기 부천시 오정구 고리울로52번길 29",
-  "address_detail": "",
-  "contract_amount": 950000,
-  "vendor_cost": 900000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "오정구",
-  "memo": "업체: 업체 · 둥지 계약 · 투입: 주 5회\n용역업체 납부 ₩900,000 / 건물주 청구 ₩950,000\n영업담당: 김하솜 · 최초계약일: 2024-06-24",
-  "cleaning_days": []
- },
- {
-  "name": "아힐타워",
-  "address": "서울시 마포구 만리재로 133",
-  "address_base": "서울시 마포구 만리재로 133",
-  "address_detail": "",
-  "contract_amount": 800000,
-  "vendor_cost": 700000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "마포구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 새벽 (당일 06시)\n청소 범위: 공용부: 로비·출입문, 복도·계단(B2~7층), 화장실, 승강기, 분리수거(건물 후면 주차장), 건물 주변 쓰레기/꽁초 수거\n용역업체 납부 ₩700,000 / 건물주 청구 ₩800,000\n비고: 건물 보안키: 1층 신한은행 근처 순찰함 박스\n영업담당: 김하솜 · 최초계약일: 2024-06-28",
-  "cleaning_days": [
-   "mon",
-   "wed",
-   "fri"
-  ]
- },
- {
-  "name": "유성빌딩",
-  "address": "서울 노원구 상계동 707",
-  "address_base": "서울 노원구 상계동 707",
-  "address_detail": "",
-  "contract_amount": 500000,
-  "vendor_cost": 500000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "노원구",
-  "memo": "둥지 계약\n용역업체 납부 ₩500,000 / 건물주 청구 ₩500,000\n비고: 청소 정보 없음\n영업담당: 김하솜 · 최초계약일: 2024-08-05",
-  "cleaning_days": []
- },
- {
-  "name": "천산빌딩",
-  "address": "서울 강남구 삼성로 424",
-  "address_base": "서울 강남구 삼성로 424",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2024-08-12",
-  "cleaning_days": []
- },
- {
-  "name": "콜렉티브 논현",
-  "address": "서울 강남구 도산대로24길 19",
-  "address_base": "서울 강남구 도산대로24길 19",
-  "address_detail": "",
-  "contract_amount": 1200000,
-  "vendor_cost": 1200000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 업체 · 둥지 계약 · 투입: 주 5회\n용역업체 납부 ₩1,200,000 / 건물주 청구 ₩1,200,000\n영업담당: 김하솜 · 최초계약일: 2024-09-02",
-  "cleaning_days": []
- },
- {
-  "name": "핑크원더",
-  "address": "서울시 중구 동호로8나길 69",
-  "address_base": "서울시 중구 동호로8나길 69",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "중구",
-  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2024-09-02",
-  "cleaning_days": []
- },
- {
-  "name": "그린오피스텔",
-  "address": "서울시 관악구 봉천로8길 15",
-  "address_base": "서울시 관악구 봉천로8길 15",
-  "address_detail": "",
-  "contract_amount": 240000,
-  "vendor_cost": 240000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "관악구",
-  "memo": "업체: 업체 · 건물주 직계약 · 투입: 주 2회\n용역업체 납부 ₩240,000 / 건물주 청구 ₩240,000\n비고: [비용 확인] 건물주 직계약인데 금액 기재됨\n영업담당: 김하솜 · 최초계약일: 2024-09-02",
-  "cleaning_days": []
- },
- {
-  "name": "동문빌딩",
-  "address": "서울시 강동구 풍성로 138",
-  "address_base": "서울시 강동구 풍성로 138",
-  "address_detail": "",
-  "contract_amount": 1120000,
-  "vendor_cost": 1120000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강동구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 2회\n투입일: 월, 목 / 야간 (전날 21시~)\n청소 범위: 공용부: 로비·출입구, 복도·계단(B1~6층), 화장실(3~6층 각 1개소, 총 4개), 승강기, 건물 주변·주차장 쓰레기/꽁초 수거\n용역업체 납부 ₩1,120,000 / 건물주 청구 ₩1,120,000\n비고: 주차장 배수구 트렌치 이물질 제거 필요 · 쓰레기 배출: 건물 모서리 홈플러스 앞 대로변 나무\n[비용 확인] 비용표 2건 중복 기재 → 합산(납부 620,000 + 500,000 / 청구 620,000 + 500,000)\n영업담당: 김하솜 · 최초계약일: 2024-09-02",
-  "cleaning_days": [
-   "mon",
-   "thu"
-  ]
- },
- {
-  "name": "우성상가",
-  "address": "서울시 양천구 신월동 928-1",
-  "address_base": "서울시 양천구 신월동 928-1",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "양천구",
-  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2024-10-01",
-  "cleaning_days": []
- },
- {
-  "name": "희영빌딩",
-  "address": "서울시 강남구 개포로 232",
-  "address_base": "서울시 강남구 개포로 232",
-  "address_detail": "",
-  "contract_amount": 650000,
-  "vendor_cost": 650000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 4회\n투입일: 토(주말), 월, 화, 목 / 야간 (전날 21시~)\n청소 범위: 공용부: 로비·출입구(현관매트 포함), 복도·계단(B1~5층), 화장실, 건물 주변·주차장 쓰레기/꽁초 수거\n※ 승강기 없음 / 분리수거 해당 없음\n용역업체 납부 ₩650,000 / 건물주 청구 ₩650,000\n비고: 지하 화장실·지하/1층 주차장 중점 관리 · 4층 화장실 옆 소복도 정기청소 시 필수 · 5층 주차자리(지하 꽃집 사용) 청결 유지 · 종량제봉투 3층 보관 · 쓰레기 배출: 1층 후문 주차장 왼쪽\n영업담당: 김하솜 · 최초계약일: 2024-10-01",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "thu",
-   "sat"
-  ]
- },
- {
-  "name": "래미안 허브리츠",
-  "address": "서울시 동대문구 왕산로26길 35",
-  "address_base": "서울시 동대문구 왕산로26길 35",
-  "address_detail": "",
-  "contract_amount": 650000,
-  "vendor_cost": 650000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "동대문구",
-  "memo": "업체: 두손크린환경 · 둥지 계약 · 투입: 주 2회\n용역업체 납부 ₩650,000 / 건물주 청구 ₩650,000\n영업담당: 김하솜 · 최초계약일: 2024-10-01",
-  "cleaning_days": []
- },
- {
-  "name": "KFQ",
-  "address": "서울시 송파구 삼전로 78",
-  "address_base": "서울시 송파구 삼전로 78",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "송파구",
-  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2024-10-23",
-  "cleaning_days": []
- },
- {
-  "name": "동화프라자",
-  "address": "경기 고양시 일산서구 탄현동 1491-5",
-  "address_base": "경기 고양시 일산서구 탄현동 1491-5",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "일산서구",
-  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2024-12-01",
-  "cleaning_days": []
- },
- {
-  "name": "선즈빌딩",
-  "address": "서울시 성동구 한림말1길 12",
-  "address_base": "서울시 성동구 한림말1길 12",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "성동구",
-  "memo": "업체: 업체 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2024-12-16",
-  "cleaning_days": []
- },
- {
-  "name": "메디스타워",
-  "address": "서울시 강서구 방화동 614-34",
-  "address_base": "서울시 강서구 방화동 614-34",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강서구",
-  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2024-12-24",
-  "cleaning_days": []
- },
- {
-  "name": "잠원동 23-20",
-  "address": "서울시 서초구 강남대로97길 44",
-  "address_base": "서울시 서초구 강남대로97길 44",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 업체 · 투입: 주 3회\n영업담당: 김하솜 · 최초계약일: 2024-12-24",
-  "cleaning_days": []
- },
- {
-  "name": "진영빌딩",
-  "address": "경기 의정부시 용현로105번길 45-19",
-  "address_base": "경기 의정부시 용현로105번길 45-19",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "",
-  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2025-01-01",
-  "cleaning_days": []
- },
- {
-  "name": "정원빌딩",
-  "address": "경기 수원시 영통구 영통로 215",
-  "address_base": "경기 수원시 영통구 영통로 215",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "영통구",
-  "memo": "업체: 한결아이에프엠\n영업담당: 김하솜 · 최초계약일: 2025-01-01",
-  "cleaning_days": []
- },
- {
-  "name": "파우컴퍼니",
-  "address": "서울시 강남구 언주로135길 28",
-  "address_base": "서울시 강남구 언주로135길 28",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2025-01-06",
-  "cleaning_days": []
- },
- {
-  "name": "코모토모",
-  "address": "경기 안양시 만안구 일직로106번길 60",
-  "address_base": "경기 안양시 만안구 일직로106번길 60",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "만안구",
-  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 김하솜 · 최초계약일: 2025-01-10",
-  "cleaning_days": []
- },
- {
-  "name": "성수이로 121",
-  "address": "서울시 성동구 성수이로 121",
-  "address_base": "서울시 성동구 성수이로 121",
-  "address_detail": "",
-  "contract_amount": 1080000,
-  "vendor_cost": 1080000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "성동구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n[3층 전용부] 주 2회\n투입일: 일(주말), 화, 목 / 오전 (12시 이전)\n[3층 전용부] 일(주말), 수 / 오전 (12시 이전)\n청소 범위: 공용부(121·123 공통): 로비·출입구(현관매트 포함), 복도·계단(B1~4층, 옥상층 계단), 화장실(2·3·4층 남/녀 각 1개, 총 6개), 승강기, 건물 주변 쓰레기/꽁초 수거\n※ 분리수거 해당 없음\n3층 전용부(사무실): 카페트 전용 청소기 건식 청소, 출입문/유리, 현관매트, 휴지통 비우기·정리·배출\n※ 분기별 카페트 청소는 추가 견적으로 별도 진행\n용역업체 납부 ₩1,080,000 / 건물주 청구 ₩1,080,000\n비고: 비품: 둥지 발송(장은영 매니저 사무실로 배송) · 비품창고: A동 5층 · 쓰레기 배출: 건물 앞 나무 밑(20시 이후)\n[3층] 출입: 사무실 출입인증 QR 등록 · 비품: 사무실 담당직원 통해 구매요청\n영업담당: 김하솜 · 최초계약일: 2025-02-24",
-  "cleaning_days": [
-   "tue",
-   "wed",
-   "thu",
-   "sun"
-  ]
- },
- {
-  "name": "성수이로 123",
-  "address": "서울시 성동구 성수이로 123",
-  "address_base": "서울시 성동구 성수이로 123",
-  "address_detail": "",
-  "contract_amount": 740000,
-  "vendor_cost": 740000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "성동구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 3회\n투입일: 일(주말), 화, 목 / 오전 (12시 이전)\n청소 범위: 공용부(121·123 공통): 로비·출입구(현관매트 포함), 복도·계단(B1~4층, 옥상층 계단), 화장실(2·3·4층 남/녀 각 1개, 총 6개), 승강기, 건물 주변 쓰레기/꽁초 수거\n※ 분리수거 해당 없음\n용역업체 납부 ₩740,000 / 건물주 청구 ₩740,000\n비고: 비품: 둥지 발송(장은영 매니저 사무실로 배송) · 비품창고: A동 5층 · 쓰레기 배출: 건물 앞 나무 밑(20시 이후)\n[확인] \"오전 12시 이전\"이 자정 전인지 정오 전인지 확인 필요\n영업담당: 김하솜 · 최초계약일: 2025-02-24",
-  "cleaning_days": [
-   "tue",
-   "thu",
-   "sun"
-  ]
- },
- {
-  "name": "성신빌딩",
-  "address": "서울시 광진구 아차산로 459",
-  "address_base": "서울시 광진구 아차산로 459",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "광진구",
-  "memo": "업체: 업체 · 투입: 주 3회\n영업담당: 김하솜 · 최초계약일: 2025-03-24",
-  "cleaning_days": []
- },
- {
-  "name": "보림빌딩",
-  "address": "서울 서초구 명달로 92",
-  "address_base": "서울 서초구 명달로 92",
-  "address_detail": "",
-  "contract_amount": 200000,
-  "vendor_cost": 200000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 업체 · 둥지 계약\n용역업체 납부 ₩200,000 / 건물주 청구 ₩200,000\n영업담당: 김하솜 · 최초계약일: 2025-04-10",
-  "cleaning_days": []
- },
- {
-  "name": "S&C타워",
-  "address": "서울시 종로구 율곡로 223-1",
-  "address_base": "서울시 종로구 율곡로 223-1",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "종로구",
-  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2025-04-21",
-  "cleaning_days": []
- },
- {
-  "name": "미산빌딩",
-  "address": "서울시 강남구 압구정로71길4",
-  "address_base": "서울시 강남구 압구정로71길4",
-  "address_detail": "",
-  "contract_amount": 800000,
-  "vendor_cost": 700000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 아크멤버스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 야간\n청소 범위: - 공용부 주 3회\n- 지하 1층~6층 계단 및 공용부 전체\n- 건물 외부 주차장 및 분리수거장\n- 6층 사무실 분리수거, 바닥, 집기류\n- 6층 화장실\n용역업체 납부 ₩700,000 / 건물주 청구 ₩800,000\n영업담당: 김하솜 · 최초계약일: 2025-04-21 · 미화팀 투입일: 2026-11-01",
-  "cleaning_days": [
-   "mon",
-   "wed",
-   "fri"
-  ]
- },
- {
-  "name": "신독산역 피크원",
-  "address": "서울시 금천구 범안로 1173",
-  "address_base": "서울시 금천구 범안로 1173",
-  "address_detail": "",
-  "contract_amount": 700000,
-  "vendor_cost": 700000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "금천구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 2회\n투입일: 화, 금 / 화: 새벽(05:20~) / 금: 저녁\n청소 범위: 화: 로비·출입구(현관매트 포함), 계단(B1~12층), 승강기, 건물 주변·주차장 + 분리수거\n금: 쓰레기 분리수거만\n※ 화장실 해당 없음\n용역업체 납부 ₩700,000 / 건물주 청구 ₩700,000\n비고: 비품: 둥지 플랫폼 신청 · 비품 보관: 경비실 · 쓰레기 배출: 건물 앞 주차장 쪽(대걸레·수도는 분리수거장 안쪽)\n[확인] 업체 기재 주소: 독산동 332-23\n영업담당: 김하솜 · 최초계약일: 2025-05-23",
-  "cleaning_days": [
-   "tue",
-   "fri"
-  ]
- },
- {
-  "name": "대치빌딩",
-  "address": "서울시 강남구 대치동 929-11",
-  "address_base": "서울시 강남구 대치동 929-11",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 업체 · 건물주 직계약 · 투입: 주 5회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2025-06-15",
-  "cleaning_days": []
- },
- {
-  "name": "골드넥스 사옥",
-  "address": "서울시 성동구 상원길 62",
-  "address_base": "서울시 성동구 상원길 62",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "성동구",
-  "memo": "업체: 미스터크린 · 건물주 직계약 · 투입: 주 5회\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2025-06-25",
-  "cleaning_days": []
- },
- {
-  "name": "SWL빌딩",
-  "address": "경기 의정부시 승지로4번길 7-4",
-  "address_base": "경기 의정부시 승지로4번길 7-4",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "",
-  "memo": "업체: 민락동 계단청소업체 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2025-06-25",
-  "cleaning_days": []
- },
- {
-  "name": "태현빌딩",
-  "address": "서울시 송파구 벽제고분로 235",
-  "address_base": "서울시 송파구 벽제고분로 235",
-  "address_detail": "",
-  "contract_amount": 800000,
-  "vendor_cost": 750000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "송파구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 5회\n투입일: 일, 월, 화, 수, 목 / 야간 (전날 21시~)\n청소 범위: 공용부: 로비·출입구, 복도·계단(B1~7층), 화장실(1·3·5·6층 각 2개소, 총 8개), 승강기, 옥상·건물 주변 쓰레기/꽁초 수거\n※ 2층·4층 청소 제외\n용역업체 납부 ₩750,000 / 건물주 청구 ₩800,000\n비고: 비품: 점보롤 · 비품창고: 옥상창고 · 쓰레기 배출: 1층 기계식 주차장 우측 전봇대 앞 · 5·6층 화장실 도어락 없음\n영업담당: 김하솜 · 최초계약일: 2025-06-25",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "sun"
-  ]
- },
- {
-  "name": "서울빌딩",
-  "address": "서울시 은평구 응암로 264",
-  "address_base": "서울시 은평구 응암로 264",
-  "address_detail": "",
-  "contract_amount": 900000,
-  "vendor_cost": 800000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "은평구",
-  "memo": "업체: 케어넥스 · 둥지 계약 · 투입: 주 5회\n투입일: 월, 화, 수, 목, 금 / 야간 (전날 21시~)\n청소 범위: 공용부: 로비·출입구(출입문/유리, 우편함), 복도·계단(B1~7층: 난간·창틀·바닥·벽/코너·비상구 표시등), 화장실(1~6층 각 2개소, 총 12개), 승강기(바닥·벽/패널·버튼), 건물 주변·주차장 쓰레기/꽁초 수거(지하 1, 지상 2개소)\n※ 5층: 복도·계단만(화장실 제외) / 6층: 계단만(복도·화장실 제외)\nB1층, 1층, 2층 전용부(바닥, 출입문, 현관매트, 분리수거, 책상, 화장실, 탕비실, 씽크대) \n※업체 체크리스트 미기재\n용역업체 납부 ₩800,000 / 건물주 청구 ₩900,000\n비고: 1층 화장실은 이디야/편의점 통해서만 출입(시건 없음) · 비품창고: 관리실 · 쓰레기 배출: 1층 편의점 앞 대로변 나무\n[확인] B1·1·2층 전용부 청소는 업체 체크리스트에 없음 → 실제 수행 여부 확인 필요\n영업담당: 김하솜 · 최초계약일: 2025-06-25",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "로얄빌딩",
-  "address": "경기 성남시 수정구 산성대로269번길 10",
-  "address_base": "경기 성남시 수정구 산성대로269번길 10",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "수정구",
-  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2025-07-15",
-  "cleaning_days": []
- },
- {
-  "name": "SLA빌딩",
-  "address": "서울시 강남구 봉은사로43길 6-8",
-  "address_base": "서울시 강남구 봉은사로43길 6-8",
-  "address_detail": "",
-  "contract_amount": 900000,
-  "vendor_cost": 800000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 아크멤버스 · 둥지 계약 · 투입: 주 3회\n투입일: 월, 수, 금 / 야간\n청소 범위: - 지하 1~5층 공용부: 복도, 계단, 건물 외부, 공용 화장실 4곳\n- 4~5층 전용공간: 쓰레기통 정리 및 바닥 청소(바닥 전용 세제 사용)\n- 사무실 내부 화장실 2곳\n- 5층 사무실 내부 복층 회의실 포함\n용역업체 납부 ₩800,000 / 건물주 청구 ₩900,000\n영업담당: 함형수 · 최초계약일: 2025-07-25 · 미화팀 투입일: 2026-11-01",
-  "cleaning_days": [
-   "mon",
-   "wed",
-   "fri"
-  ]
- },
- {
-  "name": "레전드아카데미 반포점",
-  "address": "서울 서초구 반포동 55-7",
-  "address_base": "서울 서초구 반포동 55-7",
-  "address_detail": "",
-  "contract_amount": 650000,
-  "vendor_cost": 550000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 새로 · 둥지 계약 · 투입: 2주 1회\n투입일: 일 / 2시간 작업\n청소 범위: 쓰레기통 비우기, 바닥 카페트 청소기(내부 계단 카페트 포함), 화장실 청소, 샤워실 청소, 외부 계단 청소\n용역업체 납부 ₩550,000 / 건물주 청구 ₩650,000\n비고: 종량제·일반 쓰레기봉투 업체가 구매해 사용 중\n최초계약일: 2025-08-01",
-  "cleaning_days": [
-   "sun"
-  ]
- },
- {
-  "name": "아이퀘스트 사옥(L)",
-  "address": "서울시 강남구 도곡로 121",
-  "address_base": "서울시 강남구 도곡로 121",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2025-09-25",
-  "cleaning_days": []
- },
- {
-  "name": "해인빌딩",
-  "address": "서울시 서초구 양재동 377",
-  "address_base": "서울시 서초구 양재동 377",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 업체\n영업담당: 김하솜 · 최초계약일: 2025-09-25",
-  "cleaning_days": []
- },
- {
-  "name": "신현동-1",
-  "address": "경기 광주시 새말길 47",
-  "address_base": "경기 광주시 새말길 47",
-  "address_detail": "",
-  "contract_amount": 200000,
-  "vendor_cost": 200000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 1회\n투입일: 화\n청소 범위: 공용부\n용역업체 납부 ₩200,000 / 건물주 청구 ₩200,000\n영업담당: 함형수 · 최초계약일: 2025-10-25",
-  "cleaning_days": [
-   "tue"
-  ]
- },
- {
-  "name": "더하우스",
-  "address": "서울시 강남구 도산대로66길 53",
-  "address_base": "서울시 강남구 도산대로66길 53",
-  "address_detail": "",
-  "contract_amount": 320000,
-  "vendor_cost": 250000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 임철재 · 둥지 계약 · 투입: 주 1회\n투입일: 수 / 오전\n청소 범위: 공용부: 로비·출입구(현관매트 포함), 복도·계단(B2~5층, 건물 왼쪽 지하 연결계단 포함), 화장실(지하 남/녀 각 1개), 승강기, 건물 주변 쓰레기/꽁초 수거\n※ 분리수거 해당 없음\n용역업체 납부 ₩250,000 / 건물주 청구 ₩320,000\n영업담당: 함형수 · 최초계약일: 2025-10-25 · 미화팀 투입일: 투입 중",
-  "cleaning_days": [
-   "wed"
-  ]
- },
- {
-  "name": "조엘라빌딩",
-  "address": "서울 강남구 압구정로80길 38",
-  "address_base": "서울 강남구 압구정로80길 38",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 업체 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2025-10-25",
-  "cleaning_days": []
- },
- {
-  "name": "정안빌딩(L)",
-  "address": "서울시 관악구 봉천동 852-3",
-  "address_base": "서울시 관악구 봉천동 852-3",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "관악구",
-  "memo": "업체: X\n영업담당: 김하솜 · 최초계약일: 2025-12-15",
-  "cleaning_days": []
- },
- {
-  "name": "더퀸빌딩(임차사)",
-  "address": "서울시 강남구 도산대로 70길 16",
-  "address_base": "서울시 강남구 도산대로 70길 16",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 업체\n영업담당: 함형수 · 최초계약일: 2025-12-25",
-  "cleaning_days": []
- },
- {
-  "name": "621빌딩",
-  "address": "서울시 강남구 영동대로 621",
-  "address_base": "서울시 강남구 영동대로 621",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 여사님 · 건물주 직계약 · 투입: 주 5회\n투입일: 월~금\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2025-12-25",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "하이스트리트 이탈리아",
-  "address": "서울시 강남구 가로수길 69",
-  "address_base": "서울시 강남구 가로수길 69",
-  "address_detail": "",
-  "contract_amount": 1700000,
-  "vendor_cost": 1600000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 1~2층 주 6회 / 3~4층 주 2회\n투입일: 화~일 / 화, 목\n청소 범위: 공용부(계단·복도·화장실) 관리\n- 1~2층 복도 주 6회\n- 3~4층 복도 주 2회\n- 매주 금요일 관수 진행\n용역업체 납부 ₩1,600,000 / 건물주 청구 ₩1,700,000\n영업담당: 김하솜 · 최초계약일: 2026-01-01",
-  "cleaning_days": [
-   "tue",
-   "wed",
-   "thu",
-   "fri",
-   "sat",
-   "sun"
-  ]
- },
- {
-  "name": "스탠다드네트웍스",
-  "address": "서울시 강남구 봉은사로18길 84",
-  "address_base": "서울시 강남구 봉은사로18길 84",
-  "address_detail": "",
-  "contract_amount": 1650000,
-  "vendor_cost": 1550000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 주 5회\n투입일: 월~금\n청소 범위: 사무실 바닥 청소, 화장실 관리, 휴지통 비움 및 재활용 배출, 계단·창틀 관리, 출입구 및 유리문 관리\n용역업체 납부 ₩1,550,000 / 건물주 청구 ₩1,650,000\n최초계약일: 2026-01-01",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "역삼동-1",
-  "address": "서울시 강남구 언주로107길 23",
-  "address_base": "서울시 강남구 언주로107길 23",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 여사님 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 김하솜 · 최초계약일: 2026-01-15",
-  "cleaning_days": []
- },
- {
-  "name": "엘렌타워",
-  "address": "서울시 서초구 서초중앙로 123",
-  "address_base": "서울시 서초구 서초중앙로 123",
-  "address_detail": "",
-  "contract_amount": 125000,
-  "vendor_cost": 125000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 업체 · 건물주 직계약\n용역업체 납부 ₩125,000 / 건물주 청구 ₩125,000\n비고: [비용 확인] 건물주 직계약인데 금액 기재됨\n영업담당: 함형수 · 최초계약일: 2026-01-25",
-  "cleaning_days": []
- },
- {
-  "name": "갓윗어스",
-  "address": "서울시 서초구 서초대로23길 83",
-  "address_base": "서울시 서초구 서초대로23길 83",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 청소싹 하얀나라 · 건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n영업담당: 함형수 · 최초계약일: 2026-01-25",
-  "cleaning_days": []
- },
- {
-  "name": "한희빌딩",
-  "address": "서울시 강서구 양천로67길 15",
-  "address_base": "서울시 강서구 양천로67길 15",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강서구",
-  "memo": "업체: 여사님 · 투입: 주 5회\n영업담당: 함형수 · 최초계약일: 2026-01-25",
-  "cleaning_days": []
- },
- {
-  "name": "라퓨타 레지던스",
-  "address": "서울시 광진구 아차산로49길 37",
-  "address_base": "서울시 광진구 아차산로49길 37",
-  "address_detail": "",
-  "contract_amount": 700000,
-  "vendor_cost": 600000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "광진구",
-  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 1회\n투입일: 월 / 오전\n청소 범위: 정기청소 (세부 범위 업체 미기재)\n용역업체 납부 ₩600,000 / 건물주 청구 ₩700,000\n비고: 입퇴실 청소 : 재실청소(거주청소) 5만원 / 퇴실청소(입주청소) 8만원\n영업담당: 함형수 · 최초계약일: 2026-02-25 · 미화팀 투입일: 2026-11-01",
-  "cleaning_days": [
-   "mon"
-  ]
- },
- {
-  "name": "코오롱글로벌(주)AM(플랫폼)",
-  "address": "경기도 과천시 별양동 1-23",
-  "address_base": "경기도 과천시 별양동 1-23",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "",
-  "memo": "비고: 청소 정보 없음\n최초계약일: 2026-03-01",
-  "cleaning_days": []
- },
- {
-  "name": "지저스 선교재단",
-  "address": "서울시 도봉구 덕릉로 235",
-  "address_base": "서울시 도봉구 덕릉로 235",
-  "address_detail": "",
-  "contract_amount": 900000,
-  "vendor_cost": 800000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "도봉구",
-  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 공용부 주 3회 / 화장실 주 5회\n투입일: 월, 화, 수, 목, 금 / 야간 (18~23시 사이)\n청소 범위: 공용부 주 3회 + 화장실 주 5회 (화장실 주 2회 추가 투입)\n용역업체 납부 ₩800,000 / 건물주 청구 ₩900,000\n비고: 업체 기재 주소: 창동 578-146\n[확인] 화장실 주 2회 추가분 청소비 포함 여부 확인 필요\n영업담당: 함형수 · 최초계약일: 2026-03-15",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "인피니티타워",
-  "address": "서울시 성동구 서울숲7길 7",
-  "address_base": "서울시 성동구 서울숲7길 7",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "성동구",
-  "memo": "업체: 업체\n영업담당: 함형수 · 최초계약일: 2026-03-25",
-  "cleaning_days": []
- },
- {
-  "name": "담원빌딩",
-  "address": "경기 과천시 은행나무길 32-1",
-  "address_base": "경기 과천시 은행나무길 32-1",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 1250000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "",
-  "memo": "업체: 업체 · 둥지 계약\n용역업체 납부 ₩1,250,000 / 건물주 청구 ₩0\n비고: [비용 확인] 납부금액이 청구금액보다 큼(역마진 1,250,000원)\n영업담당: 함형수 · 최초계약일: 2026-04-15",
-  "cleaning_days": []
- },
- {
-  "name": "명건빌딩",
-  "address": "경기 성남시 분당구 판교로 434",
-  "address_base": "경기 성남시 분당구 판교로 434",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "분당구",
-  "memo": "업체: 업체\n영업담당: 함형수 · 최초계약일: 2026-04-15",
-  "cleaning_days": []
- },
- {
-  "name": "나라키움역삼A빌딩",
-  "address": "서울시 강남구 역삼동 704-45 (3층, 4층)",
-  "address_base": "서울시 강남구 역삼동 704-45 (3층, 4층)",
-  "address_detail": "",
-  "contract_amount": 800000,
-  "vendor_cost": 550000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 2회\n투입일: 화, 금 / 야간 (21시~06시 이전)\n청소 범위: 3층·4층 (세부 범위 업체 미기재)\n용역업체 납부 ₩550,000 / 건물주 청구 ₩800,000\n비고: 입실 완료 시 주 5회로 변경 예정(현장 측 언급)\n[확인] 주 5회 전환 시 청소비 재협의 필요\n영업담당: 함형수 · 최초계약일: 2026-04-25",
-  "cleaning_days": [
-   "tue",
-   "fri"
-  ]
- },
- {
-  "name": "닥터셀빌딩",
-  "address": "경기 수원시 팔달구 효원로265번길 44",
-  "address_base": "경기 수원시 팔달구 효원로265번길 44",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "팔달구",
-  "memo": "업체: 업체\n영업담당: 함형수 · 최초계약일: 2026-04-25",
-  "cleaning_days": []
- },
- {
-  "name": "엑스트라스페이스코리아양재 유한회사",
-  "address": "서울 금천구 가산동 493-6",
-  "address_base": "서울 금천구 가산동 493-6",
-  "address_detail": "",
-  "contract_amount": 250000,
-  "vendor_cost": 150000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "금천구",
-  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 1회\n투입일: 목 / 야간 (21시 이후)\n청소 범위: 지점 내부 청소 (바닥 및 창고 문)\n용역업체 납부 ₩150,000 / 건물주 청구 ₩250,000\n비고: 4개 지점(영등포·가산·용산·반포) 같은 날(목) 순회 투입\n영업담당: 함형수 · 최초계약일: 2026-05-25",
-  "cleaning_days": [
-   "thu"
-  ]
- },
- {
-  "name": "엑스트라스페이스 영등포점",
-  "address": "서울 영등포구 영등포동7가 203",
-  "address_base": "서울 영등포구 영등포동7가 203",
-  "address_detail": "",
-  "contract_amount": 250000,
-  "vendor_cost": 150000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "영등포구",
-  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 1회\n투입일: 목 / 야간 (21시 이후)\n청소 범위: 지점 내부 청소 (바닥 및 창고 문)\n용역업체 납부 ₩150,000 / 건물주 청구 ₩250,000\n비고: 4개 지점(영등포·가산·용산·반포) 같은 날(목) 순회 투입\n영업담당: 함형수 · 최초계약일: 2026-05-25",
-  "cleaning_days": [
-   "thu"
-  ]
- },
- {
-  "name": "엑스트라스페이스 용산",
-  "address": "서울 용산구 효창동 5-116",
-  "address_base": "서울 용산구 효창동 5-116",
-  "address_detail": "",
-  "contract_amount": 250000,
-  "vendor_cost": 150000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "용산구",
-  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 1회\n투입일: 목 / 야간 (21시 이후)\n청소 범위: 지점 내부 청소 (바닥 및 창고 문)\n용역업체 납부 ₩150,000 / 건물주 청구 ₩250,000\n비고: 4개 지점(영등포·가산·용산·반포) 같은 날(목) 순회 투입\n영업담당: 함형수 · 최초계약일: 2026-05-25",
-  "cleaning_days": [
-   "thu"
-  ]
- },
- {
-  "name": "엑스트라스페이스 반포점",
-  "address": "서울 서초구 반포동 51-7",
-  "address_base": "서울 서초구 반포동 51-7",
-  "address_detail": "",
-  "contract_amount": 250000,
-  "vendor_cost": 150000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "서초구",
-  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 1회\n투입일: 목 / 야간 (21시 이후)\n청소 범위: 지점 내부 청소 (바닥 및 창고 문)\n용역업체 납부 ₩150,000 / 건물주 청구 ₩250,000\n비고: 4개 지점(영등포·가산·용산·반포) 같은 날(목) 순회 투입\n영업담당: 함형수 · 최초계약일: 2026-05-25",
-  "cleaning_days": [
-   "thu"
-  ]
- },
- {
-  "name": "아내뜨 빌딩",
-  "address": "서울시 마포구 서교동 466-19",
-  "address_base": "서울시 마포구 서교동 466-19",
-  "address_detail": "",
-  "contract_amount": 650000,
-  "vendor_cost": 550000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "마포구",
-  "memo": "업체: 클레오 · 둥지 계약 · 투입: 1층 주 5회 / B1·2~3층 2주 3회 / 4~6층 주 1회\n투입일: 월~금\n청소 범위: 공용부\n- 1층 주 5회\n- 지하 1층·2~3층 2주 3회 (화장실 有)\n- 4~6층 주 1회 (화장실 無)\n용역업체 납부 ₩550,000 / 건물주 청구 ₩650,000\n비고: [확인] 기존 \"B1·2~3층 주 3일\" ↔ 업체 \"2주 3회\" 횟수 확인 필요\n영업담당: 함형수 · 최초계약일: 2026-05-25",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "드림타워",
-  "address": "서울시 은평구 응암동 770-5",
-  "address_base": "서울시 은평구 응암동 770-5",
-  "address_detail": "",
-  "contract_amount": 1200000,
-  "vendor_cost": 1200000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "은평구",
-  "memo": "업체: 평화C&C · 둥지 계약 · 투입: 주 5회\n투입일: 월~금 / 야간\n청소 범위: 공용부 청소 (지하주차장 등 공용공간 전체 포함)\n용역업체 납부 ₩1,200,000 / 건물주 청구 ₩1,200,000\n영업담당: 함형수 · 최초계약일: 2026-05-25",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri"
-  ]
- },
- {
-  "name": "풍성빌딩",
-  "address": "서울 성동구 성수동1가 656-1693",
-  "address_base": "서울 성동구 성수동1가 656-1693",
-  "address_detail": "",
-  "contract_amount": 1600000,
-  "vendor_cost": 1300000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "성동구",
-  "memo": "둥지 계약\n용역업체 납부 ₩1,300,000 / 건물주 청구 ₩1,600,000\n영업담당: 함형수 · 최초계약일: 2026-05-28",
-  "cleaning_days": []
- },
- {
-  "name": "용진빌딩",
-  "address": "서울 강남구 신사동 653-12",
-  "address_base": "서울 강남구 신사동 653-12",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "업체: 임대인\n영업담당: 함형수 · 최초계약일: 2026-06-15",
-  "cleaning_days": []
- },
- {
-  "name": "옥원빌딩",
-  "address": "서울시 강남구 대치동 896-1",
-  "address_base": "서울시 강남구 대치동 896-1",
-  "address_detail": "",
-  "contract_amount": 1000000,
-  "vendor_cost": 480000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "둥지 계약 · 투입: 주 5회\n투입일: 월, 수, 금, 토, 일\n청소 범위: 지하 1층 - 6층 공용부, 계단, 승강기 1층 주변, 분리수거, 주차장 등 청소 입니다! (화장실 없음)\n용역업체 납부 ₩480,000 / 건물주 청구 ₩1,000,000\n영업담당: 함형수 · 최초계약일: 2026-06-25",
-  "cleaning_days": [
-   "mon",
-   "wed",
-   "fri",
-   "sat",
-   "sun"
-  ]
- },
- {
-  "name": "지니어스애비뉴파크어학원",
-  "address": "서울 용산구 한남동 31-17",
-  "address_base": "서울 용산구 한남동 31-17",
-  "address_detail": "",
-  "contract_amount": 1000000,
-  "vendor_cost": 850000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "용산구",
-  "memo": "둥지 계약\n용역업체 납부 ₩850,000 / 건물주 청구 ₩1,000,000\n비고: 청소 정보 없음\n최초계약일: 2026-07-01",
-  "cleaning_days": []
- },
- {
-  "name": "스타빌딩 A동 (중부대로 157 )",
-  "address": "경기 수원시 팔달구 우만동 153-20",
-  "address_base": "경기 수원시 팔달구 우만동 153-20",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "팔달구",
-  "memo": "비고: 청소 정보 없음\n최초계약일: 2026-07-25",
-  "cleaning_days": []
- },
- {
-  "name": "스타빌딩 B동 (중부대로 161)",
-  "address": "경기 수원시 팔달구 우만동 153-7",
-  "address_base": "경기 수원시 팔달구 우만동 153-7",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강서",
-  "region": "팔달구",
-  "memo": "비고: 청소 정보 없음\n최초계약일: 2026-07-25",
-  "cleaning_days": []
- },
- {
-  "name": "오엠케이빌딩",
-  "address": "서울 강남구 역삼동 740-3",
-  "address_base": "서울 강남구 역삼동 740-3",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "강남구",
-  "memo": "건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n비고: 청소 정보 없음\n영업담당: 함형수 · 최초계약일: 2026-09-15",
-  "cleaning_days": []
- },
- {
-  "name": "대원빌딩",
-  "address": "",
-  "address_base": "",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "",
-  "memo": "건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n비고: 청소 정보 없음\n영업담당: 함형수 · 최초계약일: 2026-09-15",
-  "cleaning_days": []
- },
- {
-  "name": "오블리브의원 서울오리진점",
-  "address": "서울 종로구 관철동 5-13",
-  "address_base": "서울 종로구 관철동 5-13",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": null,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "종로구",
-  "memo": "비고: 청소 정보 없음\n최초계약일: 2026-09-30",
-  "cleaning_days": []
- },
- {
-  "name": "JS빌",
-  "address": "서울 중구 황학동 1655",
-  "address_base": "서울 중구 황학동 1655",
-  "address_detail": "",
-  "contract_amount": 1350000,
-  "vendor_cost": 1350000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "중구",
-  "memo": "둥지 계약\n용역업체 납부 ₩1,350,000 / 건물주 청구 ₩1,350,000\n비고: 청소 정보 없음\n최초계약일: 2026-10-05",
-  "cleaning_days": []
- },
- {
-  "name": "대흥빌딩",
-  "address": "서울 동대문구 장안동 192-75",
-  "address_base": "서울 동대문구 장안동 192-75",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 0,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "동대문구",
-  "memo": "건물주 직계약\n용역업체 납부 ₩0 / 건물주 청구 ₩0\n비고: 청소 정보 없음\n영업담당: 함형수 · 최초계약일: 2026-10-15",
-  "cleaning_days": []
- },
- {
-  "name": "팝콘D성수",
-  "address": "서울 성동구 성수동2가 316-52",
-  "address_base": "서울 성동구 성수동2가 316-52",
-  "address_detail": "",
-  "contract_amount": 0,
-  "vendor_cost": 1300000,
-  "cleaning_type": "일상청소",
-  "worker_ids": [],
-  "branch": "강남",
-  "region": "성동구",
-  "memo": "업체: 임철재 · 둥지 계약 · 투입: 7일\n투입일: 월~일 / 19~20시\n청소 범위: 공용부 전체\n용역업체 납부 ₩1,300,000\n영업담당: 함형수 · 최초계약일: 2026-10-25 · 미화팀 투입일: 2026-11-04",
-  "cleaning_days": [
-   "mon",
-   "tue",
-   "wed",
-   "thu",
-   "fri",
-   "sat",
-   "sun"
-  ]
- }
-];
 
-// 엑셀(2026.10.23 기준) 건물 일괄 등록 — 이미 등록된 건물명은 건너뜀
+// ==================== 엑셀 건물 일괄 등록 (파일 선택) ====================
+// 건물 데이터는 페이지 소스에 넣지 않고, 관리자가 엑셀 파일을 골라서 등록 (이미 있는 건물명은 건너뜀)
 const _normName = n => (n || '').replace(/\s+/g, '').toLowerCase();
-async function importPreloadedBuildings() {
-  const existing = new Set(DB.buildings.map(b => _normName(b.name)));
-  const toAdd = PRELOADED_BUILDINGS.filter(b => !existing.has(_normName(b.name)));
-  if (!toAdd.length) { showToast('✅ 엑셀 건물이 모두 이미 등록되어 있어요'); return; }
-  if (!confirm(`엑셀 건물 ${PRELOADED_BUILDINGS.length}개 중 미등록 ${toAdd.length}개를 추가할까요?\n(이미 있는 ${PRELOADED_BUILDINGS.length - toAdd.length}개는 건너뜁니다)`)) return;
+function loadSheetJS() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((ok, fail) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload = ok; sc.onerror = () => fail(new Error('엑셀 라이브러리를 불러오지 못했어요'));
+    document.head.appendChild(sc);
+  });
+}
+function importBuildingsFromExcel() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.xlsx,.xls';
+  inp.onchange = () => inp.files[0] && _importExcelFile(inp.files[0]);
+  inp.click();
+}
+const _DAY_KEYS = { '월':'mon','화':'tue','수':'wed','목':'thu','금':'fri','토':'sat','일':'sun' };
+const _DAY_ORDER = ['월','화','수','목','금','토','일'];
+function _parseDays(t) {
+  const out = new Set();
+  (t.match(/[월화수목금토일]\s*~\s*[월화수목금토일]/g) || []).forEach(r => {
+    const [a, b] = r.split('~').map(x => _DAY_ORDER.indexOf(x.trim()));
+    for (let i = a; ; i = (i + 1) % 7) { out.add(_DAY_ORDER[i]); if (i === b) break; }
+  });
+  (t.match(/(^|[^가-힣])([월화수목금토일])(?![가-힣])/g) || []).forEach(m => out.add(m.slice(-1)));
+  return ['mon','tue','wed','thu','fri','sat','sun'].filter(k => [...out].some(d => _DAY_KEYS[d] === k));
+}
+function _rowToBuilding(get) {
+  const S = v => { if (v instanceof Date) return v.toISOString().slice(0, 10); v = v == null ? '' : String(v).trim(); return v === '정보 없음' ? '' : v; };
+  const N = v => (typeof v === 'number' && isFinite(v)) ? Math.round(v) : null;
+  const won = v => N(v) === null ? '' : '₩' + N(v).toLocaleString('ko-KR');
+  const addr = S(get('주소'));
+  const GN = ['강남구','서초구','송파구','강동구','광진구','성동구','용산구','종로구','중구','마포구'];
+  const branch = GN.some(g => addr.includes(g)) ? '강남' : (addr && !addr.includes('서울') ? '강서' : '강남');
+  const gu = addr.match(/([가-힣]+[구군])/);
+  const vendor = S(get('업체명')), ctype = S(get('계약 여부')), freq = S(get('투입횟수')), days = S(get('투입일'));
+  const pay = get('납부금액'), bill = get('청구금액');
+  const memo = [];
+  const l1 = [vendor && '업체: ' + vendor, ctype, freq && '투입: ' + freq].filter(Boolean).join(' · '); if (l1) memo.push(l1);
+  if (days) memo.push('투입일: ' + days);
+  if (S(get('청소 범위'))) memo.push('청소 범위: ' + S(get('청소 범위')));
+  const money = [won(pay) && '용역업체 납부 ' + won(pay), won(bill) && '건물주 청구 ' + won(bill)].filter(Boolean).join(' / '); if (money) memo.push(money);
+  if (S(get('비고'))) memo.push('비고: ' + S(get('비고')));
+  const sales = S(get('영업담당자'));
+  const tail = [sales && sales !== '없음' && '영업담당: ' + sales, S(get('최초계약일')) && '최초계약일: ' + S(get('최초계약일')), S(get('미화팀 투입일')) && '미화팀 투입일: ' + S(get('미화팀 투입일'))].filter(Boolean).join(' · ');
+  if (tail) memo.push(tail);
+  return { name: S(get('건물명')), address: addr, address_base: addr, address_detail: '', contract_amount: N(bill) || 0,
+    vendor_cost: N(pay), cleaning_type: '일상청소', worker_ids: [], branch, region: gu ? gu[1] : '', memo: memo.join('\n'), cleaning_days: _parseDays(days) };
+}
+async function _importExcelFile(file) {
   const btn = document.getElementById('importBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '등록 중...'; }
   try {
-    if (useLocal) {
-      toAdd.forEach(b => DB.buildings.push({ ...b, id: genId(), created_at: new Date().toISOString() }));
-      saveLocalData();
-    } else {
-      const rows = toAdd.map(b => { const r = { ...b }; if (!HAS_VENDOR_COL) delete r.vendor_cost; return r; });
-      for (let i = 0; i < rows.length; i += 50) await sbInsert('buildings', rows.slice(i, i + 50));
-      await loadAll();
-    }
-    renderAll();
+    if (btn) { btn.disabled = true; btn.textContent = '읽는 중...'; }
+    await loadSheetJS();
+    const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
+    const found = [];
+    wb.SheetNames.forEach(sn => {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null });
+      const hi = rows.slice(0, 6).findIndex(r => (r || []).some(c => String(c || '').trim() === '건물명'));
+      if (hi < 0) return;
+      const head = rows[hi].map(c => String(c || '').trim());
+      rows.slice(hi + 1).forEach(r => {
+        const get = key => { const i = head.findIndex(h => h.includes(key)); return i < 0 ? null : r[i]; };
+        const b = _rowToBuilding(get);
+        if (b.name) found.push(b);
+      });
+    });
+    if (!found.length) { showToast('❌ \'건물명\' 열이 있는 시트를 찾지 못했어요', 4000); return; }
+    const seen = new Set(DB.buildings.map(b => _normName(b.name)));
+    const toAdd = found.filter(b => { const k = _normName(b.name); if (seen.has(k)) return false; seen.add(k); return true; });
+    if (!toAdd.length) { showToast(`✅ 엑셀 건물 ${found.length}개가 모두 이미 등록되어 있어요`, 3500); return; }
+    if (!confirm(`엑셀 건물 ${found.length}개 중 미등록 ${toAdd.length}개를 추가할까요?\n(이미 있는 ${found.length - toAdd.length}개는 건너뜁니다)`)) return;
+    if (btn) btn.textContent = '등록 중...';
+    const rows = toAdd.map(b => { const r = { ...b }; if (!HAS_VENDOR_COL) delete r.vendor_cost; return r; });
+    for (let i = 0; i < rows.length; i += 50) await sbInsert('buildings', rows.slice(i, i + 50));
+    await loadAll();
     showToast(`✅ ${toAdd.length}개 건물 등록 완료`, 3500);
   } catch (e) {
     showToast('❌ 등록 실패: ' + e.message, 5000);
-    await loadAll();
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '📥 엑셀 건물 일괄 등록'; }
   }
@@ -2792,15 +1207,21 @@ window.onload = () => {
   document.getElementById('logMonth').value = ym;
   document.getElementById('settleMonth').value = ym;
   document.getElementById('pfMonth').value = ym;
+  document.getElementById('dcMonth').value = ym;
   initProfitControls();
   initBuildingSearch();
   restoreFolds();
   document.getElementById('lDate').value = now.toISOString().slice(0,10);
 
-  // Supabase 자동 연결
-  document.getElementById('dbDot').className = 'db-dot ok';
-  document.getElementById('dbStatusText').textContent = 'Supabase 연결됨';
-  loadAll();
+  // 저장된 로그인 세션이 있으면 이어서, 없으면 로그인 화면
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('dj_session') || 'null'); } catch (e) {}
+  if (saved && saved.refresh_token) {
+    SESSION = saved;
+    afterLogin().catch(e => { if (SESSION) showLogin(e.message); });
+  } else {
+    showLogin();
+  }
 };
 
 // ==================== SUPABASE ====================
@@ -2825,8 +1246,9 @@ function saveLocalData() {
 let HAS_VENDOR_COL = false;
 let _vendorColChecked = false;
 async function checkVendorCol() {
-  if (_vendorColChecked) return;
+  if (_vendorColChecked || !isFull()) return;
   try {
+    await ensureSession();
     const res = await fetch(`${SB_URL}/rest/v1/buildings?select=vendor_cost&limit=1`, { headers: SB_HEAD() });
     HAS_VENDOR_COL = res.ok;
     _vendorColChecked = true;
@@ -2835,17 +1257,27 @@ async function checkVendorCol() {
 
 async function loadAll() {
   if (useLocal) { loadLocalData(); return; }
+  if (!SESSION || !ME) return;
   await checkVendorCol();
   try {
-    const [workers, buildings, logs] = await Promise.all([
-      sbGet('workers', 'created_at'),
-      sbGet('buildings', 'created_at'),
-      sbGet('logs', 'date')
-    ]);
-    DB.workers = workers || [];
-    DB.buildings = buildings || [];
-    DB.logs = logs || [];
-    renderAll();
+    if (isFull()) {
+      const [workers, buildings, logs, directCosts] = await Promise.all([
+        sbGet('workers', 'created_at'),
+        sbGet('buildings', 'created_at'),
+        sbGet('logs', 'date'),
+        sbGet('direct_costs', 'month').catch(() => [])
+      ]);
+      DB.workers = workers || [];
+      DB.buildings = buildings || [];
+      DB.logs = logs || [];
+      DB.directCosts = directCosts || [];
+      renderAll();
+    } else {
+      // 영업팀: 금액이 빠진 건물 목록(buildings_sales 뷰)만 받음
+      DB.buildings = (await sbGet('buildings_sales', 'created_at')) || [];
+      DB.workers = []; DB.logs = []; DB.directCosts = [];
+      renderBuildingTable();
+    }
     updateSyncTime();
   } catch(e) {
     document.getElementById('dbDot').className = 'db-dot err';
@@ -2865,7 +1297,7 @@ function updateSyncTime() {
 }
 
 // 30초마다 자동 폴링
-setInterval(() => { if (!useLocal) loadAll(); }, 30000);
+setInterval(() => { if (!useLocal && SESSION && ME && ROLE_LABEL[ME.role] && ME.role !== 'pending') loadAll(); }, 30000);
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
@@ -2879,6 +1311,7 @@ function renderAll() {
   renderDashboard();
   renderSettlement();
   renderProfit();
+  renderDirect();
 }
 
 // ==================== TAB ====================
@@ -2890,6 +1323,7 @@ function switchTab(name, el) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'settlement') renderSettlement();
   if (name === 'profit') renderProfit();
+  if (name === 'direct') renderDirect(true);
   // Invalidate map size when switching back to dashboard
   if (name === 'dashboard') setTimeout(() => initDashMap(), 100);
 }
@@ -3376,6 +1810,8 @@ function openBuildingModal(id = null) {
     const vc = vendorCostOf(b);
     document.getElementById('bVendorCost').value = vc == null ? '' : vc;
     document.getElementById('bType').value = b.cleaning_type || '일상청소';
+    document.getElementById('bExec').value = b.exec_type || '';
+    document.getElementById('bQuote').value = b.direct_quote == null ? '' : b.direct_quote;
     document.getElementById('bBranch').value = b.branch || '강남';
     document.getElementById('bRegion').value = b.region || '';
     document.getElementById('bMemo').value = b.memo || '';
@@ -3385,14 +1821,18 @@ function openBuildingModal(id = null) {
       btn.classList.toggle('on', savedDays.includes(btn.dataset.day));
     });
   } else {
-    ['bName','bAddress','bAddrQuery','bAddressDetail','bContract','bVendorCost','bMemo','bRegion'].forEach(i => document.getElementById(i).value = '');
+    ['bName','bAddress','bAddrQuery','bAddressDetail','bContract','bVendorCost','bMemo','bRegion','bExec','bQuote'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('addrSelected').style.display = 'none';
     hideAddrResults();
     document.querySelectorAll('#bDayPicker .day-btn').forEach(btn => btn.classList.remove('on'));
     document.getElementById('bType').value = '일상청소';
     document.getElementById('bBranch').value = '강남';
   }
+  toggleQuoteField();
   document.getElementById('buildingModal').style.display = 'flex';
+}
+function toggleQuoteField() {
+  document.getElementById('bQuoteGroup').style.visibility = document.getElementById('bExec').value === '직수행' ? 'visible' : 'hidden';
 }
 
 async function saveBuilding() {
@@ -3414,7 +1854,9 @@ async function saveBuilding() {
     branch: document.getElementById('bBranch').value,
     region: document.getElementById('bRegion').value,
     memo: document.getElementById('bMemo').value,
-    cleaning_days: [...document.querySelectorAll('#bDayPicker .day-btn.on')].map(b => b.dataset.day)
+    cleaning_days: [...document.querySelectorAll('#bDayPicker .day-btn.on')].map(b => b.dataset.day),
+    exec_type: document.getElementById('bExec').value || null,
+    direct_quote: document.getElementById('bQuote').value.trim() === '' ? null : (parseInt(document.getElementById('bQuote').value) || 0)
   };
   // 월 투입금액: DB 칸(vendor_cost)이 있으면 그곳에, 없으면 메모의 '용역업체 납부' 줄에 저장
   const vcRaw = document.getElementById('bVendorCost').value.trim();
@@ -3464,13 +1906,24 @@ function initBuildingSearch() {
   s.addEventListener('keydown', e => { if (e.key === 'Escape') { s.value = ''; renderBuildingTable(); } });
 }
 const _norm = t => (t || '').replace(/\s+/g, '').toLowerCase();
+const EXEC_LABEL = { '직수행': '직수행', '업체': '업체 위탁', '인건비': '인건비 투입' };
+function execBadge(t) {
+  return t && EXEC_LABEL[t] ? `<span class="exec-badge exec-${t}">${EXEC_LABEL[t]}</span>` : '<span class="exec-badge exec-none">미지정</span>';
+}
+// 담당자 이름: 미화팀은 workers 표에서, 영업팀은 뷰가 내려준 이름으로
+function workerNamesOf(b) {
+  if (b.worker_names) return b.worker_names.filter(Boolean);
+  return (b.worker_ids || []).map(id => DB.workers.find(w => w.id === id)?.name).filter(Boolean);
+}
 function filteredBuildings() {
   const q = _norm(document.getElementById('bSearch')?.value);
   const br = document.getElementById('bBranchFilter')?.value || 'all';
+  const ex = document.getElementById('bExecFilter')?.value || 'all';
   return DB.buildings.filter(b => {
     if (br !== 'all' && b.branch !== br) return false;
+    if (ex === 'none' ? !!EXEC_LABEL[b.exec_type] : (ex !== 'all' && b.exec_type !== ex)) return false;
     if (!q) return true;
-    const workers = (b.worker_ids || []).map(id => DB.workers.find(w => w.id === id)?.name || '').join(' ');
+    const workers = workerNamesOf(b).join(' ');
     return _norm([b.name, b.address, b.region, b.memo, workers].join(' ')).includes(q);
   });
 }
@@ -3485,23 +1938,26 @@ function _hl(text) {
 function renderBuildingTable() {
   const tbody = document.getElementById('buildingTable');
   const cnt = document.getElementById('bCount');
+  const full = isFull();
+  const COLS = full ? 12 : 10;
   if (!DB.buildings.length) {
     if (cnt) cnt.textContent = '';
-    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-icon">🏢</div><p>건물을 추가해주세요</p></div></td></tr>';
+    tbody.innerHTML = `<tr><td colspan="${COLS}"><div class="empty"><div class="empty-icon">🏢</div><p>${full ? '건물을 추가해주세요' : '등록된 건물이 없어요'}</p></div></td></tr>`;
     return;
   }
   const list = filteredBuildings();
   const filtering = list.length !== DB.buildings.length;
   if (cnt) cnt.textContent = filtering ? `${list.length} / ${DB.buildings.length}개` : `${DB.buildings.length}개`;
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-icon">🔍</div><p>검색 결과가 없습니다</p></div></td></tr>';
+    tbody.innerHTML = `<tr><td colspan="${COLS}"><div class="empty"><div class="empty-icon">🔍</div><p>검색 결과가 없습니다</p></div></td></tr>`;
     return;
   }
   // 결과가 1개면 상세를 자동으로 펼침
   const autoOpen = list.length === 1 && document.getElementById('bSearch').value.trim() ? list[0].id : null;
   tbody.innerHTML = list.map(b => {
-    const workers = (b.worker_ids || []).map(id => DB.workers.find(w => w.id === id)?.name).filter(Boolean);
+    const workers = workerNamesOf(b);
     const isExpanded = _expandedBuildingId === b.id || autoOpen === b.id;
+    const quote = b.exec_type === '직수행' && b.direct_quote != null ? fmtWon(b.direct_quote) : '<span style="color:var(--gray-300);">-</span>';
     const memoShort = b.memo ? (b.memo.length > 20 ? b.memo.slice(0,20) + '...' : b.memo) : '-';
 
     const mainRow = `<tr class="building-row-clickable" onclick="toggleBuildingDetail('${b.id}')">
@@ -3509,26 +1965,32 @@ function renderBuildingTable() {
       <td><strong>${_hl(b.name)}</strong> <span style="color:var(--gray-300);font-size:11px;">${isExpanded ? '▲' : '▼'}</span></td>
       <td style="font-size:12px;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.address || '-'}</td>
       <td><span class="badge badge-gray">${b.region||'-'}</span></td>
-      <td>${fmtWon(b.contract_amount)}</td>
+      <td>${execBadge(b.exec_type)}</td>
+      ${full ? `<td>${fmtWon(b.contract_amount)}</td>` : ''}
+      <td style="white-space:nowrap;">${quote}</td>
       <td><div class="assign-tags">${workers.length ? workers.map(n => `<span class="assign-tag">${n}</span>`).join('') : '<span class="badge badge-gray">미배정</span>'}</div></td>
       <td><div class="day-chips">${renderDayChips(b.cleaning_days)}</div></td>
       <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${memoShort}</td>
-      <td onclick="event.stopPropagation()">
+      ${full ? `<td onclick="event.stopPropagation()">
         <button class="btn btn-ghost btn-sm" onclick="openBuildingModal('${b.id}')">수정</button>
         <button class="btn btn-danger btn-sm" onclick="deleteBuilding('${b.id}')">삭제</button>
-      </td>
+      </td>` : ''}
     </tr>`;
 
     const detailRow = isExpanded ? `<tr class="building-detail-row">
-      <td colspan="9">
+      <td colspan="${COLS}">
         <div class="building-detail-box">
           <div class="building-detail-item" style="grid-column:1/-1;">
             <label>📍 주소</label>
             <div class="val">${b.address || '-'}${b.address_detail ? ' ' + b.address_detail : ''}</div>
           </div>
-          <div class="building-detail-item">
+          ${full ? `<div class="building-detail-item">
             <label>💰 월 계약금액</label>
             <div class="val">${fmtWon(b.contract_amount)}</div>
+          </div>` : ''}
+          <div class="building-detail-item">
+            <label>🧽 수행 방식</label>
+            <div class="val">${execBadge(b.exec_type)}${b.exec_type === '직수행' ? ` &nbsp;견적 <b>${b.direct_quote != null ? fmtWon(b.direct_quote) : '미입력'}</b>` : ''}</div>
           </div>
           <div class="building-detail-item">
             <label>🧹 청소 유형</label>
@@ -3939,6 +2401,92 @@ function renderSettlement() {
   }
 }
 
+// ==================== 직수행 현황 ====================
+function directCostRec(bId, month) {
+  return (DB.directCosts || []).find(d => d.building_id === bId && d.month === month) || null;
+}
+function renderDirect(force) {
+  const tbody = document.getElementById('dcTable');
+  if (!tbody || !isFull()) return;
+  // 입력 중인 칸이 있으면 자동 동기화로 덮어쓰지 않음
+  if (!force && document.activeElement && document.activeElement.classList.contains('dc-input')) return;
+  const month = document.getElementById('dcMonth').value;
+  const br = document.getElementById('dcBranch').value;
+  const list = DB.buildings.filter(b => b.exec_type === '직수행' && (br === 'all' || b.branch === br))
+    .sort((a, b) => (a.branch || '').localeCompare(b.branch || '', 'ko') || a.name.localeCompare(b.name, 'ko'));
+  const rows = list.map(b => {
+    const rec = directCostRec(b.id, month);
+    const revenue = b.contract_amount || 0;
+    const quote = b.direct_quote;
+    const actual = rec ? rec.amount : null;
+    const profit = actual === null ? null : revenue - actual;
+    const margin = profit === null || !revenue ? null : profit / revenue * 100;
+    const diff = actual === null || quote == null ? null : quote - actual;
+    return { b, revenue, quote, actual, profit, margin, diff };
+  });
+  const entered = rows.filter(r => r.actual !== null);
+  const sum = (arr, f) => arr.reduce((s, r) => s + (r[f] || 0), 0);
+  const tRev = sum(rows, 'revenue'), tQuote = sum(rows, 'quote');
+  const eRev = sum(entered, 'revenue'), eAct = sum(entered, 'actual'), eProfit = eRev - eAct;
+  const eMargin = eRev ? eProfit / eRev * 100 : null;
+  const eDiffRows = entered.filter(r => r.diff !== null);
+  const eDiff = sum(eDiffRows, 'diff');
+  const ms = marginStatus(eMargin);
+  const signWon = v => (v > 0 ? '+' : v < 0 ? '-' : '') + fmtWon(Math.abs(v));
+  document.getElementById('dcCards').innerHTML = `
+    <div class="card"><div class="card-label">직수행 건물</div><div class="card-value blue">${rows.length}</div><div class="card-sub">실제 수행비 입력 ${entered.length} / ${rows.length}</div></div>
+    <div class="card"><div class="card-label">월 매출</div><div class="card-value">${fmtWon(tRev)}</div><div class="card-sub">직수행 견적 합계 ${fmtWon(tQuote)}</div></div>
+    <div class="card"><div class="card-label">월 실제 수행비</div><div class="card-value">${fmtWon(eAct)}</div><div class="card-sub">입력한 ${entered.length}개 건물</div></div>
+    <div class="card"><div class="card-label">월 영업이익</div><div class="card-value" style="color:${eProfit < 0 ? '#DC2626' : '#16A34A'};">${entered.length ? fmtWon(eProfit) : '-'}</div><div class="card-sub">이익률 <strong style="color:${ms.color};">${eMargin === null ? '-' : eMargin.toFixed(1) + '%'}</strong></div></div>
+    <div class="card"><div class="card-label">견적 대비</div><div class="card-value" style="color:${eDiff < 0 ? '#DC2626' : '#16A34A'};">${eDiffRows.length ? signWon(eDiff) : '-'}</div><div class="card-sub">견적보다 ${eDiff < 0 ? '초과' : '절감'} (${eDiffRows.length}개 건물)</div></div>`;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">🧽</div><p>직수행 건물이 없어요. 건물 탭 → 수정에서 수행방식을 \'직수행\'으로 지정해주세요.</p></div></td></tr>';
+    document.getElementById('dcFoot').innerHTML = '';
+    return;
+  }
+  const dash = '<span class="pf-missing">-</span>';
+  tbody.innerHTML = rows.map(r => {
+    const st = marginStatus(r.margin);
+    return `<tr style="cursor:default;">
+      <td><span class="badge ${r.b.branch === '강남' ? 'badge-blue' : 'badge-green'}">${r.b.branch || '-'}</span></td>
+      <td><strong style="cursor:pointer;" onclick="openBuildingModal('${r.b.id}')">${r.b.name}</strong></td>
+      <td class="num">${fmtWon(r.revenue)}</td>
+      <td class="num">${r.quote == null ? '<span class="pf-missing">미입력</span>' : fmtWon(r.quote)}</td>
+      <td class="num"><input class="dc-input ${r.actual === null ? 'empty' : ''}" type="number" min="0" placeholder="입력" value="${r.actual === null ? '' : r.actual}"
+        data-b="${r.b.id}" onchange="saveDirectCost(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
+      <td class="num ${r.profit === null ? '' : r.profit >= 0 ? 'summary-positive' : 'summary-negative'}">${r.profit === null ? dash : fmtWon(r.profit)}</td>
+      <td class="num" style="color:${st.color};font-weight:600;">${r.margin === null ? dash : r.margin.toFixed(1) + '%'}</td>
+      <td class="num" style="color:${r.diff === null ? '' : r.diff < 0 ? '#DC2626' : '#16A34A'};font-weight:600;">${r.diff === null ? dash : signWon(r.diff)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('dcFoot').innerHTML = `<tr>
+    <td colspan="2">합계 (${rows.length}개 · 수행비 입력 ${entered.length}개)</td>
+    <td class="num">${fmtWon(tRev)}</td><td class="num">${fmtWon(tQuote)}</td><td class="num">${fmtWon(eAct)}</td>
+    <td class="num ${eProfit >= 0 ? 'summary-positive' : 'summary-negative'}">${entered.length ? fmtWon(eProfit) : '-'}</td>
+    <td class="num" style="color:${ms.color};">${eMargin === null ? '-' : eMargin.toFixed(1) + '%'}</td>
+    <td class="num" style="color:${eDiff < 0 ? '#DC2626' : '#16A34A'};">${eDiffRows.length ? signWon(eDiff) : '-'}</td>
+  </tr>`;
+}
+async function saveDirectCost(inp) {
+  const bId = inp.dataset.b, month = document.getElementById('dcMonth').value;
+  const raw = inp.value.trim();
+  const rec = directCostRec(bId, month);
+  try {
+    if (raw === '') {
+      if (rec) { await sbDelete('direct_costs', rec.id); DB.directCosts = DB.directCosts.filter(d => d !== rec); }
+    } else {
+      const amount = Math.max(0, parseInt(raw) || 0);
+      const saved = await sbUpsert('direct_costs', [{ building_id: bId, month, amount, updated_at: new Date().toISOString() }], 'building_id,month');
+      DB.directCosts = DB.directCosts.filter(d => !(d.building_id === bId && d.month === month)).concat(saved);
+    }
+    renderDirect(true);
+    renderProfit();
+    showToast('✅ 실제 수행비 저장');
+  } catch (e) {
+    showToast('❌ 저장 실패: ' + e.message, 4000);
+  }
+}
+
 // ==================== PROFIT (영업이익) ====================
 // 투입금액: vendor_cost 칸 값 → 없으면 메모의 '용역업체 납부 ₩…' → 둘 다 없으면 null(미입력)
 function vendorCostOf(b) {
@@ -3998,13 +2546,15 @@ function profitRows() {
   const hideZero = document.getElementById('pfHideZero').checked;
   return DB.buildings.map(b => {
     const revenue = b.contract_amount || 0;
-    const vendorRaw = vendorCostOf(b);
+    // 직수행 건물은 그 달에 입력한 실제 수행비를 투입금액으로 사용
+    const dRec = b.exec_type === '직수행' ? directCostRec(b.id, month) : null;
+    const vendorRaw = b.exec_type === '직수행' ? (dRec ? dRec.amount : null) : vendorCostOf(b);
     const vendor = vendorRaw || 0;
     const labor = buildingLaborCost(b, month);
     const cost = vendor + labor;
     const profit = revenue - cost;
     const margin = revenue ? profit / revenue * 100 : null;
-    return { b, id: b.id, name: b.name, branch: b.branch || '', vendorName: memoField(b, '업체'),
+    return { b, id: b.id, name: b.name, branch: b.branch || '', vendorName: b.exec_type === '직수행' ? '직수행 · 실제 수행비 기준' : memoField(b, '업체'),
              revenue, vendor, vendorMissing: vendorRaw === null && labor === 0, labor, cost, profit, margin };
   }).filter(r => {
     if (branch !== 'all' && r.branch !== branch) return false;
@@ -4084,7 +2634,7 @@ function exportProfitCsv() {
   const rows = profitRows();
   const month = document.getElementById('pfMonth').value;
   const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const lines = [['지점','건물명','업체','건물주 청구','용역업체 납부','둥지 인건비','투입 합계','영업이익','이익률(%)'].map(esc).join(',')];
+  const lines = [['지점','건물명','업체','건물주 청구','외주·수행비','둥지 인건비','투입 합계','영업이익','이익률(%)'].map(esc).join(',')];
   rows.forEach(r => lines.push([r.branch, r.name, r.vendorName, r.revenue, r.vendorMissing ? '' : r.vendor, r.labor, r.cost, r.profit, r.margin === null ? '' : r.margin.toFixed(1)].map(esc).join(',')));
   const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
@@ -4140,55 +2690,7 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 });
 </script>
 
-<!-- SQL GUIDE (hidden) -->
-<!--
-Supabase SQL to run once:
-
-CREATE TABLE workers (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  name TEXT NOT NULL,
-  phone TEXT,
-  type TEXT DEFAULT 'monthly',
-  wage INTEGER DEFAULT 0,
-  region TEXT,
-  branch TEXT,
-  memo TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE buildings (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  name TEXT NOT NULL,
-  address TEXT,
-  contract_amount INTEGER DEFAULT 0,
-  cleaning_type TEXT,
-  worker_ids TEXT[] DEFAULT '{}',
-  memo TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE logs (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  date DATE NOT NULL,
-  worker_id TEXT,
-  building_id TEXT,
-  start_time TEXT,
-  end_time TEXT,
-  break_min INTEGER DEFAULT 60,
-  hours NUMERIC DEFAULT 0,
-  extra_cost INTEGER DEFAULT 0,
-  memo TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE workers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE buildings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE logs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "allow_all_workers" ON workers FOR ALL USING (true);
-CREATE POLICY "allow_all_buildings" ON buildings FOR ALL USING (true);
-CREATE POLICY "allow_all_logs" ON logs FOR ALL USING (true);
--->
+<!-- DB 설정: 둥지_권한설정.sql 참고 (로그인 권한 · RLS · 영업팀용 buildings_sales 뷰 · direct_costs) -->
 
 </body>
 </html>
