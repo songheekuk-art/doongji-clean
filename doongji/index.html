@@ -148,6 +148,7 @@
   .exec-업체 { background:#E0F2FE;color:#0369A1; }
   .exec-인건비 { background:#FEF3C7;color:#B45309; }
   .exec-none { background:var(--gray-100);color:var(--gray-400); }
+  .th-sub { font-size:10px;font-weight:500;color:var(--gray-400);margin-top:2px; }
   .dc-input { width:130px;text-align:right;font-family:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--gray-200);border-radius:7px;font-variant-numeric:tabular-nums; }
   .dc-input:focus { outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-light); }
   .dc-input.saved { border-color:#16A34A; }
@@ -599,12 +600,13 @@
             <tr>
               <th>지점</th>
               <th>건물명</th>
-              <th class="num">매출 (건물주 청구)</th>
-              <th class="num">직수행 견적</th>
-              <th class="num">실제 수행비</th>
-              <th class="num">영업이익</th>
-              <th class="num">이익률</th>
-              <th class="num">견적 대비</th>
+              <th class="num">① 월 매출</th>
+              <th class="num">② 직수행 견적</th>
+              <th class="num">③ 실제 수행비</th>
+              <th class="num" title="① − ②">영업팀 이익<div class="th-sub">① − ②</div></th>
+              <th class="num" title="② − ③">미화팀 이익<div class="th-sub">② − ③</div></th>
+              <th class="num" title="① − ③">회사 전체 이익<div class="th-sub">① − ③</div></th>
+              <th class="num">전체 이익률</th>
             </tr>
           </thead>
           <tbody id="dcTable"></tbody>
@@ -613,8 +615,8 @@
       </div>
     </div>
     <div style="font-size:12px;color:var(--gray-400);margin-top:10px;line-height:1.7;">
-      · 영업이익 = 매출 − 실제 수행비 · 견적 대비 = 직수행 견적 − 실제 수행비 (＋면 견적보다 적게 씀, −면 초과)<br>
-      · 합계와 이익률은 실제 수행비를 입력한 건물만 계산해요 · 매출·견적은 건물 탭의 수정 화면에서 바꿀 수 있어요
+      · 영업팀 이익 = 월 매출 − 직수행 견적 (영업이익 탭과 같은 금액) · 미화팀 이익 = 직수행 견적 − 실제 수행비 · 회사 전체 이익 = 월 매출 − 실제 수행비 (= 영업팀 이익 + 미화팀 이익)<br>
+      · 미화팀 이익·회사 전체 이익의 합계는 실제 수행비를 입력한 건물만 계산해요 · 매출·견적은 건물 탭의 수정 화면에서 바꿀 수 있어요
     </div>
   </div>
 
@@ -2437,33 +2439,40 @@ function renderDirect(force) {
   const br = document.getElementById('dcBranch').value;
   const list = DB.buildings.filter(b => b.exec_type === '직수행' && (br === 'all' || b.branch === br))
     .sort((a, b) => (a.branch || '').localeCompare(b.branch || '', 'ko') || a.name.localeCompare(b.name, 'ko'));
+  // ① 월 매출  ② 직수행 견적  ③ 실제 수행비
   const rows = list.map(b => {
     const rec = directCostRec(b.id, month);
     const revenue = b.contract_amount || 0;
-    const quote = b.direct_quote;
+    const quote = b.direct_quote == null ? null : Number(b.direct_quote);
     const actual = rec ? rec.amount : null;
-    const profit = actual === null ? null : revenue - actual;
-    const margin = profit === null || !revenue ? null : profit / revenue * 100;
-    const diff = actual === null || quote == null ? null : quote - actual;
-    return { b, revenue, quote, actual, profit, margin, diff };
+    const salesProfit = quote === null ? null : revenue - quote;                    // ① − ②
+    const teamProfit = quote === null || actual === null ? null : quote - actual;   // ② − ③
+    const totalProfit = actual === null ? null : revenue - actual;                  // ① − ③
+    const margin = totalProfit === null || !revenue ? null : totalProfit / revenue * 100;
+    return { b, revenue, quote, actual, salesProfit, teamProfit, totalProfit, margin };
   });
   const entered = rows.filter(r => r.actual !== null);
   const sum = (arr, f) => arr.reduce((s, r) => s + (r[f] || 0), 0);
+  const has = (arr, f) => arr.filter(r => r[f] !== null);
   const tRev = sum(rows, 'revenue'), tQuote = sum(rows, 'quote');
-  const eRev = sum(entered, 'revenue'), eAct = sum(entered, 'actual'), eProfit = eRev - eAct;
-  const eMargin = eRev ? eProfit / eRev * 100 : null;
-  const eDiffRows = entered.filter(r => r.diff !== null);
-  const eDiff = sum(eDiffRows, 'diff');
-  const ms = marginStatus(eMargin);
+  const tSales = sum(has(rows, 'salesProfit'), 'salesProfit');
+  const eAct = sum(entered, 'actual');
+  const teamRows = has(rows, 'teamProfit'), tTeam = sum(teamRows, 'teamProfit');
+  const eRev = sum(entered, 'revenue'), tTotal = eRev - eAct;
+  const tMargin = eRev ? tTotal / eRev * 100 : null;
+  const ms = marginStatus(tMargin);
   const signWon = v => (v > 0 ? '+' : v < 0 ? '-' : '') + fmtWon(Math.abs(v));
+  const col = v => v === null ? '' : v < 0 ? 'summary-negative' : 'summary-positive';
+  const kcol = v => v < 0 ? '#DC2626' : '#16A34A';
   document.getElementById('dcCards').innerHTML = `
-    <div class="card"><div class="card-label">직수행 건물</div><div class="card-value blue">${rows.length}</div><div class="card-sub">실제 수행비 입력 ${entered.length} / ${rows.length}</div></div>
-    <div class="card"><div class="card-label">월 매출</div><div class="card-value">${fmtWon(tRev)}</div><div class="card-sub">직수행 견적 합계 ${fmtWon(tQuote)}</div></div>
-    <div class="card"><div class="card-label">월 실제 수행비</div><div class="card-value">${fmtWon(eAct)}</div><div class="card-sub">입력한 ${entered.length}개 건물</div></div>
-    <div class="card"><div class="card-label">월 영업이익</div><div class="card-value" style="color:${eProfit < 0 ? '#DC2626' : '#16A34A'};">${entered.length ? fmtWon(eProfit) : '-'}</div><div class="card-sub">이익률 <strong style="color:${ms.color};">${eMargin === null ? '-' : eMargin.toFixed(1) + '%'}</strong></div></div>
-    <div class="card"><div class="card-label">견적 대비</div><div class="card-value" style="color:${eDiff < 0 ? '#DC2626' : '#16A34A'};">${eDiffRows.length ? signWon(eDiff) : '-'}</div><div class="card-sub">견적보다 ${eDiff < 0 ? '초과' : '절감'} (${eDiffRows.length}개 건물)</div></div>`;
+    <div class="card"><div class="card-label">① 월 매출</div><div class="card-value">${fmtWon(tRev)}</div><div class="card-sub">직수행 ${rows.length}개 건물</div></div>
+    <div class="card"><div class="card-label">② 직수행 견적</div><div class="card-value">${fmtWon(tQuote)}</div><div class="card-sub">견적 입력 ${has(rows, 'quote').length} / ${rows.length}</div></div>
+    <div class="card"><div class="card-label">③ 실제 수행비</div><div class="card-value">${fmtWon(eAct)}</div><div class="card-sub">입력 ${entered.length} / ${rows.length}</div></div>
+    <div class="card"><div class="card-label">영업팀 이익 <span class="th-sub" style="display:inline;">① − ②</span></div><div class="card-value" style="color:${kcol(tSales)};">${fmtWon(tSales)}</div><div class="card-sub">영업이익 탭과 같은 금액</div></div>
+    <div class="card"><div class="card-label">미화팀 이익 <span class="th-sub" style="display:inline;">② − ③</span></div><div class="card-value" style="color:${kcol(tTeam)};">${teamRows.length ? signWon(tTeam) : '-'}</div><div class="card-sub">견적보다 ${tTeam < 0 ? '초과' : '절감'} (${teamRows.length}개 건물)</div></div>
+    <div class="card"><div class="card-label">회사 전체 이익 <span class="th-sub" style="display:inline;">① − ③</span></div><div class="card-value" style="color:${kcol(tTotal)};">${entered.length ? fmtWon(tTotal) : '-'}</div><div class="card-sub">이익률 <strong style="color:${ms.color};">${tMargin === null ? '-' : tMargin.toFixed(1) + '%'}</strong></div></div>`;
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">🧽</div><p>직수행 건물이 없어요. 건물 탭 → 수정에서 수행방식을 \'직수행\'으로 지정해주세요.</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-icon">🧽</div><p>직수행 건물이 없어요. 건물 탭 → 수정에서 수행방식을 \'직수행\'으로 지정해주세요.</p></div></td></tr>';
     document.getElementById('dcFoot').innerHTML = '';
     return;
   }
@@ -2474,20 +2483,22 @@ function renderDirect(force) {
       <td><span class="badge ${r.b.branch === '강남' ? 'badge-blue' : 'badge-green'}">${r.b.branch || '-'}</span></td>
       <td><strong style="cursor:pointer;" onclick="openBuildingModal('${r.b.id}')">${r.b.name}</strong></td>
       <td class="num">${fmtWon(r.revenue)}</td>
-      <td class="num">${r.quote == null ? '<span class="pf-missing">미입력</span>' : fmtWon(r.quote)}</td>
+      <td class="num">${r.quote === null ? '<span class="pf-missing">미입력</span>' : fmtWon(r.quote)}</td>
       <td class="num"><input class="dc-input ${r.actual === null ? 'empty' : ''}" type="number" min="0" placeholder="입력" value="${r.actual === null ? '' : r.actual}"
         data-b="${r.b.id}" onchange="saveDirectCost(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>
-      <td class="num ${r.profit === null ? '' : r.profit >= 0 ? 'summary-positive' : 'summary-negative'}">${r.profit === null ? dash : fmtWon(r.profit)}</td>
+      <td class="num ${col(r.salesProfit)}">${r.salesProfit === null ? dash : fmtWon(r.salesProfit)}</td>
+      <td class="num ${col(r.teamProfit)}">${r.teamProfit === null ? dash : signWon(r.teamProfit)}</td>
+      <td class="num ${col(r.totalProfit)}" style="font-weight:700;">${r.totalProfit === null ? dash : fmtWon(r.totalProfit)}</td>
       <td class="num" style="color:${st.color};font-weight:600;">${r.margin === null ? dash : r.margin.toFixed(1) + '%'}</td>
-      <td class="num" style="color:${r.diff === null ? '' : r.diff < 0 ? '#DC2626' : '#16A34A'};font-weight:600;">${r.diff === null ? dash : signWon(r.diff)}</td>
     </tr>`;
   }).join('');
   document.getElementById('dcFoot').innerHTML = `<tr>
     <td colspan="2">합계 (${rows.length}개 · 수행비 입력 ${entered.length}개)</td>
     <td class="num">${fmtWon(tRev)}</td><td class="num">${fmtWon(tQuote)}</td><td class="num">${fmtWon(eAct)}</td>
-    <td class="num ${eProfit >= 0 ? 'summary-positive' : 'summary-negative'}">${entered.length ? fmtWon(eProfit) : '-'}</td>
-    <td class="num" style="color:${ms.color};">${eMargin === null ? '-' : eMargin.toFixed(1) + '%'}</td>
-    <td class="num" style="color:${eDiff < 0 ? '#DC2626' : '#16A34A'};">${eDiffRows.length ? signWon(eDiff) : '-'}</td>
+    <td class="num ${col(tSales)}">${fmtWon(tSales)}</td>
+    <td class="num ${col(tTeam)}">${teamRows.length ? signWon(tTeam) : '-'}</td>
+    <td class="num ${col(tTotal)}">${entered.length ? fmtWon(tTotal) : '-'}</td>
+    <td class="num" style="color:${ms.color};">${tMargin === null ? '-' : tMargin.toFixed(1) + '%'}</td>
   </tr>`;
 }
 async function saveDirectCost(inp) {
